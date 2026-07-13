@@ -4,13 +4,13 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`, `Decision log`,
 and `Outcomes & retrospective` must be kept up to date as work proceeds.
 
-Status: DRAFT — implementation requires explicit user approval.
+Status: BLOCKED AT UPSTREAM CONTRACT GATE.
 
 ## Approval
 
-- Approver: Pending.
-- Approval date: Pending.
-- Exact `makefile-lossless = "=0.3.40"` exception: Pending explicit approval.
+- Approver: User.
+- Approval date: 2026-07-13.
+- Exact `makefile-lossless = "=0.3.40"` exception: Approved.
 
 When approval is granted, record the approver, date, exact-pin decision, and
 change `Status` to `APPROVED` before beginning Milestone 1. Silence or approval
@@ -163,14 +163,14 @@ stop and resolve the conflict before editing `Cargo.toml`.
   resolved every actionable concern from three CodeRabbit review rounds.
 - [ ] Obtain a clean CodeRabbit follow-up after the service rate limit resets;
   the post-fix attempt stopped before analysis and emitted no new findings.
-- [ ] Obtain explicit approval of this ExecPlan, including the exact parser pin
-  exception and the schema/path decisions.
-- [ ] Milestone 1: prove upstream contracts and freeze makeutil-owned domain and
-  schema-v1 boundaries with red tests.
-- [ ] Milestone 2: implement parser traversal, locations, and recovered output
-  against the fixture corpus.
-- [ ] Milestone 3: implement OrthoConfig CLI, source, JSON, and process adapters
-  with behavioural and end-to-end validation.
+- [x] (2026-07-13) Obtained explicit approval of this ExecPlan, including the
+  exact parser pin exception and schema/path decisions.
+- [x] (2026-07-13) Milestone 1: proved upstream contracts and froze the
+  makeutil-owned domain and schema-v1 boundaries with red tests.
+- [x] (2026-07-13) Milestone 2: implemented parser traversal, locations, and
+  recovered output against the fixture corpus.
+- [x] (2026-07-13) Milestone 3: implemented OrthoConfig CLI, source, JSON, and
+  process adapters with behavioural and end-to-end validation.
 - [ ] Milestone 4: synchronize documentation, run full acceptance, and gather
   external consumer evidence.
 
@@ -193,8 +193,22 @@ stop and resolve the conflict before editing `Cargo.toml`.
   `../../ortho-config/docs/users-guide.md`. Impact: it has been imported as
   `docs/ortho-config-users-guide.md` and is now a local implementation
   reference.
+- Observation: `makefile-lossless` 0.3.40 documents `!=` as an assignment
+  operator, but parses valid GNU Make `A != printf seven` as recovered rule
+  fragments with diagnostics and exposes no `VariableDefinition`. Evidence:
+  the focused `assignment_operators_remain_source_faithful::case_7` test and a
+  live CLI reproduction both produce zero variable facts; the scrutineer
+  independently reproduced the failure. Impact: this triggers the approved
+  upstream stop condition. The exact pin cannot satisfy the source-faithful
+  variable contract without an upstream fix, a separately approved narrow
+  fallback parser, or an explicit scope reduction.
 
 ## Decision log
+
+- Pending decision: resolve the `!=` parser gap before further implementation,
+  commits, or CodeRabbit review. The available choices are an upstream patch at
+  the exact pin, approval to change the dependency source/version, or an
+  explicit schema and behaviour limitation. Date/Author: 2026-07-13 / Codex.
 
 - Decision: apply hexagonal architecture only at meaningful volatility and
   side-effect boundaries. Rationale: domain facts, locations, ordering, and

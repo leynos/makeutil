@@ -1,6 +1,28 @@
 # Developer Guide
 
-This guide explains the contributor workflow for the generated makeutil project.
+This guide explains the contributor workflow and internal conventions for
+makeutil.
+
+The normative architecture is in [the design](design.md), with the accepted
+slice boundary in [ADR-0001](adrs/0001-single-file-gnu-make-parse.md) and paths
+described by [the repository layout](repository-layout.md).
+
+## Parser boundary
+
+`MakefileParser` is the only parser port. Its implementation returns ordered,
+makeutil-owned `SyntaxObservation` values; upstream CST nodes and errors must
+not cross the adapter boundary. `parse_source` owns UTF-8 validation, hashing,
+locations, global ordinals, and complete-versus-recovered classification.
+
+New syntax collection belongs in the existing parser adapter unless a distinct
+external capability requires another port. CLI path and stdin filename values
+must continue to use OrthoConfig's explicit `ArgMatches` extraction, without
+file or environment layers.
+
+Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and property
+tests exercise the domain, `rstest-bdd` scenarios exercise observable
+behaviour, black-box tests spawn the binary, and `insta` plus the JSON Schema
+freeze the integration contract.
 
 ## Local Workflow
 

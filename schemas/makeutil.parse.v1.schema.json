@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/leynos/makeutil/schemas/makeutil.parse.v1.schema.json",
+  "title": "makeutil parse report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool", "source", "parse", "rules", "variables", "includes"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "tool": { "$ref": "#/$defs/tool" },
+    "source": { "$ref": "#/$defs/source" },
+    "parse": { "$ref": "#/$defs/parse" },
+    "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+    "variables": { "type": "array", "items": { "$ref": "#/$defs/variable" } },
+    "includes": { "type": "array", "items": { "$ref": "#/$defs/include" } }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "parser", "parser_version"],
+      "properties": {
+        "name": { "const": "makeutil" },
+        "version": { "type": "string", "minLength": 1 },
+        "parser": { "const": "makefile-lossless" },
+        "parser_version": { "const": "0.3.40" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "byte_length"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "byte_length": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "parse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "diagnostics"],
+      "properties": {
+        "status": { "enum": ["complete", "recovered"] },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_byte", "end_byte", "start_line", "start_column", "end_line", "end_column"],
+      "properties": {
+        "start_byte": { "type": "integer", "minimum": 0 },
+        "end_byte": { "type": "integer", "minimum": 0 },
+        "start_line": { "type": "integer", "minimum": 1 },
+        "start_column": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 },
+        "end_column": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["message", "code", "location"],
+      "properties": {
+        "message": { "type": "string" },
+        "code": { "type": ["string", "null"] },
+        "location": { "$ref": "#/$defs/location" }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "expression", "branch", "location"],
+      "properties": {
+        "kind": { "enum": ["ifdef", "ifndef", "ifeq", "ifneq"] },
+        "expression": { "type": "string" },
+        "branch": { "enum": ["if", "else"] },
+        "location": { "$ref": "#/$defs/location" }
+      }
+    },
+    "recipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "text", "silent", "ignore_errors", "always_execute", "location"],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "text": { "type": "string" },
+        "silent": { "type": "boolean" },
+        "ignore_errors": { "type": "boolean" },
+        "always_execute": { "type": "boolean" },
+        "location": { "$ref": "#/$defs/location" }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "targets", "prerequisites", "double_colon", "conditions", "recipes", "location"],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "targets": { "type": "array", "items": { "type": "string" } },
+        "prerequisites": { "type": "array", "items": { "type": "string" } },
+        "double_colon": { "type": "boolean" },
+        "conditions": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "recipes": { "type": "array", "items": { "$ref": "#/$defs/recipe" } },
+        "location": { "$ref": "#/$defs/location" }
+      }
+    },
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "name", "operator", "raw_value", "exported", "overridden", "define_block", "conditions", "location"],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "name": { "type": "string" },
+        "operator": { "enum": ["", "=", ":=", "::=", ":::=", "+=", "?=", "!="] },
+        "raw_value": { "type": "string" },
+        "exported": { "type": "boolean" },
+        "overridden": { "type": "boolean" },
+        "define_block": { "type": "boolean" },
+        "conditions": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "location": { "$ref": "#/$defs/location" }
+      }
+    },
+    "include": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "raw_path", "optional", "dynamic", "conditions", "location"],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "raw_path": { "type": "string" },
+        "optional": { "type": "boolean" },
+        "dynamic": { "type": "boolean" },
+        "conditions": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "location": { "$ref": "#/$defs/location" }
+      }
+    }
+  }
+}

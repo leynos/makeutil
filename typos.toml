@@ -36,6 +36,7 @@ extend-ignore-re = [
 ]
 
 [default.extend-words]
+"ASO" = "ASO"
 "Flavored" = "Flavored"
 "absolutisable" = "absolutizable"
 "absolutisation" = "absolutization"

@@ -327,6 +327,23 @@ function marker. `makeutil` reports includes but never opens them.
 
 ## 7. Internal architecture
 
+The first slice is implemented by `domain`, `ports`, `application`, and
+`adapters` modules in one crate. This is a boundary protection measure, not a
+pattern transplant: `MakefileParser` is the sole port because the upstream CST
+is the sole volatile external semantic boundary. Source input, JSON, and CLI
+code remain ordinary edge adapters.
+
+The parser port is owned by the domain and called only by `parse_source`.
+Adapter implementations may compose upstream accessors and Rowan ranges, but
+must return only `SyntaxObservation` values. Those observations are not a
+second public schema and must not be consumed directly by the CLI. New callers
+compose through `parse_source`, which owns validation, hashing, locations,
+ordinals, and status.
+
+The direct `rowan` dependency exists only to bring its `AstNode` trait into the
+parser adapter for upstream syntax ranges. `data-encoding` owns lower-case
+digest rendering. Neither dependency expands the stable public contract.
+
 | Component      | Responsibility                                                                                 |
 | -------------- | ---------------------------------------------------------------------------------------------- |
 | CLI front end  | Parse the command and validate that exactly one source was supplied.                           |

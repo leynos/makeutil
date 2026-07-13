@@ -35,13 +35,20 @@ compact and omits build output such as `target/`.
 │   ├── terms-of-reference.md
 │   ├── users-guide.md
 │   └── ...
+├── schemas/
+│   └── makeutil.parse.v1.schema.json
 ├── src/
-
+│   ├── adapters/
+│   ├── domain/
+│   ├── application.rs
 │   ├── lib.rs
-│   └── main.rs
-
+│   ├── main.rs
+│   └── ports.rs
 ├── tests/
-│   └── stub.rs
+│   ├── features/
+│   ├── fixtures/
+│   ├── snapshots/
+│   └── *.rs
 ├── AGENTS.md
 ├── Cargo.toml
 ├── LICENSE
@@ -77,8 +84,8 @@ compact and omits build output such as `target/`.
   documentation files are added, renamed, or removed.
 - `docs/design.md`: Defines the living technical design, including the command
   contract, data model, architecture, and verification strategy.
-- `docs/users-guide.md`: Explains how to use the generated project and its
-  public build and test commands.
+- `docs/users-guide.md`: Explains `makeutil parse`, its JSON report, and exit
+  contract.
 - `docs/developers-guide.md`: Explains the contributor workflow and local
   tooling used to work on the generated project.
 - `docs/polonius.md`: Records the Polonius compiler contract, borrow-centric
@@ -90,15 +97,21 @@ compact and omits build output such as `target/`.
 - `docs/terms-of-reference.md`: Defines the problem space, stakeholders, scope,
   constraints, and success criteria that govern the design.
 
-- `src/lib.rs`: Contains library support for application logic and doctested
-  examples.
+- `schemas/`: Holds normative, versioned external JSON contracts.
+- `src/adapters/`: Implements CLI, source, and GNU Make parser edges.
+- `src/domain/`: Owns the stable report and source-location model.
+- `src/application.rs`: Validates source and assembles reports through the
+  parser port.
+- `src/ports.rs`: Owns the minimal parser boundary and syntax observations.
+- `src/lib.rs`: Exposes library application logic and doctested examples.
 - `src/main.rs`: Contains the application entrypoint and top-level executable
   wiring.
 
-- `tests/`: Holds integration and behavioural tests that exercise public
-  behaviour.
-- `tests/stub.rs`: Keeps the generated test directory valid until real tests
-  replace it.
+- `tests/`: Holds unit-style integration, behavioural, schema, snapshot, and
+  black-box process tests.
+- `tests/features/`: Holds Gherkin acceptance specifications.
+- `tests/fixtures/makefiles/`: Holds source-faithful parser inputs.
+- `tests/snapshots/`: Holds reviewed JSON snapshots.
 - `AGENTS.md`: Provides repository-specific working instructions for agents and
   contributors.
 - `Cargo.toml`: Defines package metadata, dependencies, lint policy, and Cargo
