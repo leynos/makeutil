@@ -77,13 +77,39 @@ pub struct ParseSummary {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ConditionContext {
     /// GNU Make conditional keyword.
-    pub kind: String,
+    pub kind: ConditionKind,
     /// Unexpanded condition expression.
     pub expression: String,
     /// Branch containing the fact.
     pub branch: ConditionBranch,
     /// Range of the opening or else directive.
     pub location: SourceLocation,
+}
+
+/// GNU Make conditional directive kind.
+///
+/// # Examples
+///
+/// ```
+/// use makeutil::domain::ConditionKind;
+///
+/// assert_eq!(
+///     serde_json::to_string(&ConditionKind::Ifndef)?,
+///     r#""ifndef""#
+/// );
+/// # Ok::<(), serde_json::Error>(())
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ConditionKind {
+    /// Variable is defined.
+    Ifdef,
+    /// Variable is not defined.
+    Ifndef,
+    /// Expressions are equal.
+    Ifeq,
+    /// Expressions are not equal.
+    Ifneq,
 }
 
 /// Branch of a conditional.

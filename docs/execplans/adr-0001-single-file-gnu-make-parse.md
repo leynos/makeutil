@@ -195,6 +195,14 @@ stop and resolve the conflict before editing `Cargo.toml`.
 - [x] (2026-07-13) Milestone 4: synchronized contracts, completed all acceptance
   exercises, and passed every deterministic gate under independent scrutineer
   validation.
+- [x] (2026-07-14) Reviewed the terminal diff and applied valid fixes for
+  trailing variable whitespace, recipe-modifier ordering, closed conditional
+  kinds, focused CLI helpers, and documentation drift. The focused whitespace
+  and modifier-order tests supplied red evidence. The complete deterministic
+  gate set then passed, and the scrutineer independently confirmed 45 of 45
+  tests, two passing doctests with one intentionally ignored, and clean
+  formatting, Polonius type-checking, lint, documentation, diagram, and diff
+  checks.
 - [ ] Obtain CodeRabbit certification of the exact terminal diff through the
   pull request. The user approved deferral from the unavailable CLI review
   during CodeRabbit's temporary outage.
@@ -243,6 +251,19 @@ stop and resolve the conflict before editing `Cargo.toml`.
   run failed with a clear `check` versus `all` diff; changing only the consumer
   expectation made the focused test and Clippy pass. Impact: this supplies
   honest red/green evidence without changing production behaviour.
+- Observation: focused review tests showed that trimming a variable value lost
+  source-faithful trailing whitespace and that upstream recipe accessors did
+  not recognize every ordering of leading `@`, `-`, and `+` modifiers. Evidence:
+  `variable_values_preserve_trailing_whitespace` and
+  `recipe_modifier_order_is_semantic` failed before their narrow adapter fixes.
+  Impact: raw values now remain untrimmed, and one adapter-private scanner
+  derives all three recipe flags without widening the parser port.
+- Observation: a review finding claimed the file reader did not use a
+  capability-oriented boundary, but `read_path` already used
+  `cap_std::fs_utf8::File::open_ambient` with explicit ambient authority.
+  Evidence: `src/adapters/source.rs` owns that call and maps its open and read
+  failures into `SourceReadError`. Impact: the finding was stale and required
+  no source-reader change.
 
 ## Decision log
 
@@ -314,6 +335,15 @@ stop and resolve the conflict before editing `Cargo.toml`.
   Rationale: the process can prevent serialization failures from writing JSON,
   but cannot retract accepted bytes after a broken pipe or partial write.
   Date/Author: 2026-07-13 / Logisphere-reviewed Codex planning team.
+- Decision: keep review-driven helpers at their narrowest validated ownership
+  boundary. `ConditionKind` is the closed domain/port representation consumed
+  by observations and reports; the makefile adapter alone owns the private
+  leading-recipe-modifier scanner; and CLI extraction, production, and emission
+  helpers remain private to the CLI adapter. Rationale: these boundaries remove
+  stringly typed drift and order-sensitive defects without creating reusable
+  ports for implementation details. Permitted call sites and reuse policy are
+  recorded in `docs/developers-guide.md`. Date/Author: 2026-07-14 / Wyvern
+  review team.
 
 ## Outcomes & retrospective
 
@@ -868,8 +898,9 @@ Decision log.
 
 ## Revision note
 
-Revised 2026-07-13 after Wyvern, Logisphere, and CodeRabbit review: freeze
-path, range, schema, parser-port, failure-output, CLI merge, security,
-performance, and dependency decisions; import and correct the OrthoConfig 0.8.0
-guide; and record deterministic and rate-limit evidence. No feature
-implementation has begun.
+Initially revised 2026-07-13 after Wyvern, Logisphere, and CodeRabbit review to
+freeze path, range, schema, parser-port, failure-output, CLI merge, security,
+performance, and dependency decisions and to import and correct the OrthoConfig
+0.8.0 guide. Implementation completed on 2026-07-13 with deterministic gates,
+manual acceptance, performance measurements, and external Concordat and
+include-boundary evidence recorded above. Pull request review remains pending.

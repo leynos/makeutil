@@ -11,7 +11,10 @@ use super::{
     MakefileLosslessParser,
     source::{read_path, read_stdin},
 };
-use crate::{domain::ParseStatus, parse_source};
+use crate::{
+    domain::{ParseReport, ParseStatus},
+    parse_source,
+};
 
 /// Root command line for `makeutil`.
 #[derive(Debug, Parser)]
@@ -111,27 +114,44 @@ fn run_parse(
             "parse subcommand matches were absent",
         );
     };
-    // This OrthoConfig extraction intentionally reads only explicit ArgMatches;
-    // path identity must never come from environment or configuration files.
-    let explicit = match parsed_arguments.extract_user_provided(parse_matches) {
-        Ok(value) => value,
-        Err(error) => return fatal(streams.stderr, "cli", &error.to_string()),
+    let explicit_arguments = match extract_explicit_arguments(parsed_arguments, parse_matches) {
+        Ok(arguments) => arguments,
+        Err(error) => return fatal(streams.stderr, "cli", &error),
     };
-    let explicit_arguments: ParseArgs = match serde_json::from_value(explicit) {
-        Ok(explicit_arguments) => explicit_arguments,
-        Err(error) => return fatal(streams.stderr, "cli", &error.to_string()),
-    };
-    let (bytes, logical_path) = match read_input(explicit_arguments, streams) {
-        Ok(input) => input,
+    let report = match produce_report(explicit_arguments, streams) {
+        Ok(report) => report,
         Err(outcome) => return outcome,
     };
-    let report = match parse_source(&bytes, &logical_path, &MakefileLosslessParser) {
-        Ok(report) => report,
+    emit_report(&report, streams)
+}
+
+fn extract_explicit_arguments(
+    parsed_arguments: &ParseArgs,
+    parse_matches: &clap::ArgMatches,
+) -> Result<ParseArgs, String> {
+    // This OrthoConfig extraction intentionally reads only explicit ArgMatches;
+    // path identity must never come from environment or configuration files.
+    let explicit = parsed_arguments
+        .extract_user_provided(parse_matches)
+        .map_err(|error| error.to_string())?;
+    serde_json::from_value(explicit).map_err(|error| error.to_string())
+}
+
+fn produce_report(
+    arguments: ParseArgs,
+    streams: &mut Streams<'_>,
+) -> Result<ParseReport, ProcessOutcome> {
+    let (bytes, logical_path) = read_input(arguments, streams)?;
+    match parse_source(&bytes, &logical_path, &MakefileLosslessParser) {
+        Ok(report) => Ok(report),
         Err(crate::ParseApplicationError::InvalidUtf8(error)) => {
-            return fatal(streams.stderr, "source-utf8", &error.to_string());
+            Err(fatal(streams.stderr, "source-utf8", &error.to_string()))
         }
-        Err(error) => return fatal(streams.stderr, "parse-internal", &error.to_string()),
-    };
+        Err(error) => Err(fatal(streams.stderr, "parse-internal", &error.to_string())),
+    }
+}
+
+fn emit_report(report: &ParseReport, streams: &mut Streams<'_>) -> ProcessOutcome {
     let mut document = match serde_json::to_vec(&report) {
         Ok(document) => document,
         Err(error) => return fatal(streams.stderr, "json-serialize", &error.to_string()),

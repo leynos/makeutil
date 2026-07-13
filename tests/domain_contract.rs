@@ -2,7 +2,7 @@
 
 use makeutil::{
     adapters::MakefileLosslessParser,
-    domain::{LocationIndex, ParseStatus, SourceSpan},
+    domain::{ConditionKind, LocationIndex, ParseStatus, SourceSpan},
     parse_source,
 };
 use pretty_assertions::assert_eq;
@@ -41,14 +41,39 @@ fn application_builds_ordered_facts() {
 
     assert_eq!(report.parse.status, ParseStatus::Complete);
     assert_eq!(report.variables.first().map(|fact| fact.ordinal), Some(0));
-    assert_eq!(report.includes.first().map(|fact| fact.ordinal), Some(1));
+    assert_eq!(report.variables.len(), 4);
+    assert_eq!(
+        report
+            .variables
+            .iter()
+            .find(|fact| fact.name == "RELEASE")
+            .map(|fact| fact.exported),
+        Some(true)
+    );
+    assert_eq!(
+        report
+            .variables
+            .iter()
+            .find(|fact| fact.name == "TOOL")
+            .map(|fact| fact.overridden),
+        Some(true)
+    );
+    assert_eq!(
+        report
+            .variables
+            .iter()
+            .find(|fact| fact.name == "SCRIPT")
+            .map(|fact| fact.define_block),
+        Some(true)
+    );
+    assert_eq!(report.includes.first().map(|fact| fact.ordinal), Some(4));
     assert_eq!(
         report
             .rules
             .iter()
             .map(|fact| fact.ordinal)
             .collect::<Vec<_>>(),
-        [2, 3]
+        [5, 6]
     );
     assert_eq!(
         report.rules.first().map(|fact| fact.double_colon),
@@ -101,6 +126,70 @@ fn assignment_operators_remain_source_faithful(
         .expect("one variable should be reported");
     assert_eq!(variable.operator, operator);
     assert_eq!(variable.raw_value, raw_value);
+}
+
+#[rstest]
+#[case("A = value  \n", "value  ")]
+#[case("A = value\t \n", "value\t ")]
+fn variable_values_preserve_trailing_whitespace(#[case] source: &str, #[case] raw_value: &str) {
+    let report = parse_source(source.as_bytes(), "Makefile", &MakefileLosslessParser)
+        .expect("assignment should parse");
+    let variable = report
+        .variables
+        .first()
+        .expect("one variable should be reported");
+    assert_eq!(variable.raw_value, raw_value);
+}
+
+#[rstest]
+#[case("@-+echo ok", true, true, true)]
+#[case("@+-echo ok", true, true, true)]
+#[case("-@+echo ok", true, true, true)]
+#[case("-+@echo ok", true, true, true)]
+#[case("+@-echo ok", true, true, true)]
+#[case("+-@echo ok", true, true, true)]
+#[case("echo + later", false, false, false)]
+fn recipe_modifier_order_is_semantic(
+    #[case] recipe: &str,
+    #[case] silent: bool,
+    #[case] ignore_errors: bool,
+    #[case] always_execute: bool,
+) {
+    let source = format!("all:\n\t{recipe}\n");
+    let report = parse_source(source.as_bytes(), "Makefile", &MakefileLosslessParser)
+        .expect("recipe should parse");
+    let parsed_recipe = report
+        .rules
+        .first()
+        .and_then(|rule| rule.recipes.first())
+        .expect("one recipe should be reported");
+    assert_eq!(parsed_recipe.silent, silent);
+    assert_eq!(parsed_recipe.ignore_errors, ignore_errors);
+    assert_eq!(parsed_recipe.always_execute, always_execute);
+}
+
+#[rstest]
+#[case("ifdef FLAG\nX = one\nendif\n", ConditionKind::Ifdef, "ifdef")]
+#[case("ifndef FLAG\nX = one\nendif\n", ConditionKind::Ifndef, "ifndef")]
+#[case("ifeq ($(A),yes)\nX = one\nendif\n", ConditionKind::Ifeq, "ifeq")]
+#[case("ifneq ($(A),yes)\nX = one\nendif\n", ConditionKind::Ifneq, "ifneq")]
+fn condition_kinds_use_the_closed_domain_type(
+    #[case] source: &str,
+    #[case] kind: ConditionKind,
+    #[case] serialized_kind: &str,
+) {
+    let report = parse_source(source.as_bytes(), "Makefile", &MakefileLosslessParser)
+        .expect("conditional should parse");
+    let condition = report
+        .variables
+        .first()
+        .and_then(|variable| variable.conditions.first())
+        .expect("one condition should be reported");
+    assert_eq!(condition.kind, kind);
+    assert_eq!(
+        serde_json::to_value(kind).expect("condition kind should serialize"),
+        serialized_kind
+    );
 }
 
 #[rstest]

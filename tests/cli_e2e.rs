@@ -3,12 +3,17 @@
 use std::io::Write as _;
 
 use assert_cmd::Command;
-use rstest::rstest;
+use rstest::{fixture, rstest};
+
+#[fixture]
+fn makeutil_command() -> Command {
+    let binary = assert_cmd::cargo::cargo_bin!("makeutil");
+    Command::new(binary)
+}
 
 #[rstest]
-fn complete_path_emits_one_json_document() {
-    let output = Command::cargo_bin("makeutil")
-        .expect("binary should build")
+fn complete_path_emits_one_json_document(mut makeutil_command: Command) {
+    let output = makeutil_command
         .args(["parse", "tests/fixtures/makefiles/all-facts.mk"])
         .output()
         .expect("binary should run");
@@ -27,9 +32,8 @@ fn complete_path_emits_one_json_document() {
 }
 
 #[rstest]
-fn recovered_path_exits_one_with_json() {
-    let output = Command::cargo_bin("makeutil")
-        .expect("binary should build")
+fn recovered_path_exits_one_with_json(mut makeutil_command: Command) {
+    let output = makeutil_command
         .args(["parse", "tests/fixtures/makefiles/recovered.mk"])
         .output()
         .expect("binary should run");
@@ -49,9 +53,8 @@ fn recovered_path_exits_one_with_json() {
 #[rstest]
 #[case(&["parse", "-"][..])]
 #[case(&["parse"][..])]
-fn invalid_invocation_exits_two(#[case] arguments: &[&str]) {
-    let output = Command::cargo_bin("makeutil")
-        .expect("binary should build")
+fn invalid_invocation_exits_two(mut makeutil_command: Command, #[case] arguments: &[&str]) {
+    let output = makeutil_command
         .args(arguments)
         .output()
         .expect("binary should run");
@@ -60,7 +63,7 @@ fn invalid_invocation_exits_two(#[case] arguments: &[&str]) {
 }
 
 #[rstest]
-fn hostile_source_is_inert() {
+fn hostile_source_is_inert(mut makeutil_command: Command) {
     let temporary = tempfile::tempdir().expect("temporary directory should exist");
     let sentinel = temporary.path().join("sentinel");
     let source = format!(
@@ -68,8 +71,7 @@ fn hostile_source_is_inert() {
         sentinel.display(),
         sentinel.display()
     );
-    let mut command = Command::cargo_bin("makeutil").expect("binary should build");
-    let output = command
+    let output = makeutil_command
         .args(["parse", "--stdin-filename", "Makefile", "-"])
         .write_stdin(source)
         .output()
@@ -79,7 +81,7 @@ fn hostile_source_is_inert() {
 }
 
 #[rstest]
-fn invalid_utf8_is_a_fatal_source_error() {
+fn invalid_utf8_is_a_fatal_source_error(mut makeutil_command: Command) {
     let mut source = tempfile::NamedTempFile::new().expect("temporary file should exist");
     source
         .write_all(&[0xff])
@@ -88,8 +90,7 @@ fn invalid_utf8_is_a_fatal_source_error() {
         .path()
         .to_str()
         .expect("temporary path should be UTF-8");
-    let output = Command::cargo_bin("makeutil")
-        .expect("binary should build")
+    let output = makeutil_command
         .args(["parse", path])
         .output()
         .expect("binary should run");

@@ -48,7 +48,8 @@ values from multiple sources. The core features are:
 
 The workspace bundles an executable Hello World example under
 `examples/hello_world`. It layers defaults, environment variables, and CLI
-flags via the derive macro; see its [README](../examples/hello_world/README.md)
+flags via the derive macro; see its
+[README](https://github.com/leynos/ortho-config/blob/main/examples/hello_world/README.md)
 for a step-by-step walkthrough and the `rstest-bdd` (Behaviour-Driven
 Development) scenarios that validate behaviour end-to-end.
 
@@ -1006,8 +1007,9 @@ subcommand execution. Each subcommand struct implements a trait defining the
 action to perform. An enum of subcommands is annotated with
 `#[clap_dispatch(fn run(...))]`, and the `load_and_merge_subcommand_for`
 function can be called on each variant before dispatching. See the
-`Subcommand Configuration` section of the `OrthoConfig` [README](../README.md)
-for a complete example.
+`Subcommand Configuration` section of the `OrthoConfig`
+[README](https://github.com/leynos/ortho-config/blob/main/README.md) for a
+complete example.
 
 ## Error handling
 

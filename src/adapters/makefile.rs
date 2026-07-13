@@ -4,7 +4,7 @@ use makefile_lossless::{Conditional, Makefile, MakefileItem, Parse, SyntaxKind};
 use rowan::ast::AstNode as _;
 
 use crate::{
-    domain::{ConditionBranch, SourceSpan},
+    domain::{ConditionBranch, ConditionKind, SourceSpan},
     ports::{
         ConditionObservation,
         MakefileParser,
@@ -47,11 +47,11 @@ fn collect_items(
                     .recipe_nodes()
                     .map(|recipe| {
                         let text = recipe.text();
+                        let modifiers = recipe_modifiers(&text);
                         Ok(RecipeObservation {
-                            silent: recipe.is_silent(),
-                            ignore_errors: recipe.is_ignore_errors(),
-                            always_execute: text.trim_start_matches(['@', '-']).starts_with('+')
-                                || text.starts_with('+'),
+                            silent: modifiers.silent,
+                            ignore_errors: modifiers.ignore_errors,
+                            always_execute: modifiers.always_execute,
                             text,
                             span: span(recipe.text_range(), source_length)?,
                         })
@@ -72,7 +72,7 @@ fn collect_items(
                         field: "variable-name",
                     })?,
                     operator: variable.assignment_operator().unwrap_or_default(),
-                    raw_value: variable.raw_value().unwrap_or_default().trim().to_owned(),
+                    raw_value: variable.raw_value().unwrap_or_default(),
                     exported: variable.is_export(),
                     overridden: variable.is_override(),
                     define_block: variable.is_define(),
@@ -112,15 +112,16 @@ fn collect_conditional(
         .ok_or(ParserPortError::MissingField {
             field: "conditional-opening",
         })?;
-    let kind = conditional
+    let raw_kind = conditional
         .conditional_type()
         .ok_or(ParserPortError::MissingField {
             field: "conditional-kind",
         })?;
+    let kind = condition_kind(&raw_kind)?;
     let expression = conditional.condition().unwrap_or_default();
     let mut if_conditions = outer.to_vec();
     if_conditions.push(ConditionObservation {
-        kind: kind.clone(),
+        kind,
         expression: expression.clone(),
         branch: ConditionBranch::If,
         span: span(opening.text_range(), source_length)?,
@@ -177,9 +178,42 @@ fn collect_else_branch(
 }
 
 struct ElseBranch {
-    kind: String,
+    kind: ConditionKind,
     expression: String,
     source_length: usize,
+}
+
+#[derive(Debug, Default)]
+struct RecipeModifiers {
+    silent: bool,
+    ignore_errors: bool,
+    always_execute: bool,
+}
+
+fn recipe_modifiers(text: &str) -> RecipeModifiers {
+    text.chars()
+        .take_while(|character| matches!(character, '@' | '-' | '+'))
+        .fold(RecipeModifiers::default(), |mut modifiers, character| {
+            match character {
+                '@' => modifiers.silent = true,
+                '-' => modifiers.ignore_errors = true,
+                '+' => modifiers.always_execute = true,
+                _ => {}
+            }
+            modifiers
+        })
+}
+
+fn condition_kind(kind: &str) -> Result<ConditionKind, ParserPortError> {
+    match kind {
+        "ifdef" => Ok(ConditionKind::Ifdef),
+        "ifndef" => Ok(ConditionKind::Ifndef),
+        "ifeq" => Ok(ConditionKind::Ifeq),
+        "ifneq" => Ok(ConditionKind::Ifneq),
+        _ => Err(ParserPortError::UnsupportedConditionKind {
+            kind: kind.to_owned(),
+        }),
+    }
 }
 
 fn collect_diagnostics(
@@ -226,4 +260,25 @@ fn span(
     source_length: usize,
 ) -> Result<SourceSpan, ParserPortError> {
     SourceSpan::new(range.start().into(), range.end().into(), source_length).map_err(Into::into)
+}
+
+#[cfg(test)]
+mod tests {
+    //! Adapter invariant tests for unsupported upstream syntax.
+
+    use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
+    use super::condition_kind;
+    use crate::ports::ParserPortError;
+
+    #[rstest]
+    fn unknown_condition_kind_is_rejected() {
+        assert_eq!(
+            condition_kind("ifunknown"),
+            Err(ParserPortError::UnsupportedConditionKind {
+                kind: "ifunknown".to_owned(),
+            })
+        );
+    }
 }

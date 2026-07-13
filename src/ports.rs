@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::domain::{ConditionBranch, LocationError, SourceSpan};
+use crate::domain::{ConditionBranch, ConditionKind, LocationError, SourceSpan};
 
 /// Parser output expressed only in makeutil-owned observations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,7 +15,7 @@ pub struct ParserOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConditionObservation {
     /// GNU Make conditional keyword.
-    pub kind: String,
+    pub kind: ConditionKind,
     /// Unexpanded expression.
     pub expression: String,
     /// Branch containing the fact.
@@ -112,6 +112,12 @@ pub enum ParserPortError {
     MissingField {
         /// Stable semantic field name.
         field: &'static str,
+    },
+    /// An upstream conditional keyword was outside the supported GNU Make set.
+    #[error("unsupported conditional kind {kind}")]
+    UnsupportedConditionKind {
+        /// Upstream keyword that could not be represented by the domain enum.
+        kind: String,
     },
 }
 

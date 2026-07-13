@@ -348,14 +348,14 @@ The direct `rowan` dependency exists only to bring its `AstNode` trait into the
 parser adapter for upstream syntax ranges. `data-encoding` owns lower-case
 digest rendering. Neither dependency expands the stable public contract.
 
-| Component      | Responsibility                                                                                 |
-| -------------- | ---------------------------------------------------------------------------------------------- |
-| CLI front end  | Parse the command and validate that exactly one source was supplied.                           |
-| Source reader  | Read one path or stdin into bytes without interpreting or normalizing it.                      |
-| Parser adapter | Invoke `makefile-lossless` and return ordered owned observations and diagnostics.              |
-| Fact collector | Flatten observations, attach conditions and locations, assign ordinals, and calculate SHA-256. |
-| Location index | Convert byte offsets into one-based line and byte-column positions.                            |
-| JSON reporter  | Serialize schema version 1 deterministically to standard output.                               |
+| Component      | Responsibility                                                                    |
+| -------------- | --------------------------------------------------------------------------------- |
+| CLI front end  | Parse the command and validate that exactly one source was supplied.              |
+| Source reader  | Read one path or stdin into bytes without interpreting or normalizing it.         |
+| Parser adapter | Invoke `makefile-lossless` and return ordered owned observations and diagnostics. |
+| Fact collector | Flatten observations, attach conditions and locations, and assign ordinals.       |
+| Location index | Convert byte offsets into one-based line and byte-column positions.               |
+| JSON reporter  | Serialize schema version 1 deterministically to standard output.                  |
 
 The package may expose a Rust library internally for unit tests, but only the
 CLI and JSON schema form a supported integration contract in the first release.
@@ -367,6 +367,9 @@ returns ordered makeutil-owned syntax observations, source spans, and
 diagnostics. The `makefile-lossless` adapter implements the port and proves its
 own complete-tree round trip; it never returns Rowan nodes, upstream errors, or
 rendered CST bytes through the port.
+
+The application service calculates SHA-256 over the exact input bytes while
+`parse_source` constructs `SourceIdentity`.
 
 The composition root parses the CLI, invokes the source reader, calls the
 application service, and hands the completed report to the JSON reporter. Edge
@@ -436,16 +439,17 @@ for this failure class.
 Fatal stderr diagnostics have one stable first line:
 
 ```plaintext
-makeutil[<operation-id>]: <summary>: <quoted logical path when applicable>
+makeutil: <operation-id>: <detail>
 ```
 
 Operation identifiers distinguish `cli`, `source-open`, `source-read`,
 `source-utf8`, `parse-internal`, `json-serialize`, and `stdout-write`. Normal
-success and recovered parsing emit no stderr. Backtraces and cause chains are
-not printed by default. The binary may install one tracing subscriber, but it
-must never write tracing events to stdout; the library installs no subscriber.
-Source contents and unbounded raw paths are not tracing fields. This one-shot
-CLI emits no metrics in the first slice.
+success and recovered parsing emit no stderr. The detail includes the logical
+path for `source-open` and `source-read` failures. Backtraces and cause chains
+are not printed by default. The binary may install one tracing subscriber, but
+it must never write tracing events to stdout; the library installs no
+subscriber. Source contents and unbounded raw paths are not tracing fields.
+This one-shot CLI emits no metrics in the first slice.
 
 ## 11. Verification strategy
 

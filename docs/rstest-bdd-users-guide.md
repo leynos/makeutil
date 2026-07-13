@@ -1018,10 +1018,8 @@ types such as `HarnessAdapter` or `ScenarioRunRequest`.
 
 `TokioHarness` can then be used directly in scenarios. For this first-party
 adapter, the macro infers `TokioAttributePolicy` from the canonical harness
-path when `attributes = ...` is omitted:
+path when `attributes = ...` is omitted.
 
-```rust,no_run
-# use rstest_bdd_macros::scenario;
 ### Using the GPUI harness
 
 The `rstest-bdd-harness-gpui` crate provides Graphical Processing User
@@ -1029,7 +1027,8 @@ Interface (GPUI) integration for harness delegation and test attributes. Add it
 as a dev-dependency:
 
 ```toml
-[dev-dependencies] rstest-bdd-harness-gpui = "0.6.0-beta3"
+[dev-dependencies]
+rstest-bdd-harness-gpui = "0.6.0-beta3"
 ```
 
 A direct `rstest-bdd-harness` dependency is not required when using
@@ -1039,10 +1038,8 @@ types such as `HarnessAdapter` or `ScenarioRunRequest`.
 
 `GpuiHarness` can then be used directly in scenarios. For this first-party
 adapter, the macro infers `GpuiAttributePolicy` from the canonical harness path
-when `attributes = ...` is omitted:
+when `attributes = ...` is omitted.
 
-```rust,no_run
-# use rstest_bdd_macros::scenario;
 #### GPUI panic diagnostics carry scenario context
 
 When a step running under `GpuiHarness` panics, the harness prepends the
@@ -2296,26 +2293,7 @@ fn collect_active(rows: Rows<UserRow>) -> Result<Vec<String>, DataTableError> {
 
 `Rows<T>` propagates [`DataTableError`] variants unchanged, making it easy to
 surface context when something goes wrong. Matching on the error value enables
-inspection of the row and column that triggered the failure:
-
-```rust,no_run
-# use rstest_bdd::datatable::{DataTableError, Rows};
-# use rstest_bdd_macros::DataTableRow;
-#
-# #[derive(Debug, PartialEq, Eq, DataTableRow)]
-# struct UserRow {
-#     name: String,
-#     #[datatable(truthy)]
-#     active: bool,
-# }
-```
-
-The selection function preserves the caller-supplied order, so applications can
-pass a list of preferred locales. The helper resolves to the best available
-translation and continues to fall back to English when a requested locale is
-not shipped with the crate. Procedural macro diagnostics remain in English so
-compile-time output stays deterministic regardless of the host machine’s
-language settings.
+inspection of the row and column that triggered the failure.
 
 ## Limitations and roadmap
 

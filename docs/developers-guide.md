@@ -19,6 +19,24 @@ external capability requires another port. CLI path and stdin filename values
 must continue to use OrthoConfig's explicit `ArgMatches` extraction, without
 file or environment layers.
 
+`ConditionKind` is the shared, closed domain and parser-port representation for
+`ifdef`, `ifndef`, `ifeq`, and `ifneq`. The parser adapter is its only producer;
+`SyntaxObservation` and report types are its permitted consumers. Extend the
+enum only when the supported GNU Make contract adds another directive, and do
+not pass upstream strings beyond the adapter.
+
+The makefile adapter privately scans leading recipe modifiers. This scanner
+exists because the upstream API has no always-execute accessor and its silent
+and ignore-error accessors are sensitive to modifier order. It may be called
+only while translating an upstream recipe into a `RecipeObservation`; it is not
+a general Make lexer, domain helper, or reusable port.
+
+The CLI adapter's private extraction, report-production, and report-emission
+helpers divide its orchestration into focused steps. They may be called only by
+the CLI adapter and must remain ordinary private functions. Promote one to a
+port only if a distinct external capability needs the same contract, not merely
+to share implementation detail or simplify a test.
+
 The exact 0.3.40 parser requirement is temporarily patched to immutable fork
 commit `8dd35801b75b332c2ac2f995ae398ef8238559fa`, which adds `!=` lexer
 support. Keep the commit pin reproducible. When upgrading to an upstream
