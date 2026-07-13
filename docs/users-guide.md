@@ -10,6 +10,11 @@ settings, and documented starter code. Library projects render `src/lib.rs`.
 Application projects render `src/main.rs`, `src/lib.rs`, release automation, and
 `[package.metadata.binstall]` metadata for binary installation.
 
+The pinned nightly runs the Polonius borrow-checking analysis through the
+checked-in Cargo configuration. Use plain `cargo` or the documented Makefile
+targets from the repository so the pinned compiler and required flags are
+selected together.
+
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
 link quickly. Coverage generation uses `lld` instead because LLVM coverage

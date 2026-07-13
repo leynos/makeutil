@@ -10,7 +10,7 @@ USER_BIN_PATH := $(HOME)/.cargo/bin:$(HOME)/.local/bin:$(HOME)/.bun/bin
 CARGO ?= cargo
 BUILD_JOBS ?=
 RUST_FLAGS ?=
-RUST_FLAGS := -D warnings $(RUST_FLAGS)
+RUST_FLAGS := -Zpolonius=next -D warnings $(RUST_FLAGS)
 RUSTDOC_FLAGS ?=
 RUSTDOC_FLAGS := -D warnings $(RUSTDOC_FLAGS)
 CARGO_FLAGS ?= --all-targets --all-features

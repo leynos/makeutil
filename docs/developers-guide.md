@@ -23,6 +23,14 @@ Development builds use Cranelift for debug code generation. On Linux targets,
 quickly. Coverage generation uses `lld` because LLVM coverage tooling expects
 LLVM-compatible linker behaviour.
 
+The project compiles with the Polonius borrow-checking analysis on the pinned
+nightly toolchain. `.cargo/config.toml` supplies `-Zpolonius=next` to Cargo and
+rust-analyzer; Makefile and coverage commands that override `RUSTFLAGS` include
+the flag explicitly. Use the pinned toolchain through plain `cargo` commands,
+not an unpinned `cargo +nightly`, because the development profile also requires
+the pinned Cranelift component. See [Polonius migration](polonius.md) before
+introducing borrow-checker workarounds.
+
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
 

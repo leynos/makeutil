@@ -24,6 +24,7 @@ compact and omits build output such as `target/`.
 ├── docs/
 │   ├── contents.md
 │   ├── developers-guide.md
+│   ├── polonius.md
 │   ├── repository-layout.md
 │   ├── users-guide.md
 │   └── ...
@@ -65,6 +66,8 @@ compact and omits build output such as `target/`.
   public build and test commands.
 - `docs/developers-guide.md`: Explains the contributor workflow and local
   tooling used to work on the generated project.
+- `docs/polonius.md`: Records the Polonius compiler contract, borrow-centric
+  design rules, and audited migration sites.
 - `docs/repository-layout.md`: Documents the repository tree and path
   responsibilities.
 

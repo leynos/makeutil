@@ -11,6 +11,8 @@ set.
   implementation tooling for contributors.
 - [Repository layout](repository-layout.md) explains the generated project's
   top-level files, directories, and ownership boundaries.
+- [Polonius migration](polonius.md) records the compiler requirement,
+  borrow-centric design rules, and audit inventory.
 - [Documentation style guide](documentation-style-guide.md) defines the
   spelling, structure, Markdown, Architecture Decision Record (ADR), Request
   for Comments (RFC), and roadmap conventions used by this documentation set.

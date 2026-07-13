@@ -133,9 +133,9 @@ This repository is written in Rust and uses Cargo for building and dependency
 management. Contributors should follow these best practices when working on the
 project:
 
-- Run `make check-fmt`, `make lint`, and `make test` before committing. These
-  targets wrap the following commands, so contributors understand the exact
-  behaviour and policy enforced:
+- Run `make check-fmt`, `make lint`, `make typecheck`, and `make test` before
+  committing. These targets wrap the following commands, so contributors
+  understand the exact behaviour and policy enforced:
   - `make check-fmt` executes:
 
     ```sh
@@ -151,6 +151,14 @@ project:
 
     linting every target with all features enabled and denying all Clippy
     warnings.
+  - `make typecheck` executes:
+
+    ```sh
+    cargo check --workspace --all-targets --all-features -- -D warnings
+    ```
+
+    type-checking every target with all features enabled while treating
+    warnings as errors.
   - `make test` executes:
 
     ```sh
@@ -167,19 +175,18 @@ project:
   adhering to separation of concerns and CQRS.
 - Where a function has too many parameters, group related parameters in
   meaningfully named structs.
-- Where a function is returning a large error, consider using `Arc` to reduce
-  the amount of data returned.
+- Keep returned error types semantically focused and small. If a necessary
+  payload makes an error variant large, place that payload behind `Box`; use
+  `Arc` only when shared ownership or cheap cloning is required.
 - Ensure that new features are validated with unit tests using `rstest` and
   behavioural tests using `rstest-bdd` where applicable. Cover happy paths,
   unhappy paths, and relevant edge cases.
-- Add snapshot tests using `insta` where multivariant output format consistency
-  is relevant to the requirements. Snapshots must capture meaningful,
-  reviewer-useful contracts rather than generic dumps of broad objects. Keep
-  snapshots focused on stable output boundaries, pair them with semantic
-  assertions for business rules and schema contracts, and normalize
-  nondeterministic fields before snapshotting. Do not accept brittle snapshots
-  that churn after unrelated changes; update snapshots only after confirming a
-  snapshot failure identifies a real contract change.
+- Add snapshot tests using `insta` where structured output, user-interface
+  output, diagnostics, or other multivariant output formats need meaningful,
+  stable assertions.
+- Add compile-time behaviour tests using `trybuild` where macro expansion,
+  trait bounds, feature-gated APIs, or other compile-fail and compile-pass
+  contracts are relevant to the requirements.
 - Add end-to-end tests where a change affects externally observable workflows,
   integration contracts, persistence, command-line behaviour, network
   boundaries, UI flows, or other system-level behaviour.
@@ -246,9 +253,14 @@ project:
 - Prefer `mockall` for ad hoc mocks/stubs.
 - For testing of functionality depending upon environment variables, dependency
   injection and the `mockable` crate are the preferred option.
-- If mockable cannot be used, env mutations in tests MUST be wrapped in shared
-  guards and mutexes placed in a shared `test_utils` or `test_helpers` crate.
-  Direct environment mutation is FORBIDDEN in tests.
+- Tests MUST NOT mutate the environment of a shared test process. Prefer
+  injecting configuration, `mockable` or setting variables on a child process
+  with `Command::env`.
+- If in-process mutation is unavoidable, the test MUST run under an explicitly
+  required process-per-test harness, perform the mutation before starting any
+  additional threads, and document the relevant safety assumptions. A mutex or
+  `--test-threads=1` may prevent cooperating tests from interfering, but
+  neither generally makes environment mutation safe on Unix.
 
 ### Dependency management
 
@@ -283,6 +295,9 @@ project:
   outside `#[cfg(test)]` or `#[test]`; avoid `expect` in such fixtures.
 - Use `anyhow`/`eyre` with `.context(...)` to **preserve backtraces** and
   provide clear, typed failure paths.
+- Include stable operation identifiers in error context at boundaries where
+  failures are retried, correlated across spans, or mapped into user-facing
+  diagnostics.
 - Update helpers (e.g., `set_dir`) to **return errors** rather than panicking.
 - Consume fallible fixtures in `rstest` by **making the test return `Result`**
   and applying `?` to the fixture.
@@ -298,10 +313,14 @@ project:
   command execution, retries, background jobs, and other meaningful units of
   work. Do not hold `Span::enter()` guards across `.await`; use
   `Instrument::instrument` or scoped synchronous spans instead.
+- Add structured spans or events at key decision points so behaviour can be
+  explained from telemetry without parsing prose messages.
 - Use the `metrics` crate for metric emission where usage, uptake, failure,
   or mitigation metrics are required. Prefer `counter!` for cumulative events,
   `gauge!` for values that rise and fall, and `histogram!` for distributions
   such as latency or payload size.
+- Emit depth, duration, and failure metrics for operations where those values
+  reveal queueing, recursion, retry, traversal, or workflow health.
 - Describe emitted metrics with `describe_counter!`, `describe_gauge!`, or
   `describe_histogram!` where the unit or purpose is not obvious from the
   metric name. Keep metric names stable and labels low-cardinality; do not put
@@ -311,12 +330,30 @@ project:
   install global recorders or subscribers. Applications should initialize
   exporters/subscribers once, as early as practical in startup.
 
+## Borrow checking
+
+This repository compiles under Polonius (`-Zpolonius=next`). Consequences:
+
+- Code tagged `POLONIUS(...)` uses forms that NLL rejects. They are correct
+  here. Never rewrite them into double lookups, `entry()` with cloned keys,
+  index-returning helpers, or precomputed error context.
+- When writing new code, prefer the direct forms in `docs/polonius.md` over
+  defensive workarounds. Do not add clones whose only purpose is to end a
+  borrow without first checking whether the direct form compiles.
+- When designing new internal APIs, default to borrow-centric signatures:
+  lookups and get-or-create accessors return references; ids are reserved for
+  persisted or cross-boundary identity; error context is built lazily in the
+  failure arm. See `docs/polonius.md` for the target shapes and the constraints
+  where owned values remain correct.
+- Polonius does not permit simultaneous borrows or loop-carried conditional
+  reborrows. Do not remove clones or restructures tagged
+  `POLONIUS-REFUSED(...)`.
+- Verify borrow-sensitive changes with the pinned nightly via
+  `RUSTFLAGS="-Zpolonius=next" cargo check`, not stable `cargo check`.
+
 ## Markdown guidance
 
-- Validate Markdown files using `make markdownlint`. This target also runs the
-  pinned `typos` spelling gate with en-GB-oxendict policy.
-- The tracked `typos.toml` is generated. Add narrow repository exceptions to
-  `typos.local.toml`, then run `uv run scripts/generate_typos_config.py`.
+- Validate Markdown files using `make markdownlint`.
 - Run `make fmt` after any documentation changes to format all Markdown
   files and fix table markup.
 - Validate Mermaid diagrams in Markdown files by running `make nixie`.
