@@ -1,7 +1,25 @@
 //! JSON Schema and snapshot tests for the stable report contract.
 
 use makeutil::{adapters::MakefileLosslessParser, parse_source};
+use pretty_assertions::assert_eq;
 use rstest::rstest;
+
+#[derive(Debug, serde::Deserialize)]
+struct ConsumerReport {
+    schema_version: u64,
+    parse: ConsumerParse,
+    rules: Vec<ConsumerRule>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct ConsumerParse {
+    status: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct ConsumerRule {
+    targets: Vec<String>,
+}
 
 fn schema() -> Result<serde_json::Value, serde_json::Error> {
     serde_json::from_str(include_str!("../schemas/makeutil.parse.v1.schema.json"))
@@ -33,6 +51,29 @@ fn malformed_near_miss_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         Ok(())
     }
+}
+
+#[rstest]
+fn independent_consumer_deserializes_schema_v1() -> Result<(), Box<dyn std::error::Error>> {
+    let report = parse_source(
+        include_bytes!("fixtures/makefiles/all-facts.mk"),
+        "Makefile",
+        &MakefileLosslessParser,
+    )?;
+    let document = serde_json::to_vec(&report)?;
+    let consumer: ConsumerReport = serde_json::from_slice(&document)?;
+
+    assert_eq!(consumer.schema_version, 1);
+    assert_eq!(consumer.parse.status, "complete");
+    assert_eq!(
+        consumer
+            .rules
+            .first()
+            .and_then(|rule| rule.targets.first())
+            .map(String::as_str),
+        Some("check")
+    );
+    Ok(())
 }
 
 #[rstest]

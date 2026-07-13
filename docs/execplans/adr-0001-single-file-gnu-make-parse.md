@@ -4,7 +4,7 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`, `Decision log`,
 and `Outcomes & retrospective` must be kept up to date as work proceeds.
 
-Status: APPROVED / IN PROGRESS.
+Status: IMPLEMENTATION COMPLETE / AWAITING PR REVIEW.
 
 ## Approval
 
@@ -140,8 +140,9 @@ stop and resolve the conflict before editing `Cargo.toml`.
 - Risk: the Concordat integration criterion is outside this repository.
   Severity: medium. Likelihood: high. Mitigation: provide a consumer-shaped
   deserialization fixture and record the external Concordat trial as evidence
-  required before ADR status moves from Proposed to Accepted; do not fabricate
-  cross-repository proof.
+  required before implementation is declared complete; do not fabricate
+  cross-repository proof. Outcome: the trial passed in the available Concordat
+  checkout.
 - Risk: strict lints and code-size limits may encourage premature abstraction.
   Severity: medium. Likelihood: medium. Mitigation: keep modules cohesive,
   sweep for equivalent helpers before every extraction, and add a trait only at
@@ -161,8 +162,9 @@ stop and resolve the conflict before editing `Cargo.toml`.
   diagnostics, failure output, and observability before approval.
 - [x] (2026-07-13) Passed all planning milestone deterministic gates and
   resolved every actionable concern from three CodeRabbit review rounds.
-- [ ] Obtain a clean CodeRabbit follow-up after the service rate limit resets;
-  the post-fix attempt stopped before analysis and emitted no new findings.
+- [x] (2026-07-13) Obtained a clean CodeRabbit follow-up after the service rate
+  limit reset; the final pre-completion review examined 34 files and reported
+  zero findings.
 - [x] (2026-07-13) Obtained explicit approval of this ExecPlan, including the
   exact parser pin exception and schema/path decisions.
 - [x] (2026-07-13) Milestone 1: proved upstream contracts and froze the
@@ -178,8 +180,24 @@ stop and resolve the conflict before editing `Cargo.toml`.
 - [x] (2026-07-13) Passed the complete deterministic makeutil gate set after
   applying the patch; the scrutineer independently repeated every gate and
   CodeRabbit completed with zero findings across 34 reviewed files.
-- [ ] Milestone 4: synchronize documentation, run full acceptance, and gather
-  external consumer evidence.
+- [x] (2026-07-13) Added a consumer-owned schema-v1 deserialization test with
+  focused red/green and Clippy evidence.
+- [x] (2026-07-13) Completed the manual CLI acceptance exercise with path,
+  recovered, and stdin exit codes `0`, `1`, and `0` respectively.
+- [x] (2026-07-13) Measured exact-size 1, 5, and 10 MiB inputs and 256 nested
+  conditionals in release mode; every run remained inside the elapsed-time and
+  memory guardrails.
+- [x] (2026-07-13) Ran the release binary from the Concordat Python 3.13
+  environment, decoded schema v1 without a Rust binding, and found its required
+  `build`, `lint`, and `test` targets in a complete parse.
+- [x] (2026-07-13) Used `strace` to prove that existing literal and dynamic
+  include paths were reported but never opened.
+- [x] (2026-07-13) Milestone 4: synchronized contracts, completed all acceptance
+  exercises, and passed every deterministic gate under independent scrutineer
+  validation.
+- [ ] Obtain CodeRabbit certification of the exact terminal diff through the
+  pull request. The user approved deferral from the unavailable CLI review
+  during CodeRabbit's temporary outage.
 
 ## Surprises & discoveries
 
@@ -215,8 +233,33 @@ stop and resolve the conflict before editing `Cargo.toml`.
   changes that set and adds lexer and lossless AST regression tests. Impact:
   the existing adapter now reports shell assignments source-faithfully without
   a makeutil-specific parser fallback or vendored crate.
+- Observation: the manual acceptance command named `complete.mk`, but the
+  committed complete fixture is `all-facts.mk`. Evidence: the fixture corpus
+  contains `all-facts.mk` and `recovered.mk`; the corrected command produced a
+  complete schema-v1 report. Impact: the command below now uses the real
+  fixture path.
+- Observation: the consumer-shaped test initially expected an `all` target,
+  while the representative fixture defines `check`. Evidence: the focused red
+  run failed with a clear `check` versus `all` diff; changing only the consumer
+  expectation made the focused test and Clippy pass. Impact: this supplies
+  honest red/green evidence without changing production behaviour.
 
 ## Decision log
+
+- Decision: defer exact terminal-diff CodeRabbit certification to the pull
+  request after the CLI first rate-limited and then required unavailable
+  browser authentication during a temporary service outage. Rationale: the
+  exact diff passed every independent deterministic gate, the immediately
+  preceding review was clean, and the user explicitly approved waiting for PR
+  review rather than blocking the commit. Date/Author: 2026-07-13 / User and
+  Codex.
+
+- Decision: generate large performance fixtures ephemerally and check their
+  exact byte lengths with `stat` rather than commit 16 MiB of repetitive test
+  data. Rationale: fixed `all:` and newline framing around repeated `a` bytes
+  produces valid, deterministic rule fixtures while keeping the repository
+  small; the measured command fails before timing if any size differs. Date/
+  Author: 2026-07-13 / Codex.
 
 - Decision: patch crates.io resolution to immutable fork commit
   `8dd35801b75b332c2ac2f995ae398ef8238559fa` while retaining the approved exact
@@ -274,11 +317,16 @@ stop and resolve the conflict before editing `Cargo.toml`.
 
 ## Outcomes & retrospective
 
-Planning is complete when this draft has passed deterministic documentation
-gates, community-of-experts review, scrutineer CodeRabbit review, and is
-available in a draft pull request. Implementation remains intentionally
-unstarted until approval. During execution, update this section after every
-milestone with observed behaviour, remaining gaps, and lessons.
+The implementation now exposes the approved single-file parse contract through
+a capability-safe CLI and stable schema-v1 JSON. Unit, property, snapshot, BDD,
+and end-to-end tests cover complete, recovered, fatal, and inert-source paths.
+The forked parser fix restores source-faithful `!=` assignments without a
+makeutil-specific fallback. Manual CLI acceptance, release-mode guardrails, and
+the Concordat subprocess and include-boundary trials all pass. Independent
+scrutineer validation repeated every deterministic gate. The implementation of
+ADR-0001's single-file GNU Make parse slice is complete; exact terminal-diff
+CodeRabbit certification is deferred to the pull request because the CLI
+service became unavailable, as explicitly approved by the user.
 
 ## Context and orientation
 
@@ -556,7 +604,8 @@ ownership, port/adapter rules, helper reuse policy, fixtures, snapshots, exact
 parser upgrade gate, and the test-first workflow. Update
 `docs/repository-layout.md` for source modules, `schemas/`, features, fixtures,
 snapshots, and end-to-end tests. Reconcile ADR-0001 with the documentation
-style guide and only move its status after required external evidence exists.
+style guide and confirm that its Accepted status is supported by current
+external evidence.
 
 Add a consumer-shaped test that deserializes representative schema-v1 JSON
 without linking Rust implementation types. Record the command and result for an
@@ -637,24 +686,25 @@ The final manual acceptance exercise is:
 
 ```shell
 cargo build --bin makeutil
-target/debug/makeutil parse tests/fixtures/makefiles/complete.mk
+target/debug/makeutil parse tests/fixtures/makefiles/all-facts.mk
 target/debug/makeutil parse tests/fixtures/makefiles/recovered.mk
 printf 'all:\n\t@echo ok\n' | target/debug/makeutil parse --stdin-filename Makefile -
 ```
 
-The second and fourth commands must emit one compact schema-v1 JSON line and
-exit 0. The third command must emit recovered facts and diagnostics and exit 1.
-Capture exit codes explicitly during implementation rather than relying on a
-shell pipeline that hides them.
+The first parse command and the stdin pipeline must emit one compact schema-v1
+JSON line and exit 0. The recovered-fixture command must emit recovered facts
+and diagnostics and exit 1. Capture exit codes explicitly during implementation
+rather than relying on a shell pipeline that hides them.
 
-Generate deterministic 1 MiB, 5 MiB, and 10 MiB valid rule fixtures with a
-checked test helper, build release mode, warm each input once, then measure
-three runs with `/usr/bin/time -v`. Record median elapsed time and maximum
-resident set size in `Artefacts and notes`. Require the 10 MiB median to remain
-under two seconds and maximum resident set size under 256 MiB on Linux, and
-inspect the three sizes for super-linear growth. Exercise the generated
-256-level conditional fixture in three consecutive release-mode measurements
-with `/usr/bin/time -v`; require each Linux run to stay under 256 MiB maximum
+Generate deterministic 1 MiB, 5 MiB, and 10 MiB valid rule fixtures with the
+ephemeral generator recorded in the Decision log, assert their exact lengths
+before measuring, build release mode, warm each input once, then measure three
+runs with `/usr/bin/time -v`. Record median elapsed time and maximum resident
+set size in `Artefacts and notes`. Require the 10 MiB median to remain under
+two seconds and maximum resident set size under 256 MiB on Linux, and inspect
+the three sizes for super-linear growth. Exercise the generated 256-level
+conditional fixture in three consecutive release-mode measurements with
+`/usr/bin/time -v`; require each Linux run to stay under 256 MiB maximum
 resident set size and prove that iterative traversal does not overflow the
 stack. On a non-Linux host, record that RSS is not comparable and retain
 elapsed-time and correctness evidence.
@@ -717,9 +767,8 @@ bulk-accept snapshots.
 Firecrawl research used the authoritative 0.3.40 docs.rs source and tagged
 upstream repository. It confirmed that the crate exports its GNU Make variant,
 lossless `Makefile`, parse-result type, ordinary errors, positioned errors,
-rules, recipes, variables, includes, conditionals, and Rowan ranges. During
-Milestone 1, replace this planning summary with compile-checked signatures and
-concise transcripts from the exact dependency.
+rules, recipes, variables, includes, conditionals, and Rowan ranges. Milestone
+1 compile-checked those mappings against the exact dependency.
 
 The Wyvern team independently found no existing abstraction to reuse and
 recommended the same narrow parser-port boundary. The community-of-experts
@@ -729,10 +778,42 @@ offered for approval.
 The scrutineer recorded passing `git diff --check`, Markdown and spelling,
 Nixie, Rust formatting, Polonius type-checking, rustdoc, Clippy, Whitaker,
 nextest, and doctest gates. Three completed CodeRabbit rounds reported 11, 9,
-and 7 actionable concerns respectively; all were addressed. A fourth post-fix
-attempt was rejected before analysis by a recoverable rate limit with an
-estimated 34-minute wait and emitted no findings. This is not represented as a
-clean review result and should be retried before implementation begins.
+and 7 actionable concerns respectively; all were addressed. A later
+pre-completion review completed successfully across 34 files with zero findings.
+
+The final manual CLI exercise produced `complete=0`, `recovered=1`, and
+`stdin=0`. Every command wrote one schema-v1 JSON document, no command wrote to
+standard error, and the reports classified their parse status as expected.
+
+The include-boundary exercise created existing `literal.mk` and `dynamic.mk`
+files next to the input, traced `openat` and `openat2`, and asserted that
+neither include path occurred in the syscall log. The binary reported both
+includes in a complete parse; the result was `include_opened=false`.
+
+Release-mode `/usr/bin/time -v` evidence after one warm-up per input was:
+
+| Input                   | Elapsed runs           | Maximum RSS runs (KiB) |
+| ----------------------- | ---------------------- | ---------------------- |
+| 1 MiB                   | 0.01 s, 0.01 s, 0.01 s | 7,168; 7,232; 7,316    |
+| 5 MiB                   | 0.06 s, 0.06 s, 0.06 s | 23,608; 23,624; 23,708 |
+| 10 MiB                  | 0.12 s, 0.12 s, 0.12 s | 44,100; 44,380; 44,080 |
+| 256 nested conditionals | 0.01 s, 0.01 s, 0.01 s | 8,808; 8,672; 8,852    |
+
+The large inputs were exact-size single rules generated from a fixed `all:`
+header, repeated `a` bytes, and a newline. A `stat` assertion checked every
+length before timing. The nested input contained 256 deterministic `ifdef`/
+`endif` pairs around one rule. Growth was sub-linear across the measured sizes,
+the 10 MiB median was 0.12 seconds, and all resident-set measurements were
+below 256 MiB.
+
+From `/data/leynos/Projects/concordat`, a Python 3.13 subprocess invoked the
+release binary against Concordat's Makefile, decoded JSON with the standard
+library, asserted schema version 1 and complete status, and found `build`,
+`lint`, and `test`. The successful summary was:
+
+```plaintext
+{"schema_version":1,"status":"complete","required_targets":["build","lint","test"],"language_binding":false}
+```
 
 ## Interfaces and dependencies
 
@@ -741,13 +822,13 @@ match `docs/design.md` and the JSON Schema:
 
 ```rust
 pub trait MakefileParser {
-    fn parse(&self, source: &str) -> Result<Vec<SyntaxObservation>, ParseEngineError>;
+    fn parse(&self, source: &str) -> Result<ParserOutcome, ParserPortError>;
 }
 
-pub fn parse_source<P: MakefileParser>(
-    parser: &P,
-    logical_path: &Utf8Path,
+pub fn parse_source(
     source: &[u8],
+    logical_path: &str,
+    parser: &impl MakefileParser,
 ) -> Result<ParseReport, ParseApplicationError>;
 ```
 
