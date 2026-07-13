@@ -22,10 +22,14 @@ compact and omits build output such as `target/`.
 │       └── release.yml
 
 ├── docs/
+│   ├── adrs/
+│   │   └── 0001-single-file-gnu-make-parse.md
 │   ├── contents.md
+│   ├── design.md
 │   ├── developers-guide.md
 │   ├── polonius.md
 │   ├── repository-layout.md
+│   ├── terms-of-reference.md
 │   ├── users-guide.md
 │   └── ...
 ├── src/
@@ -60,8 +64,13 @@ compact and omits build output such as `target/`.
 
 - `docs/`: Holds long-lived reference documentation, guides, style rules, and
   design material.
+- `docs/adrs/`: Holds sequential, stable records of architectural decisions.
+- `docs/adrs/0001-single-file-gnu-make-parse.md`: Records the proposed boundary
+  for parsing one GNU Makefile into versioned JSON facts.
 - `docs/contents.md`: Indexes the documentation set and should be updated when
   documentation files are added, renamed, or removed.
+- `docs/design.md`: Defines the living technical design, including the command
+  contract, data model, architecture, and verification strategy.
 - `docs/users-guide.md`: Explains how to use the generated project and its
   public build and test commands.
 - `docs/developers-guide.md`: Explains the contributor workflow and local
@@ -70,6 +79,8 @@ compact and omits build output such as `target/`.
   design rules, and audited migration sites.
 - `docs/repository-layout.md`: Documents the repository tree and path
   responsibilities.
+- `docs/terms-of-reference.md`: Defines the problem space, stakeholders, scope,
+  constraints, and success criteria that govern the design.
 
 - `src/lib.rs`: Contains library support for application logic and doctested
   examples.
@@ -103,6 +114,8 @@ compact and omits build output such as `target/`.
   under `tests/`.
 - Keep reusable documentation under `docs/`. Update `docs/contents.md` whenever
   a documentation file is added, renamed, or removed.
+- Keep accepted and proposed architectural decisions under `docs/adrs/`; do not
+  renumber a decision record after publication.
 - Keep build and validation entrypoints in `Makefile`; prefer adding or
   extending a Make target over documenting an ad hoc command.
 - Keep continuous integration workflow changes under `.github/workflows/` and

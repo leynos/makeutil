@@ -1,0 +1,433 @@
+# makeutil technical design
+
+- **Status:** Draft v0.1
+- **Audience:** Implementers, maintainers, Concordat integrators, and reviewers
+- **Companion documents:** [Terms of reference](terms-of-reference.md) and
+  [ADR-0001](adrs/0001-single-file-gnu-make-parse.md)
+
+## 1. Problem statement
+
+Concordat needs structured evidence from Makefiles before OPA can enforce Rust
+lint policy. Rego should not parse Make syntax, and Concordat should not invoke
+GNU Make to inspect an untrusted file.
+
+The selected `makefile-lossless` crate already provides a lossless Rowan
+concrete syntax tree, recovered parse results, source ranges, and focused APIs
+for rules, recipes, variables, includes, and conditionals. `makeutil` will
+adapt that parser into a small, versioned JSON contract.
+
+The first design deliberately stops at syntax facts. It does not model GNU
+Make's complete evaluation semantics.
+
+## 2. Goals and non-goals
+
+### 2.1. Goals
+
+- Provide `makeutil parse` for one path or standard input.
+- Parse as GNU Make without executing source.
+- Emit deterministic JSON with source locations.
+- Flatten nested conditional content while preserving branch ancestry.
+- Surface parser recovery explicitly.
+- Keep the upstream CST and API out of consumer contracts.
+- Support the first Concordat FP-003 and QG-001 policy slice.
+
+### 2.2. Non-goals
+
+- File or repository discovery.
+- Include traversal.
+- Variable or function evaluation.
+- Shell parsing.
+- Compliance decisions.
+- Makefile mutation.
+- Cargo or workflow parsing.
+- Language bindings.
+- Dialects other than GNU Make.
+
+## 3. Design principles
+
+### 3.1. Parse, do not execute
+
+No production path may invoke GNU Make or a shell. Text such as `$(shell ...)`
+and `VAR != command` remains inert source data.
+
+### 3.2. Report evidence, not conclusions
+
+`makeutil` reports that a variable uses `?=` or that a recipe starts with `-`.
+Concordat and Rego decide whether those facts violate policy.
+
+### 3.3. Preserve uncertainty
+
+A recovered parse is not a complete parse. The output records diagnostics and
+uses a distinct status and process exit code. Consumers must not convert
+partial evidence into a compliance pass.
+
+### 3.4. Own the integration contract
+
+The JSON schema belongs to `makeutil`. It must not serialize Rowan nodes or
+copy the upstream AST shape. An upstream crate upgrade may alter the adapter,
+but it must not silently alter schema version 1.
+
+### 3.5. Keep the first command narrow
+
+One command reads one file and writes one document. Discovery, batching,
+rewriting, and bindings remain later decisions.
+
+## 4. External dependency
+
+The implementation uses
+[`makefile-lossless`](https://github.com/jelmer/makefile-lossless), initially
+pinned to `=0.3.40`.
+
+The crate supplies:
+
+- a lossless CST that retains whitespace, comments, and formatting;
+- a recovered parse tree alongside positioned errors;
+- rule targets, prerequisites, recipes, and source ranges;
+- variable names, assignment operators, raw values, and directive flags;
+- include paths and optionality;
+- GNU Make conditional structure and nested items.
+
+`makeutil` does not rely on the crate for full Make evaluation. In particular,
+static variable expansion and complete Make function semantics remain outside
+this design.
+
+An upgrade to the parser crate requires the complete fixture, golden, and
+round-trip test suite to pass. The dependency stays exact until the project has
+sufficient compatibility evidence to choose another policy.
+
+## 5. Command-line contract
+
+### 5.1. Commands
+
+The first release exposes one command:
+
+```shell
+makeutil parse PATH
+```
+
+A single dash reads source from standard input. The caller must provide the
+logical source path used in diagnostics:
+
+```shell
+makeutil parse --stdin-filename Makefile -
+```
+
+No implicit path, directory walk, glob, or recursive mode exists in the first
+slice.
+
+### 5.2. Output streams
+
+- Standard output contains exactly one compact JSON document for a successful or
+  recovered parse.
+- Standard error contains invocation, I/O, UTF-8, serialization, and internal
+  failures.
+- The command does not emit progress text.
+
+### 5.3. Exit codes
+
+| Code | Meaning                                                                                                  |
+| ---- | -------------------------------------------------------------------------------------------------------- |
+| `0`  | The source parsed without diagnostics and JSON was emitted.                                              |
+| `1`  | The parser recovered a tree with one or more diagnostics and JSON was emitted.                           |
+| `2`  | Invocation, source reading, UTF-8 decoding, serialization, or internal failure prevented a parse result. |
+
+The distinct recovered status lets Concordat fail closed while retaining useful
+source diagnostics.
+
+## 6. Output model
+
+### 6.1. Top-level document
+
+Schema version 1 has this shape:
+
+```json
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "makeutil",
+    "version": "0.1.0",
+    "parser": "makefile-lossless",
+    "parser_version": "0.3.40"
+  },
+  "source": {
+    "path": "Makefile",
+    "sha256": "…",
+    "byte_length": 1234
+  },
+  "parse": {
+    "status": "complete",
+    "diagnostics": []
+  },
+  "rules": [],
+  "variables": [],
+  "includes": []
+}
+```
+
+`parse.status` is either `complete` or `recovered`.
+
+The schema does not include the complete source text or CST. The caller already
+owns the source, and duplicating it would enlarge policy input without adding
+facts.
+
+### 6.2. Source locations
+
+All facts that originate from source carry a location:
+
+```json
+{
+  "start_byte": 42,
+  "end_byte": 67,
+  "start_line": 4,
+  "start_column": 1,
+  "end_line": 5,
+  "end_column": 1
+}
+```
+
+Byte ranges use a zero-based, end-exclusive convention. Lines and columns are
+one-based for diagnostic consumers. Columns count UTF-8 bytes, matching Rowan's
+offsets and avoiding an unadvertised character-width conversion.
+
+### 6.3. Parse diagnostics
+
+A positioned parse diagnostic contains:
+
+```json
+{
+  "message": "expected ':'",
+  "code": null,
+  "location": {
+    "start_byte": 12,
+    "end_byte": 15,
+    "start_line": 2,
+    "start_column": 1,
+    "end_line": 2,
+    "end_column": 4
+  }
+}
+```
+
+The adapter uses positioned diagnostics when available. It derives a line-level
+range from the upstream error information only when no positioned range exists.
+
+### 6.4. Conditional context
+
+Rules, variables, and includes inside conditionals carry their complete
+outer-to- inner context:
+
+```json
+[
+  {
+    "kind": "ifdef",
+    "expression": "CI",
+    "branch": "if",
+    "location": {
+      "start_line": 10,
+      "start_column": 1
+    }
+  }
+]
+```
+
+`branch` is `if` or `else`. The first slice does not evaluate the expression.
+
+### 6.5. Rule facts
+
+```json
+{
+  "ordinal": 7,
+  "targets": ["lint"],
+  "prerequisites": [],
+  "double_colon": false,
+  "conditions": [],
+  "recipes": [
+    {
+      "ordinal": 0,
+      "text": "$(WHITAKER) --all -- $(CARGO_FLAGS)",
+      "silent": false,
+      "ignore_errors": false,
+      "always_execute": false,
+      "location": {}
+    }
+  ],
+  "location": {}
+}
+```
+
+Recipe `text` excludes the leading recipe prefix tab and trailing line ending.
+It retains internal whitespace, comments, continuations, variable references,
+and shell syntax exactly as exposed by the parser.
+
+The prefix booleans describe Make's `@`, `-`, and `+` recipe modifiers. They do
+not describe shell operators such as `|| true`; policy may inspect the raw text
+for the first bounded rules.
+
+### 6.6. Variable facts
+
+```json
+{
+  "ordinal": 4,
+  "name": "WHITAKER",
+  "operator": "?=",
+  "raw_value": "whitaker",
+  "exported": false,
+  "overridden": false,
+  "define_block": false,
+  "conditions": [],
+  "location": {}
+}
+```
+
+The operator remains source-faithful. The first slice does not calculate the
+effective value or precedence.
+
+### 6.7. Include facts
+
+```json
+{
+  "ordinal": 2,
+  "raw_path": "$(CONFIG_DIR)/rules.mk",
+  "optional": false,
+  "dynamic": true,
+  "conditions": [],
+  "location": {}
+}
+```
+
+`dynamic` is true when the raw include expression contains a Make variable or
+function marker. `makeutil` reports includes but never opens them.
+
+## 7. Internal architecture
+
+| Component      | Responsibility                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| CLI front end  | Parse the command and validate that exactly one source was supplied.                        |
+| Source reader  | Read a path or stdin, validate UTF-8, retain bytes, and calculate SHA-256.                  |
+| Parser adapter | Invoke `makefile-lossless`, expose the recovered tree, and translate diagnostics.           |
+| Fact collector | Walk root and conditional items, flatten facts, and attach condition ancestry and ordinals. |
+| Location index | Convert byte offsets into one-based line and byte-column positions.                         |
+| JSON reporter  | Serialize schema version 1 deterministically to standard output.                            |
+
+The package may expose a Rust library internally for unit tests, but only the
+CLI and JSON schema form a supported integration contract in the first release.
+
+## 8. Parse and traversal flow
+
+1. Read the source bytes.
+2. Reject non-UTF-8 input with exit code 2.
+3. Calculate the source digest and line-start index.
+4. Parse with the GNU Make default of `makefile-lossless`.
+5. Obtain the tree even when parser diagnostics exist.
+6. Walk root items in source order.
+7. Recurse into the `if` and `else` arms of each conditional while extending the
+   condition context.
+8. Emit flattened rule, variable, and include facts with global source-order
+   ordinals.
+9. Serialize one compact JSON document.
+10. Return 0 for a complete parse or 1 for a recovered parse.
+
+The collector does not walk included files or attempt to merge repeated target
+rules into an effective rule.
+
+## 9. Determinism
+
+- Arrays preserve source order.
+- Object fields use a fixed serialization order derived from Rust structures.
+- Compact JSON ends with one newline.
+- The source path is the normalized caller-supplied logical path, not a
+  canonicalized absolute path.
+- The digest covers the exact input bytes.
+- No timestamps, hostnames, temporary paths, or environment values appear in
+  output.
+
+## 10. Security properties
+
+- The command never invokes GNU Make.
+- The command never invokes a shell.
+- It performs no variable or function expansion.
+- It opens only the explicitly supplied input path.
+- It does not follow includes or symlinks discovered from source.
+- It performs no network access.
+- Source text cannot select another parser, command, or output path.
+- Resource limits may be added later if corpus evidence shows pathological
+  inputs; the first slice still includes large-file and deep-conditional tests.
+
+## 11. Verification strategy
+
+### 11.1. Fixture classes
+
+The repository will include focused Makefiles for:
+
+- explicit `build`, `test`, and `lint` targets;
+- multiple targets on one rule;
+- repeated and double-colon rules;
+- `WHITAKER ?= whitaker` and other assignment operators;
+- exported and overridden variables;
+- `lint` and `lint-*` recipe text;
+- `@`, `-`, and `+` recipe prefixes;
+- multiline recipes and continuations;
+- nested `ifdef`, `ifndef`, `ifeq`, and `ifneq` branches;
+- literal, optional, and dynamic includes;
+- parse errors with recovered facts;
+- inert `$(shell ...)`, `!=`, and hostile shell text.
+
+### 11.2. Test types
+
+- **Unit tests:** source location conversion and fact extraction.
+- **Golden tests:** complete JSON output for representative fixtures.
+- **Round-trip tests:** complete parses render exactly the original bytes.
+- **Determinism tests:** repeated invocation produces byte-identical output.
+- **No-execution tests:** sentinel source cannot create files or processes.
+- **Compatibility tests:** parser upgrades run against the complete fixture
+  corpus before the dependency pin changes.
+
+The first slice does not require a new fuzzing campaign because the upstream
+crate already owns parser fuzzing. `makeutil` may add fuzzing later for the
+adapter and location mapping if real corpus defects justify it.
+
+## 12. Packaging and integration
+
+The project ships one Rust binary named `makeutil`.
+
+Concordat invokes the binary as a subprocess and validates `schema_version`.
+The first slice does not expose PyO3 or Go bindings. This avoids a native wheel
+matrix, cgo, and direct consumer coupling to upstream Rust types.
+
+CI and release packaging pin the executable version. The JSON schema, rather
+than the executable version string alone, controls compatibility.
+
+## 13. Deferred extension seams
+
+The design leaves room for later additions without implementing them now:
+
+- `makeutil rewrite` using semantic mutation requests and the same lossless CST;
+- literal include traversal supplied by the caller as an explicit file set;
+- JSON Lines batch input for estate throughput;
+- a Python transactional binding if subprocess cost becomes material;
+- additional fact collectors for a restricted Make semantic subset.
+
+A later command must not silently change the behaviour or schema of `parse`.
+
+## 14. Risks and mitigations
+
+| Risk                                                        | Mitigation                                                                                            |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Consumers mistake syntax facts for effective Make semantics | Name fields literally, document the single-file scope, and preserve conditional and include evidence. |
+| Upstream `0.x` changes alter behaviour                      | Pin exactly and require fixture, golden, and round-trip review for upgrades.                          |
+| Recovered parses lead to false passes                       | Emit `parse.status = recovered`, exit 1, and require Concordat to fail closed.                        |
+| Raw recipe matching becomes policy-specific parsing         | Keep matching in Rego and limit the first rules to documented lexical patterns.                       |
+| Schema expands before evidence exists                       | Require a consumer use case and schema-version review for every new fact.                             |
+
+## 15. First-slice acceptance criteria
+
+The design is implemented when:
+
+1. `makeutil parse PATH` and stdin mode work as specified.
+2. Schema version 1 is documented and covered by golden tests.
+3. Complete input round-trips byte-for-byte through the parser tree.
+4. Recovered input emits diagnostics, partial facts, and exit code 1.
+5. Rules, variables, recipes, includes, conditional ancestry, and source
+   locations cover the first Concordat fixtures.
+6. No test source can cause command execution or network access.
+7. Concordat can consume the output solely through JSON.

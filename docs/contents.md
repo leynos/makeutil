@@ -17,6 +17,15 @@ set.
   spelling, structure, Markdown, Architecture Decision Record (ADR), Request
   for Comments (RFC), and roadmap conventions used by this documentation set.
 
+## Architecture and design
+
+- [Terms of reference](terms-of-reference.md) defines the problem space,
+  stakeholders, scope, constraints, and success criteria for `makeutil`.
+- [Technical design](design.md) describes the command contract, data model,
+  architecture, security boundaries, and verification strategy.
+- [ADR-0001: Parse one GNU Makefile into versioned JSON facts](adrs/0001-single-file-gnu-make-parse.md)
+  records the proposed boundary for the first implementation slice.
+
 ## Rust reference material
 
 - [Reliable testing in Rust via dependency injection](reliable-testing-in-rust-via-dependency-injection.md)
@@ -26,6 +35,9 @@ set.
   explains how to write maintainable, executable Rust documentation examples.
 - [Rust testing with `rstest` fixtures](rust-testing-with-rstest-fixtures.md)
   explains fixture-based, parameterized, and asynchronous testing with `rstest`.
+- [`rstest-bdd` user's guide](rstest-bdd-users-guide.md) explains how to write
+  and run Behaviour-Driven Development scenarios, step definitions, and
+  fixtures with `rstest-bdd`.
 
 ## Engineering practice
 

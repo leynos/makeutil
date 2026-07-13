@@ -71,13 +71,12 @@ high-value documents with clearly separated audiences and responsibilities.
 These document types are complementary: the contents file helps readers find
 material, the user's guide explains how to use the project, the developer's
 guide explains how to work on the project, the design document explains why the
-system is shaped the way it is, and the repository layout document explains
-where important things live. For discoverability, use canonical filenames
-unless a stronger repository-specific constraint applies. A minimal canonical
-set looks like
-`docs/{contents,users-guide,developers-guide,repository-layout}.md` plus a
-primary design document under `docs/*-design.md`, for example
-`docs/theoremc-design.md` or `docs/query-planner-design.md`.
+system is shaped the way it is, the terms of reference define the problem and
+scope, and the repository layout document explains where important things live.
+For discoverability, use canonical filenames unless a stronger
+repository-specific constraint applies. A minimal canonical set looks like
+`docs/{contents,users-guide,developers-guide,repository-layout,terms-of-reference,design}.md`,
+with decision records under `docs/adrs/`.
 
 ### Contents file
 
@@ -177,13 +176,28 @@ catch-all "design note".
 In short: use a design document to explain the system, an ADR to record a
 decision, and an RFC to propose a change.
 
+### Terms of reference
+
+Use `docs/terms-of-reference.md` to define the problem space before selecting a
+solution. Record the domain, users and stakeholders, job to be done, goals,
+non-goals, success criteria, constraints, assumptions, and open questions.
+
+- Treat the terms of reference as the source of truth for scope and ownership
+  boundaries.
+- Keep solution architecture and implementation choices in `docs/design.md`.
+- Link substantive decisions to ADRs rather than embedding their full rationale
+  in the terms of reference.
+- Update the terms of reference when the problem boundary or success criteria
+  change; do not use it as a progress log.
+
 ### Design document
 
-Use a dedicated design document, conventionally named
-`docs/<product-or-topic>-design.md`, to explain the architecture, constraints,
-rationale, and intended evolution of a system or subsystem. This document is
-the correct location for design intent; that material must not be buried in the
-user's guide or developer's guide.
+Use `docs/design.md` as the primary design document for a repository. Use
+`docs/<topic>-design.md` only when a distinct subsystem needs a separate design
+whose scope would make the primary document unwieldy. Design documents explain
+the architecture, constraints, rationale, and intended evolution of a system or
+subsystem. This is the correct location for design intent; that material must
+not be buried in the user's guide or developer's guide.
 
 - Start with a concise front matter section that states status, scope, primary
   audience, and the decision records or other documents that take precedence.
@@ -360,9 +374,10 @@ providing a historical record for future maintainers.
 
 ### Naming convention
 
-Name ADR files using the pattern `adr-NNN-short-description.md`, where `NNN` is
-a zero-padded sequence number (e.g. `adr-001-async-fixtures-and-tests.md`).
-Place ADRs in the `docs/` directory.
+Name ADR files using the pattern `NNNN-short-description.md`, where `NNNN` is a
+four-digit, zero-padded sequence number, for example
+`0001-single-file-gnu-make-parse.md`. Place ADRs in the `docs/adrs/` directory,
+allocate numbers sequentially, and do not renumber published records.
 
 ### Required sections
 
@@ -414,7 +429,7 @@ Include these sections as appropriate to the decision's complexity:
 ### ADR template
 
 ```plaintext
-# Architectural decision record (ADR) NNN: <title>
+# ADR-NNNN: <title>
 
 ## Status
 
