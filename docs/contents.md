@@ -25,6 +25,10 @@ set.
   architecture, security boundaries, and verification strategy.
 - [ADR-0001: Parse one GNU Makefile into versioned JSON facts](adrs/0001-single-file-gnu-make-parse.md)
   records the proposed boundary for the first implementation slice.
+- [Execution plans](execplans/) describe approved, milestone-oriented delivery
+  work:
+  - [Implement ADR-0001](execplans/adr-0001-single-file-gnu-make-parse.md)
+    plans the single-file GNU Make parser and its verification.
 
 ## Rust reference material
 
@@ -38,6 +42,8 @@ set.
 - [`rstest-bdd` user's guide](rstest-bdd-users-guide.md) explains how to write
   and run Behaviour-Driven Development scenarios, step definitions, and
   fixtures with `rstest-bdd`.
+- [OrthoConfig user's guide](ortho-config-users-guide.md) documents the
+  configuration and command-line derivation library used by the CLI adapter.
 
 ## Engineering practice
 

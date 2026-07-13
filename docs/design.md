@@ -172,7 +172,8 @@ facts.
 
 ### 6.2. Source locations
 
-All facts that originate from source carry a location:
+All facts and conditional contexts that originate from source carry the same
+complete location shape:
 
 ```json
 {
@@ -188,6 +189,28 @@ All facts that originate from source carry a location:
 Byte ranges use a zero-based, end-exclusive convention. Lines and columns are
 one-based for diagnostic consumers. Columns count UTF-8 bytes, matching Rowan's
 offsets and avoiding an unadvertised character-width conversion.
+
+Locations own these source ranges:
+
+- A rule covers the complete rule node, from the first target byte through the
+  final recipe byte and line ending when one exists.
+- A recipe covers its complete physical source, including the leading recipe
+  tab, any `@`, `-`, or `+` modifiers, continuations, and final line ending.
+- A variable covers the complete definition or directive, including modifiers,
+  assignment operator, value, and final line ending.
+- An include covers the complete include directive and final line ending.
+- A conditional context covers only its opening `ifdef`, `ifndef`, `ifeq`, or
+  `ifneq` directive, or its `else` directive, including that directive's final
+  line ending. It does not cover the nested arm or closing `endif`.
+- A diagnostic uses the upstream positioned range. When only a line is known,
+  it covers that complete line excluding its line ending. An end-of-file
+  diagnostic is a zero-length range at `byte_length`.
+
+A range must satisfy `start_byte <= end_byte <= source.byte_length`. Empty and
+zero-length ranges are valid insertion points. End-of-file positions identify
+the point immediately after the final byte. In CRLF input, the carriage return
+and line feed remain bytes on the preceding line; the next line begins after
+the line feed.
 
 ### 6.3. Parse diagnostics
 
@@ -223,8 +246,12 @@ outer-to- inner context:
     "expression": "CI",
     "branch": "if",
     "location": {
+      "start_byte": 120,
+      "end_byte": 129,
       "start_line": 10,
-      "start_column": 1
+      "start_column": 1,
+      "end_line": 11,
+      "end_column": 1
     }
   }
 ]
@@ -300,17 +327,30 @@ function marker. `makeutil` reports includes but never opens them.
 
 ## 7. Internal architecture
 
-| Component      | Responsibility                                                                              |
-| -------------- | ------------------------------------------------------------------------------------------- |
-| CLI front end  | Parse the command and validate that exactly one source was supplied.                        |
-| Source reader  | Read a path or stdin, validate UTF-8, retain bytes, and calculate SHA-256.                  |
-| Parser adapter | Invoke `makefile-lossless`, expose the recovered tree, and translate diagnostics.           |
-| Fact collector | Walk root and conditional items, flatten facts, and attach condition ancestry and ordinals. |
-| Location index | Convert byte offsets into one-based line and byte-column positions.                         |
-| JSON reporter  | Serialize schema version 1 deterministically to standard output.                            |
+| Component      | Responsibility                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| CLI front end  | Parse the command and validate that exactly one source was supplied.                           |
+| Source reader  | Read one path or stdin into bytes without interpreting or normalizing it.                      |
+| Parser adapter | Invoke `makefile-lossless` and return ordered owned observations and diagnostics.              |
+| Fact collector | Flatten observations, attach conditions and locations, assign ordinals, and calculate SHA-256. |
+| Location index | Convert byte offsets into one-based line and byte-column positions.                            |
+| JSON reporter  | Serialize schema version 1 deterministically to standard output.                               |
 
 The package may expose a Rust library internally for unit tests, but only the
 CLI and JSON schema form a supported integration contract in the first release.
+
+The domain owns report types, source spans and locations, conditional ancestry,
+ordinal assignment, diagnostic ordering, source hashing, and complete versus
+recovered classification. A domain-owned parser port accepts UTF-8 text and
+returns ordered makeutil-owned syntax observations, source spans, and
+diagnostics. The `makefile-lossless` adapter implements the port and proves its
+own complete-tree round trip; it never returns Rowan nodes, upstream errors, or
+rendered CST bytes through the port.
+
+The composition root parses the CLI, invokes the source reader, calls the
+application service, and hands the completed report to the JSON reporter. Edge
+adapters do not call each other. Source and reporter traits are introduced only
+when deterministic failure testing requires them; they are not domain ports.
 
 ## 8. Parse and traversal flow
 
@@ -332,11 +372,17 @@ rules into an effective rule.
 
 ## 9. Determinism
 
-- Arrays preserve source order.
+- Rules, variables, and includes have separate arrays, but their top-level
+  `ordinal` values share one zero-based, gap-free sequence ordered by
+  `location.start_byte`. Equal offsets retain upstream observation order.
+  Recipe ordinals are zero-based and local to their containing rule.
+- Diagnostics retain upstream emission order; the adapter does not sort,
+  deduplicate, or rewrite messages or codes.
 - Object fields use a fixed serialization order derived from Rust structures.
 - Compact JSON ends with one newline.
-- The source path is the normalized caller-supplied logical path, not a
-  canonicalized absolute path.
+- The source path preserves the caller-supplied UTF-8 spelling byte-for-byte.
+  It is neither canonicalized nor lexically cleaned. In stdin mode it is
+  exactly the value of `--stdin-filename`.
 - The digest covers the exact input bytes.
 - No timestamps, hostnames, temporary paths, or environment values appear in
   output.
@@ -352,6 +398,33 @@ rules into an effective rule.
 - Source text cannot select another parser, command, or output path.
 - Resource limits may be added later if corpus evidence shows pathological
   inputs; the first slice still includes large-file and deep-conditional tests.
+
+The security suite uses source-selected filesystem sentinels for `$(shell ...)`,
+`$(file ...)`, `!=`, and recipes. It separately traces file-open system calls
+and proves that literal and dynamic include paths are not opened; absence of a
+side effect alone is not evidence that an include was not read.
+
+### 10.1. Failure and observability contract
+
+The reporter serializes the complete JSON document into memory before writing
+stdout. Serialization failure therefore emits no JSON. An output write failure,
+including a broken pipe, exits 2. The operating system may already have
+accepted a prefix of the buffered document, so partial stdout is permitted only
+for this failure class.
+
+Fatal stderr diagnostics have one stable first line:
+
+```plaintext
+makeutil[<operation-id>]: <summary>: <quoted logical path when applicable>
+```
+
+Operation identifiers distinguish `cli`, `source-open`, `source-read`,
+`source-utf8`, `parse-internal`, `json-serialize`, and `stdout-write`. Normal
+success and recovered parsing emit no stderr. Backtraces and cause chains are
+not printed by default. The binary may install one tracing subscriber, but it
+must never write tracing events to stdout; the library installs no subscriber.
+Source contents and unbounded raw paths are not tracing fields. This one-shot
+CLI emits no metrics in the first slice.
 
 ## 11. Verification strategy
 
