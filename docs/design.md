@@ -76,7 +76,11 @@ rewriting, and bindings remain later decisions.
 
 The implementation uses
 [`makefile-lossless`](https://github.com/jelmer/makefile-lossless), initially
-pinned to `=0.3.40`.
+pinned to `=0.3.40`. A temporary `[patch.crates-io]` override selects commit
+`8dd35801b75b332c2ac2f995ae398ef8238559fa` from the `leynos/makefile-lossless`
+fork because release 0.3.40 does not lex the documented GNU Make `!=`
+assignment operator. Remove the override when an upstream release containing
+the fix is adopted; do not replace the immutable commit with a branch name.
 
 The crate supplies:
 

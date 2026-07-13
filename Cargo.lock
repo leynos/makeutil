@@ -1214,8 +1214,7 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 [[package]]
 name = "makefile-lossless"
 version = "0.3.40"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a892a73d2d24783ef4355b310e9d04e5a1c91aabca3c417d60ac524d64e4217a"
+source = "git+https://github.com/leynos/makefile-lossless.git?rev=8dd35801b75b332c2ac2f995ae398ef8238559fa#8dd35801b75b332c2ac2f995ae398ef8238559fa"
 dependencies = [
  "log",
  "rowan",

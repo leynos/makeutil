@@ -87,6 +87,7 @@ fn recovered_parse_retains_facts_and_diagnostics() {
 #[case("A :::= four\n", ":::=", "four")]
 #[case("A += five\n", "+=", "five")]
 #[case("A ?= six\n", "?=", "six")]
+#[case("A != printf seven\n", "!=", "printf seven")]
 fn assignment_operators_remain_source_faithful(
     #[case] source: &str,
     #[case] operator: &str,
@@ -100,16 +101,6 @@ fn assignment_operators_remain_source_faithful(
         .expect("one variable should be reported");
     assert_eq!(variable.operator, operator);
     assert_eq!(variable.raw_value, raw_value);
-}
-
-#[rstest]
-fn shell_assignment_parser_gap_remains_explicit() {
-    let report = parse_source(b"A != printf seven\n", "Makefile", &MakefileLosslessParser)
-        .expect("upstream recovery should still produce a report");
-
-    assert_eq!(report.parse.status, ParseStatus::Recovered);
-    assert!(report.variables.is_empty());
-    assert!(!report.parse.diagnostics.is_empty());
 }
 
 #[rstest]

@@ -32,14 +32,14 @@ cannot supply them.
 
 The normative output contract is
 [`schemas/makeutil.parse.v1.schema.json`](../schemas/makeutil.parse.v1.schema.json).
-Byte ranges are zero-based and end-exclusive. Display lines and byte columns are
-one-based.
+Byte ranges are zero-based and end-exclusive. Display lines and byte columns
+are one-based.
 
-| Exit code | Meaning |
-| --- | --- |
-| `0` | Parsing completed and JSON was emitted. |
-| `1` | Parsing recovered partial facts with diagnostics and JSON was emitted. |
-| `2` | Invocation, input, UTF-8, internal, serialization, or output failed. |
+| Exit code | Meaning                                                                |
+| --------- | ---------------------------------------------------------------------- |
+| `0`       | Parsing completed and JSON was emitted.                                |
+| `1`       | Parsing recovered partial facts with diagnostics and JSON was emitted. |
+| `2`       | Invocation, input, UTF-8, internal, serialization, or output failed.   |
 
 _Table 1: `makeutil parse` exit codes._
 

@@ -19,8 +19,14 @@ external capability requires another port. CLI path and stdin filename values
 must continue to use OrthoConfig's explicit `ArgMatches` extraction, without
 file or environment layers.
 
-Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and property
-tests exercise the domain, `rstest-bdd` scenarios exercise observable
+The exact 0.3.40 parser requirement is temporarily patched to immutable fork
+commit `8dd35801b75b332c2ac2f995ae398ef8238559fa`, which adds `!=` lexer
+support. Keep the commit pin reproducible. When upgrading to an upstream
+release that contains the fix, remove the `[patch.crates-io]` entry and rerun
+the complete assignment-operator contract matrix before updating the lockfile.
+
+Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and
+property tests exercise the domain, `rstest-bdd` scenarios exercise observable
 behaviour, black-box tests spawn the binary, and `insta` plus the JSON Schema
 freeze the integration contract.
 

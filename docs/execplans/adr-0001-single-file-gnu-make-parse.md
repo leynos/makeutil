@@ -4,7 +4,7 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`, `Decision log`,
 and `Outcomes & retrospective` must be kept up to date as work proceeds.
 
-Status: BLOCKED AT UPSTREAM CONTRACT GATE.
+Status: APPROVED / IN PROGRESS.
 
 ## Approval
 
@@ -171,6 +171,13 @@ stop and resolve the conflict before editing `Cargo.toml`.
   recovered output against the fixture corpus.
 - [x] (2026-07-13) Milestone 3: implemented OrthoConfig CLI, source, JSON, and
   process adapters with behavioural and end-to-end validation.
+- [x] (2026-07-13) Fixed `!=` lexing on fork branch
+  `fix-shell-assignment-operator`, validated its 472 unit tests and 98
+  doctests, and pinned immutable commit
+  `8dd35801b75b332c2ac2f995ae398ef8238559fa` through `[patch.crates-io]`.
+- [x] (2026-07-13) Passed the complete deterministic makeutil gate set after
+  applying the patch; the scrutineer independently repeated every gate and
+  CodeRabbit completed with zero findings across 34 reviewed files.
 - [ ] Milestone 4: synchronize documentation, run full acceptance, and gather
   external consumer evidence.
 
@@ -195,20 +202,29 @@ stop and resolve the conflict before editing `Cargo.toml`.
   reference.
 - Observation: `makefile-lossless` 0.3.40 documents `!=` as an assignment
   operator, but parses valid GNU Make `A != printf seven` as recovered rule
-  fragments with diagnostics and exposes no `VariableDefinition`. Evidence:
-  the focused `assignment_operators_remain_source_faithful::case_7` test and a
-  live CLI reproduction both produce zero variable facts; the scrutineer
+  fragments with diagnostics and exposes no `VariableDefinition`. Evidence: the
+  focused `assignment_operators_remain_source_faithful::case_7` test and a live
+  CLI reproduction both produce zero variable facts; the scrutineer
   independently reproduced the failure. Impact: this triggers the approved
   upstream stop condition. The exact pin cannot satisfy the source-faithful
   variable contract without an upstream fix, a separately approved narrow
   fallback parser, or an explicit scope reduction.
+- Observation: the defect was confined to `Lexer::next_token`; the parser and
+  AST accessors already recognized `!=`, but the operator-token start set
+  omitted `!`. Evidence: fork commit `8dd35801b75b332c2ac2f995ae398ef8238559fa`
+  changes that set and adds lexer and lossless AST regression tests. Impact:
+  the existing adapter now reports shell assignments source-faithfully without
+  a makeutil-specific parser fallback or vendored crate.
 
 ## Decision log
 
-- Pending decision: resolve the `!=` parser gap before further implementation,
-  commits, or CodeRabbit review. The available choices are an upstream patch at
-  the exact pin, approval to change the dependency source/version, or an
-  explicit schema and behaviour limitation. Date/Author: 2026-07-13 / Codex.
+- Decision: patch crates.io resolution to immutable fork commit
+  `8dd35801b75b332c2ac2f995ae398ef8238559fa` while retaining the approved exact
+  0.3.40 version requirement. Rationale: the minimal upstream-shaped fix adds
+  the missing lexer start character and regression coverage without vendoring,
+  changing makeutil policy, or exposing a mutable branch reference. Retire the
+  patch when an adopted upstream release contains the fix. Date/Author:
+  2026-07-13 / Codex.
 
 - Decision: apply hexagonal architecture only at meaningful volatility and
   side-effect boundaries. Rationale: domain facts, locations, ordering, and
@@ -754,9 +770,10 @@ Planned runtime dependencies are:
 
 Before adding each non-exception dependency, verify its current compatible
 caret version and smallest necessary feature set. Preserve the approved exact
-`makefile-lossless = "=0.3.40"` requirement unchanged. Do not add both a direct
-`clap` dependency and OrthoConfig's re-exported surface unless the derive/API
-contract requires it.
+`makefile-lossless = "=0.3.40"` requirement unchanged. Resolve it through the
+temporary full-SHA fork patch recorded above until upstream contains the fix.
+Do not add both a direct `clap` dependency and OrthoConfig's re-exported
+surface unless the derive/API contract requires it.
 
 Planned development dependencies are `rstest = "0.26.1"`,
 `rstest-bdd = "0.6.0-beta3"`, `rstest-bdd-macros = "0.6.0-beta3"`,
