@@ -1263,9 +1263,10 @@ fn scenario_opening_second_window_starts_from_reset_state(
 }
 ```
 
-The second snippet shows the `#[given]` that opens a fresh window. It
-defensively re-runs the reset before storing handles and observes the
-`stale_window_count` invariant that the regression suite encodes:
+The second snippet shows the `#[given]` that opens a fresh window. It seeds a
+stale stored handle, defensively re-runs the reset before storing the fresh
+handles, and observes the `stale_window_count` invariant that the regression
+suite encodes:
 
 ```rust,no_run
 # use rstest_bdd_macros::given;
@@ -1275,12 +1276,15 @@ defensively re-runs the reset before storing handles and observes the
 fn fresh_gpui_window_is_opened(
     #[from(rstest_bdd_harness_context)] context: &mut gpui::TestAppContext,
 ) {
-    let stale_window_count = with_state(|state| usize::from(state.window.is_some()));
-    reset_state_before_assignment();
-
     let (entity, visual_context) =
         context.add_window_view(|_context| CounterView::default());
     let window = visual_context.window_handle();
+
+    // Arrange stale stored state so this example proves that the reset works.
+    with_state(|state| state.window = Some(window.clone()));
+    reset_state_before_assignment();
+    let stale_window_count =
+        with_state(|state| usize::from(state.window.is_some()));
 
     with_state(|state| {
         state.entity = Some(entity);

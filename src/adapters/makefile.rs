@@ -1,6 +1,15 @@
 //! `makefile-lossless` 0.3.40 adapter for the domain-owned parser port.
 
-use makefile_lossless::{Conditional, Makefile, MakefileItem, Parse, SyntaxKind};
+use makefile_lossless::{
+    Conditional,
+    Include,
+    Makefile,
+    MakefileItem,
+    Parse,
+    Rule,
+    SyntaxKind,
+    VariableDefinition,
+};
 use rowan::ast::AstNode as _;
 
 use crate::{
@@ -43,52 +52,13 @@ fn collect_items(
     for item in items {
         match item {
             MakefileItem::Rule(rule) => {
-                let recipes = rule
-                    .recipe_nodes()
-                    .map(|recipe| {
-                        let text = recipe.text();
-                        let modifiers = recipe_modifiers(&text);
-                        Ok(RecipeObservation {
-                            silent: modifiers.silent,
-                            ignore_errors: modifiers.ignore_errors,
-                            always_execute: modifiers.always_execute,
-                            text,
-                            span: span(recipe.text_range(), source_length)?,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, ParserPortError>>()?;
-                observations.push(SyntaxObservation::Rule {
-                    targets: rule.targets().collect(),
-                    prerequisites: rule.prerequisites().collect(),
-                    double_colon: rule.is_double_colon(),
-                    conditions: conditions.to_vec(),
-                    recipes,
-                    span: span(rule.syntax().text_range(), source_length)?,
-                });
+                observations.push(rule_observation(&rule, conditions, source_length)?);
             }
             MakefileItem::Variable(variable) => {
-                observations.push(SyntaxObservation::Variable {
-                    name: variable.name().ok_or(ParserPortError::MissingField {
-                        field: "variable-name",
-                    })?,
-                    operator: variable.assignment_operator().unwrap_or_default(),
-                    raw_value: variable.raw_value().unwrap_or_default(),
-                    exported: variable.is_export(),
-                    overridden: variable.is_override(),
-                    define_block: variable.is_define(),
-                    conditions: conditions.to_vec(),
-                    span: span(variable.syntax().text_range(), source_length)?,
-                });
+                observations.push(variable_observation(&variable, conditions, source_length)?);
             }
             MakefileItem::Include(include) => {
-                observations.push(SyntaxObservation::Include {
-                    raw_path: include.path().ok_or(ParserPortError::MissingField {
-                        field: "include-path",
-                    })?,
-                    optional: include.is_optional(),
-                    conditions: conditions.to_vec(),
-                    span: span(include.syntax().text_range(), source_length)?,
-                });
+                observations.push(include_observation(&include, conditions, source_length)?);
             }
             MakefileItem::Conditional(conditional) => {
                 collect_conditional(&conditional, conditions, source_length, observations)?;
@@ -97,6 +67,69 @@ fn collect_items(
         }
     }
     Ok(())
+}
+
+fn rule_observation(
+    rule: &Rule,
+    conditions: &[ConditionObservation],
+    source_length: usize,
+) -> Result<SyntaxObservation, ParserPortError> {
+    let recipes = rule
+        .recipe_nodes()
+        .map(|recipe| {
+            let text = recipe.text();
+            let modifiers = recipe_modifiers(&text);
+            Ok(RecipeObservation {
+                silent: modifiers.silent,
+                ignore_errors: modifiers.ignore_errors,
+                always_execute: modifiers.always_execute,
+                text,
+                span: span(recipe.text_range(), source_length)?,
+            })
+        })
+        .collect::<Result<Vec<_>, ParserPortError>>()?;
+    Ok(SyntaxObservation::Rule {
+        targets: rule.targets().collect(),
+        prerequisites: rule.prerequisites().collect(),
+        double_colon: rule.is_double_colon(),
+        conditions: conditions.to_vec(),
+        recipes,
+        span: span(rule.syntax().text_range(), source_length)?,
+    })
+}
+
+fn variable_observation(
+    variable: &VariableDefinition,
+    conditions: &[ConditionObservation],
+    source_length: usize,
+) -> Result<SyntaxObservation, ParserPortError> {
+    Ok(SyntaxObservation::Variable {
+        name: variable.name().ok_or(ParserPortError::MissingField {
+            field: "variable-name",
+        })?,
+        operator: variable.assignment_operator().unwrap_or_default(),
+        raw_value: variable.raw_value().unwrap_or_default(),
+        exported: variable.is_export(),
+        overridden: variable.is_override(),
+        define_block: variable.is_define(),
+        conditions: conditions.to_vec(),
+        span: span(variable.syntax().text_range(), source_length)?,
+    })
+}
+
+fn include_observation(
+    include: &Include,
+    conditions: &[ConditionObservation],
+    source_length: usize,
+) -> Result<SyntaxObservation, ParserPortError> {
+    Ok(SyntaxObservation::Include {
+        raw_path: include.path().ok_or(ParserPortError::MissingField {
+            field: "include-path",
+        })?,
+        optional: include.is_optional(),
+        conditions: conditions.to_vec(),
+        span: span(include.syntax().text_range(), source_length)?,
+    })
 }
 
 fn collect_conditional(

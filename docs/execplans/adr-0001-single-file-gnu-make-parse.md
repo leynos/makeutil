@@ -210,18 +210,24 @@ stop and resolve the conflict before editing `Cargo.toml`.
   of 49 tests, two doctests with one intentionally ignored, and clean
   formatting, Polonius type-checking, rustdoc, Clippy, Whitaker, Markdown,
   spelling, Mermaid, and diff checks.
+- [x] (2026-07-14) Corrected documentation ownership and orientation drift and
+  applied the valid fatal CLI helper and private `collect_items` constructor
+  fixes found during terminal review. The independent scrutineer confirmed 49
+  of 49 tests, two passing doctests with one intentionally ignored, and clean
+  `make check-fmt`, `make typecheck`, `make lint`, `make test`, rustdoc,
+  Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
 - [ ] Obtain CodeRabbit certification of the exact terminal diff through the
   pull request. The user approved deferral from the unavailable CLI review
   during CodeRabbit's temporary outage.
 
 ## Surprises & discoveries
 
-- Observation: the repository contains only greeting and test stubs; there is
-  no existing parser, CLI, model, I/O, or test abstraction to extend. Evidence:
-  Leta finds only `greet`, `main`, and
-  `replace_this_stub_when_real_tests_exist`; `Cargo.toml` has no dependencies.
-  Impact: this is the first real application boundary, but it should remain a
-  small set of cohesive modules rather than receive a framework-sized layout.
+- Observation: at planning start, the repository contained only greeting and
+  test stubs; there was no parser, CLI, model, I/O, or test abstraction to
+  extend. Evidence: Leta found only `greet`, `main`, and
+  `replace_this_stub_when_real_tests_exist`; `Cargo.toml` had no dependencies.
+  Impact: this was the first real application boundary, but it needed to remain
+  a small set of cohesive modules rather than receive a framework-sized layout.
 - Observation: upstream 0.3.40 exports `Parse`, `PositionedParseError`,
   `MakefileVariant`, and lossless CST types and retains parser errors alongside
   a tree. Evidence: the 0.3.40 docs.rs and tagged source expose these APIs and
@@ -275,6 +281,15 @@ stop and resolve the conflict before editing `Cargo.toml`.
   only by the CLI and injected into `read_path`. Impact: the explicit new
   requirement supersedes the earlier no-change conclusion without changing
   error or CLI contracts.
+- Observation: the claimed duplicate generated header in `typos.toml` was
+  stale. Evidence: the file contains one two-line header emitted verbatim by
+  `scripts/typos_rollout.py`. Impact: generated spelling policy required no
+  manual edit.
+- Observation: a tracing and metrics warning did not apply to this approved
+  one-shot CLI slice. Evidence: stable operation identifiers are its documented
+  observability surface, success and recovered parsing keep stderr empty, and
+  the design explicitly defers metrics. Impact: no subscriber, recorder, or new
+  telemetry dependency was added during terminal review.
 
 ## Decision log
 
@@ -337,10 +352,11 @@ stop and resolve the conflict before editing `Cargo.toml`.
   2026-07-13 / Logisphere-reviewed Codex planning team.
 - Decision: let the parser adapter return ordered makeutil-owned observations
   and source spans; keep round-trip bytes in adapter tests only. Rationale:
-  location conversion, ordinals, hashing, and status are domain policy.
-  Upstream CST renderings and error types must not leak through the
-  domain-owned port. Date/Author: 2026-07-13 / Logisphere-reviewed Codex
-  planning team.
+  location conversion, ordinals, and status are domain policy; exact-byte
+  hashing is application-service policy. Upstream CST renderings and error
+  types must not leak through the domain-owned port. Date/Author: 2026-07-13 /
+  Logisphere-reviewed Codex planning team. Ownership wording clarified on
+  2026-07-14 during terminal documentation review.
 - Decision: serialize to memory before stdout and permit partial stdout only
   when the operating system accepts a prefix before an output failure.
   Rationale: the process can prevent serialization failures from writing JSON,
@@ -364,6 +380,13 @@ stop and resolve the conflict before editing `Cargo.toml`.
   transplanting filesystem concerns into the domain, introducing directory/
   include semantics, or exceeding the repository's four-argument limit. Date/
   Author: 2026-07-14 / Codex.
+- Decision: do not derive an automatic `MakefileParser` mock for integration
+  tests. Rationale: a `cfg_attr(test, automock)` mock is not exported when the
+  library is compiled as a dependency of an integration-test crate. Exporting
+  it would require production `mockall` or a public test-support feature and
+  API solely for test ceremony; the existing small manual fake exercises the
+  port without widening production dependencies or surface. Date/Author:
+  2026-07-14 / Wyvern review team.
 
 ## Outcomes & retrospective
 
@@ -384,10 +407,12 @@ unavailable, as explicitly approved by the user.
 ## Context and orientation
 
 The repository is a Rust 2024 application compiled on the pinned nightly with
-Polonius. `src/lib.rs` contains a temporary `greet` function, `src/main.rs`
-prints a greeting under a temporary lint exception, and `tests/stub.rs` is a
-disposable test. Replace those stubs only after real tests establish the red
-stage.
+Polonius. `src/domain/` owns schema-v1 report types and source-location policy;
+`src/ports.rs` owns the parser contract; and `src/application.rs` validates,
+hashes, and assembles one source report. `src/adapters/` contains the
+makefile-lossless parser, injected source capability, and CLI/reporting edges.
+`src/main.rs` is the composition root. Unit, property, schema, behavioural, and
+end-to-end tests under `tests/` replace the original greeting stubs.
 
 [ADR-0001](../adrs/0001-single-file-gnu-make-parse.md) governs scope and the
 stable subprocess contract. [The technical design](../design.md) defines JSON
@@ -439,14 +464,14 @@ CLI adapter ──> composition root ──> source reader
 parse report ──> composition root ──> JSON reporter ──> stdout / process exit
 ```
 
-The domain owns schema-v1 value types, source locations, conditional ancestry,
-global ordinal assignment, exact-byte SHA-256 metadata, diagnostic order, and
-complete/recovered classification. The application service validates one source
-byte buffer as UTF-8, hashes it, and coordinates its logical path with the
-parser port. Adapters own OrthoConfig/clap, capability-oriented file or stdin
-reading, upstream parsing into ordered observations, Serde serialization,
-streams, and process exit. Adapters never call each other; `src/main.rs` is the
-composition root.
+The domain owns schema-v1 value types, the `SourceIdentity` contract, source
+locations, conditional ancestry, global ordinal assignment, diagnostic order,
+and complete/recovered classification. The application service validates one
+source byte buffer as UTF-8, calculates its exact-byte SHA-256 digest, and
+coordinates its logical path with the parser port. Adapters own
+OrthoConfig/clap, capability-oriented file or stdin reading, upstream parsing
+into ordered observations, Serde serialization, streams, and process exit.
+Adapters never call each other; `src/main.rs` is the composition root.
 
 ## Plan of work
 
@@ -929,4 +954,8 @@ manual acceptance, performance measurements, and external Concordat and
 include-boundary evidence recorded above. Pull request review remains pending.
 Revised again on 2026-07-14 to inject the ambient filesystem capability at the
 CLI boundary while preserving the stable source error and process diagnostic
-contracts.
+contracts. Terminal documentation review then clarified hashing ownership and
+replaced planning-time scaffold descriptions in the current repository
+orientation and applied the valid CLI and parser-helper fixes. Independent
+scrutineer validation passed all post-correction gates; exact terminal-diff
+CodeRabbit certification remains pending in the pull request.

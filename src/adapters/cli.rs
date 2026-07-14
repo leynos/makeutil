@@ -131,10 +131,7 @@ where
     };
     let cli = match Cli::from_arg_matches(&matches) {
         Ok(cli) => cli,
-        Err(error) => {
-            let _write_result = capabilities.stderr.write_all(error.to_string().as_bytes());
-            return ProcessOutcome { exit_code: 2 };
-        }
+        Err(error) => return fatal(capabilities.stderr, "cli", &error.to_string()),
     };
     match cli.command {
         Command::Parse(parse_arguments) => run_parse(&parse_arguments, &matches, &mut capabilities),

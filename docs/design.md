@@ -365,12 +365,12 @@ The package may expose a Rust library internally for unit tests, but only the
 CLI and JSON schema form a supported integration contract in the first release.
 
 The domain owns report types, source spans and locations, conditional ancestry,
-ordinal assignment, diagnostic ordering, source hashing, and complete versus
-recovered classification. A domain-owned parser port accepts UTF-8 text and
-returns ordered makeutil-owned syntax observations, source spans, and
-diagnostics. The `makefile-lossless` adapter implements the port and proves its
-own complete-tree round trip; it never returns Rowan nodes, upstream errors, or
-rendered CST bytes through the port.
+ordinal assignment, diagnostic ordering, the `SourceIdentity` contract, and
+complete versus recovered classification. A domain-owned parser port accepts
+UTF-8 text and returns ordered makeutil-owned syntax observations, source
+spans, and diagnostics. The `makefile-lossless` adapter implements the port and
+proves its own complete-tree round trip; it never returns Rowan nodes, upstream
+errors, or rendered CST bytes through the port.
 
 The application service calculates SHA-256 over the exact input bytes while
 `parse_source` constructs `SourceIdentity`.

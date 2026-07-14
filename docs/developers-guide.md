@@ -41,6 +41,13 @@ and ignore-error accessors are sensitive to modifier order. It may be called
 only while translating an upstream recipe into a `RecipeObservation`; it is not
 a general Make lexer, domain helper, or reusable port.
 
+`rule_observation`, `variable_observation`, and `include_observation` are
+private makefile-adapter constructors called only by `collect_items`. They keep
+upstream field validation and source-span mapping beside CST translation. They
+are not domain ports or general utilities; reuse outside `collect_items`
+requires a new adapter-owned call-site with the same complete-observation
+contract, not a move into the domain or ports modules.
+
 The CLI adapter's private extraction, report-production, and report-emission
 helpers divide its orchestration into focused steps. They may be called only by
 the CLI adapter and must remain ordinary private functions. Promote one to a

@@ -1,5 +1,11 @@
 # OrthoConfig user's guide
 
+> **Upstream reference:** This imported guide describes the
+> [OrthoConfig repository](https://github.com/leynos/ortho-config), not the
+> makeutil workspace. Repository-relative paths, `make` commands, examples,
+> tests, and assets mentioned below—including Hello World and
+> `config/overrides.toml`—belong to that upstream repository.
+
 `OrthoConfig` is a Rust library that unifies command‑line arguments,
 environment variables and configuration files into a single, strongly typed
 configuration struct. It is inspired by tools such as `esbuild` and is designed
@@ -46,9 +52,9 @@ values from multiple sources. The core features are:
   parser. Vector fields honour the append strategy by default, while maps use
   keyed merging unless replacement is requested.
 
-The workspace bundles an executable Hello World example under
-`examples/hello_world`. It layers defaults, environment variables, and CLI
-flags via the derive macro; see its
+The upstream OrthoConfig workspace bundles an executable Hello World example
+under `examples/hello_world`. It layers defaults, environment variables, and
+CLI flags via the derive macro; see its
 [README](https://github.com/leynos/ortho-config/blob/main/examples/hello_world/README.md)
 for a step-by-step walkthrough and the `rstest-bdd` (Behaviour-Driven
 Development) scenarios that validate behaviour end-to-end.
