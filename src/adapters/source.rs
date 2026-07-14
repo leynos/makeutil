@@ -3,8 +3,17 @@
 use std::io::Read as _;
 
 use camino::Utf8Path;
-use cap_std::{ambient_authority, fs_utf8::File};
 use thiserror::Error;
+
+/// Capability for opening one logical source path as a byte stream.
+pub trait SourceReader {
+    /// Open `path` for reading without resolving ambient authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns an input/output error when the capability cannot open `path`.
+    fn open(&self, path: &Utf8Path) -> std::io::Result<Box<dyn std::io::Read>>;
+}
 
 /// Source input failure classified for stable CLI diagnostics.
 #[derive(Debug, Error)]
@@ -38,18 +47,20 @@ impl SourceReadError {
     }
 }
 
-/// Read exact bytes from a UTF-8 path using an explicit ambient authority.
+/// Read exact bytes from a UTF-8 path using an injected reader capability.
 ///
 /// # Errors
 ///
 /// Returns [`SourceReadError`] when the source cannot be opened or read.
-pub fn read_path(path: &Utf8Path) -> Result<Vec<u8>, SourceReadError> {
+pub fn read_path(
+    reader: &(impl SourceReader + ?Sized),
+    path: &Utf8Path,
+) -> Result<Vec<u8>, SourceReadError> {
     let display_path = path.as_str().to_owned();
-    let mut file =
-        File::open_ambient(path, ambient_authority()).map_err(|source| SourceReadError::Open {
-            path: display_path.clone(),
-            source,
-        })?;
+    let mut file = reader.open(path).map_err(|source| SourceReadError::Open {
+        path: display_path.clone(),
+        source,
+    })?;
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes)
         .map_err(|source| SourceReadError::Read {

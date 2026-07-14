@@ -19,6 +19,16 @@ external capability requires another port. CLI path and stdin filename values
 must continue to use OrthoConfig's explicit `ArgMatches` extraction, without
 file or environment layers.
 
+`SourceReader` is the source adapter's narrow capability interface for opening
+one requested UTF-8 path. `read_path` owns complete byte collection and stable
+`SourceReadError` classification, but must never call `ambient_authority`
+itself. The CLI boundary constructs `AmbientSourceReader` once in `run_from`
+and bundles it with process streams in `ProcessCapabilities`; tests and
+embedded callers may instead use `run_from_with_reader`. Do not use
+`SourceReader` for stdin, directory traversal, include expansion, parsing, or
+general filesystem access, and do not promote it into the domain-owned parser
+port.
+
 `ConditionKind` is the shared, closed domain and parser-port representation for
 `ifdef`, `ifndef`, `ifeq`, and `ifneq`. The parser adapter is its only producer;
 `SyntaxObservation` and report types are its permitted consumers. Extend the

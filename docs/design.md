@@ -335,7 +335,11 @@ The first slice is implemented by `domain`, `ports`, `application`, and
 `adapters` modules in one crate. This is a boundary protection measure, not a
 pattern transplant: `MakefileParser` is the sole port because the upstream CST
 is the sole volatile external semantic boundary. Source input, JSON, and CLI
-code remain ordinary edge adapters.
+code remain ordinary edge adapters. The source adapter accepts a narrow
+`SourceReader` capability interface so it can classify open and read failures
+without resolving ambient authority. The CLI composition boundary constructs
+the concrete ambient-backed reader once and injects it downwards; this
+interface is an adapter test seam, not a domain port.
 
 The parser port is owned by the domain and called only by `parse_source`.
 Adapter implementations may compose upstream accessors and Rowan ranges, but
@@ -350,8 +354,8 @@ digest rendering. Neither dependency expands the stable public contract.
 
 | Component      | Responsibility                                                                    |
 | -------------- | --------------------------------------------------------------------------------- |
-| CLI front end  | Parse the command and validate that exactly one source was supplied.              |
-| Source reader  | Read one path or stdin into bytes without interpreting or normalizing it.         |
+| CLI front end  | Parse the command, validate one source, and compose ambient process capabilities. |
+| Source reader  | Read one injected path capability or stdin without interpreting or normalizing.   |
 | Parser adapter | Invoke `makefile-lossless` and return ordered owned observations and diagnostics. |
 | Fact collector | Flatten observations, attach conditions and locations, and assign ordinals.       |
 | Location index | Convert byte offsets into one-based line and byte-column positions.               |

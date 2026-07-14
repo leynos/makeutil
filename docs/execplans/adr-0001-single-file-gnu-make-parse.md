@@ -203,6 +203,13 @@ stop and resolve the conflict before editing `Cargo.toml`.
   tests, two passing doctests with one intentionally ignored, and clean
   formatting, Polonius type-checking, lint, documentation, diagram, and diff
   checks.
+- [x] (2026-07-14) Injected ambient filesystem access at the CLI composition
+  boundary. Red compilation proved the `SourceReader` and
+  `run_from_with_reader` seams were absent; focused source-adapter, output-
+  failure, and BDD tests passed. The terminal repository gates then passed 49
+  of 49 tests, two doctests with one intentionally ignored, and clean
+  formatting, Polonius type-checking, rustdoc, Clippy, Whitaker, Markdown,
+  spelling, Mermaid, and diff checks.
 - [ ] Obtain CodeRabbit certification of the exact terminal diff through the
   pull request. The user approved deferral from the unavailable CLI review
   during CodeRabbit's temporary outage.
@@ -263,7 +270,11 @@ stop and resolve the conflict before editing `Cargo.toml`.
   `cap_std::fs_utf8::File::open_ambient` with explicit ambient authority.
   Evidence: `src/adapters/source.rs` owns that call and maps its open and read
   failures into `SourceReadError`. Impact: the finding was stale and required
-  no source-reader change.
+  no source-reader change at that review milestone. The user subsequently
+  requested a stronger composition rule: ambient authority must be resolved
+  only by the CLI and injected into `read_path`. Impact: the explicit new
+  requirement supersedes the earlier no-change conclusion without changing
+  error or CLI contracts.
 
 ## Decision log
 
@@ -344,6 +355,15 @@ stop and resolve the conflict before editing `Cargo.toml`.
   ports for implementation details. Permitted call sites and reuse policy are
   recorded in `docs/developers-guide.md`. Date/Author: 2026-07-14 / Wyvern
   review team.
+- Decision: define `SourceReader` in the source adapter as a narrow capability
+  interface, not a domain port. `read_path` owns byte collection and
+  `SourceReadError` classification; `run_from` alone constructs the
+  ambient-backed implementation, while `run_from_with_reader` supports tests
+  and embedded composition through one `ProcessCapabilities` value. Rationale:
+  this removes ambient authority from the reusable read function without
+  transplanting filesystem concerns into the domain, introducing directory/
+  include semantics, or exceeding the repository's four-argument limit. Date/
+  Author: 2026-07-14 / Codex.
 
 ## Outcomes & retrospective
 
@@ -354,9 +374,12 @@ The forked parser fix restores source-faithful `!=` assignments without a
 makeutil-specific fallback. Manual CLI acceptance, release-mode guardrails, and
 the Concordat subprocess and include-boundary trials all pass. Independent
 scrutineer validation repeated every deterministic gate. The implementation of
-ADR-0001's single-file GNU Make parse slice is complete; exact terminal-diff
-CodeRabbit certification is deferred to the pull request because the CLI
-service became unavailable, as explicitly approved by the user.
+ADR-0001's single-file GNU Make parse slice is complete. Ambient filesystem
+authority is now composed once at the CLI boundary and injected through
+`ProcessCapabilities`; fake readers prove the source-open and source-read
+contracts without filesystem access. Exact terminal-diff CodeRabbit
+certification is deferred to the pull request because the CLI service became
+unavailable, as explicitly approved by the user.
 
 ## Context and orientation
 
@@ -904,3 +927,6 @@ performance, and dependency decisions and to import and correct the OrthoConfig
 0.8.0 guide. Implementation completed on 2026-07-13 with deterministic gates,
 manual acceptance, performance measurements, and external Concordat and
 include-boundary evidence recorded above. Pull request review remains pending.
+Revised again on 2026-07-14 to inject the ambient filesystem capability at the
+CLI boundary while preserving the stable source error and process diagnostic
+contracts.

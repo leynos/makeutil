@@ -3,13 +3,14 @@
 use std::ffi::OsString;
 
 use camino::Utf8Path;
+use cap_std::{AmbientAuthority, ambient_authority, fs_utf8::File};
 use clap::{CommandFactory as _, FromArgMatches as _, Parser, Subcommand};
 use ortho_config::{CliValueExtractor as _, OrthoConfig};
 use serde::{Deserialize, Serialize};
 
 use super::{
     MakefileLosslessParser,
-    source::{read_path, read_stdin},
+    source::{SourceReader, read_path, read_stdin},
 };
 use crate::{
     domain::{ParseReport, ParseStatus},
@@ -52,10 +53,48 @@ pub struct ProcessOutcome {
     pub exit_code: u8,
 }
 
-struct Streams<'stream> {
+/// Process-owned input, output, diagnostic, and source-reader capabilities.
+pub struct ProcessCapabilities<'stream> {
     stdin: &'stream mut dyn std::io::Read,
     stdout: &'stream mut dyn std::io::Write,
     stderr: &'stream mut dyn std::io::Write,
+    source_reader: &'stream dyn SourceReader,
+}
+
+impl<'stream> ProcessCapabilities<'stream> {
+    /// Bundle process capabilities for an injected command invocation.
+    pub fn new(
+        stdin: &'stream mut dyn std::io::Read,
+        stdout: &'stream mut dyn std::io::Write,
+        stderr: &'stream mut dyn std::io::Write,
+        source_reader: &'stream dyn SourceReader,
+    ) -> Self {
+        Self {
+            stdin,
+            stdout,
+            stderr,
+            source_reader,
+        }
+    }
+}
+
+struct AmbientSourceReader {
+    authority: AmbientAuthority,
+}
+
+impl AmbientSourceReader {
+    fn new() -> Self {
+        Self {
+            authority: ambient_authority(),
+        }
+    }
+}
+
+impl SourceReader for AmbientSourceReader {
+    fn open(&self, path: &Utf8Path) -> std::io::Result<Box<dyn std::io::Read>> {
+        File::open_ambient(path, self.authority)
+            .map(|file| Box::new(file) as Box<dyn std::io::Read>)
+    }
 }
 
 /// Parse arguments, run the command, and write only contract streams.
@@ -69,29 +108,40 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let mut streams = Streams {
-        stdin,
-        stdout,
-        stderr,
-    };
+    let source_reader = AmbientSourceReader::new();
+    run_from_with_reader(
+        command_line,
+        ProcessCapabilities::new(stdin, stdout, stderr, &source_reader),
+    )
+}
+
+/// Parse arguments and run the command with an injected source-reader capability.
+pub fn run_from_with_reader<I, T>(
+    command_line: I,
+    mut capabilities: ProcessCapabilities<'_>,
+) -> ProcessOutcome
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     let command = Cli::command();
     let matches = match command.try_get_matches_from(command_line) {
         Ok(matches) => matches,
-        Err(error) => return render_clap_error(&error, &mut streams),
+        Err(error) => return render_clap_error(&error, &mut capabilities),
     };
     let cli = match Cli::from_arg_matches(&matches) {
         Ok(cli) => cli,
         Err(error) => {
-            let _write_result = streams.stderr.write_all(error.to_string().as_bytes());
+            let _write_result = capabilities.stderr.write_all(error.to_string().as_bytes());
             return ProcessOutcome { exit_code: 2 };
         }
     };
     match cli.command {
-        Command::Parse(parse_arguments) => run_parse(&parse_arguments, &matches, &mut streams),
+        Command::Parse(parse_arguments) => run_parse(&parse_arguments, &matches, &mut capabilities),
     }
 }
 
-fn render_clap_error(error: &clap::Error, streams: &mut Streams<'_>) -> ProcessOutcome {
+fn render_clap_error(error: &clap::Error, streams: &mut ProcessCapabilities<'_>) -> ProcessOutcome {
     let exit_code = if error.use_stderr() { 2 } else { 0 };
     let writer = if error.use_stderr() {
         &mut streams.stderr
@@ -105,7 +155,7 @@ fn render_clap_error(error: &clap::Error, streams: &mut Streams<'_>) -> ProcessO
 fn run_parse(
     parsed_arguments: &ParseArgs,
     matches: &clap::ArgMatches,
-    streams: &mut Streams<'_>,
+    streams: &mut ProcessCapabilities<'_>,
 ) -> ProcessOutcome {
     let Some(parse_matches) = matches.subcommand_matches("parse") else {
         return fatal(
@@ -139,7 +189,7 @@ fn extract_explicit_arguments(
 
 fn produce_report(
     arguments: ParseArgs,
-    streams: &mut Streams<'_>,
+    streams: &mut ProcessCapabilities<'_>,
 ) -> Result<ParseReport, ProcessOutcome> {
     let (bytes, logical_path) = read_input(arguments, streams)?;
     match parse_source(&bytes, &logical_path, &MakefileLosslessParser) {
@@ -151,7 +201,7 @@ fn produce_report(
     }
 }
 
-fn emit_report(report: &ParseReport, streams: &mut Streams<'_>) -> ProcessOutcome {
+fn emit_report(report: &ParseReport, streams: &mut ProcessCapabilities<'_>) -> ProcessOutcome {
     let mut document = match serde_json::to_vec(&report) {
         Ok(document) => document,
         Err(error) => return fatal(streams.stderr, "json-serialize", &error.to_string()),
@@ -167,7 +217,7 @@ fn emit_report(report: &ParseReport, streams: &mut Streams<'_>) -> ProcessOutcom
 
 fn read_input(
     arguments: ParseArgs,
-    streams: &mut Streams<'_>,
+    streams: &mut ProcessCapabilities<'_>,
 ) -> Result<(Vec<u8>, String), ProcessOutcome> {
     if arguments.path == "-" {
         let logical_path = arguments.stdin_filename.ok_or_else(|| {
@@ -189,7 +239,7 @@ fn read_input(
         ));
     }
     let path = Utf8Path::new(&arguments.path);
-    read_path(path)
+    read_path(streams.source_reader, path)
         .map(|bytes| (bytes, arguments.path))
         .map_err(|error| fatal(streams.stderr, error.operation(), &error.to_string()))
 }
