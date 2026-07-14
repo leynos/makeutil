@@ -216,6 +216,13 @@ stop and resolve the conflict before editing `Cargo.toml`.
   of 49 tests, two passing doctests with one intentionally ignored, and clean
   `make check-fmt`, `make typecheck`, `make lint`, `make test`, rustdoc,
   Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
+- [x] (2026-07-14) Replaced duplicated integration-test source readers with one
+  `mockall` definition under `tests/common`, keeping mock code out of the
+  production library. The scrutineer independently confirmed 49 of 49 tests,
+  two passing doctests with one intentionally ignored, and clean formatting,
+  Polonius type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling,
+  Mermaid, and diff checks. All targets compiled with warnings denied and no
+  unused test helper.
 - [ ] Obtain CodeRabbit certification of the exact terminal diff through the
   pull request. The user approved deferral from the unavailable CLI review
   during CodeRabbit's temporary outage.
@@ -380,13 +387,15 @@ stop and resolve the conflict before editing `Cargo.toml`.
   transplanting filesystem concerns into the domain, introducing directory/
   include semantics, or exceeding the repository's four-argument limit. Date/
   Author: 2026-07-14 / Codex.
-- Decision: do not derive an automatic `MakefileParser` mock for integration
-  tests. Rationale: a `cfg_attr(test, automock)` mock is not exported when the
-  library is compiled as a dependency of an integration-test crate. Exporting
-  it would require production `mockall` or a public test-support feature and
-  API solely for test ceremony; the existing small manual fake exercises the
-  port without widening production dependencies or surface. Date/Author:
-  2026-07-14 / Wyvern review team.
+- Decision: share a `MockSourceReader` definition under `tests/common` rather
+  than derive it on the production trait. Rationale: a
+  `cfg_attr(test, automock)` type is not exported when the library is compiled
+  as a dependency of an integration-test crate. A test-only `mockall::mock!`
+  definition removes duplicated readers without adding `mockall`, a public
+  test-support feature, or generated mocks to the production surface. Keep the
+  failing stream in a separate shared file included only by suites that use it,
+  so warnings remain denied without suppressions. Date/Author: 2026-07-14 /
+  User and Codex.
 
 ## Outcomes & retrospective
 
@@ -958,4 +967,8 @@ contracts. Terminal documentation review then clarified hashing ownership and
 replaced planning-time scaffold descriptions in the current repository
 orientation and applied the valid CLI and parser-helper fixes. Independent
 scrutineer validation passed all post-correction gates; exact terminal-diff
-CodeRabbit certification remains pending in the pull request.
+CodeRabbit certification remains pending in the pull request. The shared
+source-reader test double was subsequently moved to a test-only common module
+because Cargo does not export `cfg(test)` automatic mocks to integration-test
+crates. Independent post-change repository gates passed with warnings denied
+across every integration-test binary.

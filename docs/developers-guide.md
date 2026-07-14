@@ -29,6 +29,12 @@ embedded callers may instead use `run_from_with_reader`. Do not use
 general filesystem access, and do not promote it into the domain-owned parser
 port.
 
+Integration tests share `MockSourceReader` from `tests/common/mod.rs`, where
+`mockall` remains a development-only dependency. Include
+`tests/common/failing_reader.rs` only in suites that exercise post-open read
+failures; do not compile shared test helpers into binaries that do not use
+them, and do not suppress the resulting unused-code warnings.
+
 `ConditionKind` is the shared, closed domain and parser-port representation for
 `ifdef`, `ifndef`, `ifeq`, and `ifneq`. The parser adapter is its only producer;
 `SyntaxObservation` and report types are its permitted consumers. Extend the

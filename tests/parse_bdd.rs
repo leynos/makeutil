@@ -1,12 +1,12 @@
 //! Behavioural acceptance tests for the parse command.
 
-use std::io::{Cursor, Read};
+mod common;
+
+use std::io::Cursor;
 
 use camino::Utf8Path;
-use makeutil::adapters::{
-    cli::{ProcessCapabilities, run_from_with_reader},
-    source::SourceReader,
-};
+use common::MockSourceReader;
+use makeutil::adapters::cli::{ProcessCapabilities, run_from_with_reader};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 
@@ -17,22 +17,6 @@ struct World {
     stdout: Vec<u8>,
     stderr: Vec<u8>,
     exit_code: Option<u8>,
-}
-
-struct FixtureSourceReader;
-
-impl SourceReader for FixtureSourceReader {
-    fn open(&self, path: &Utf8Path) -> std::io::Result<Box<dyn Read>> {
-        if path == Utf8Path::new("tests/fixtures/makefiles/all-facts.mk") {
-            return Ok(Box::new(Cursor::new(include_bytes!(
-                "fixtures/makefiles/all-facts.mk"
-            ))));
-        }
-        Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "fixture is absent",
-        ))
-    }
 }
 
 #[fixture]
@@ -128,12 +112,24 @@ fn source_open(world: &World) {
 }
 
 fn run_world(world: &mut World) {
+    let mut source_reader = MockSourceReader::new();
+    source_reader.expect_open().returning(|path| {
+        if path == Utf8Path::new("tests/fixtures/makefiles/all-facts.mk") {
+            return Ok(Box::new(Cursor::new(include_bytes!(
+                "fixtures/makefiles/all-facts.mk"
+            ))));
+        }
+        Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "fixture is absent",
+        ))
+    });
     let mut stdin = world.stdin.as_slice();
     let capabilities = ProcessCapabilities::new(
         &mut stdin,
         &mut world.stdout,
         &mut world.stderr,
-        &FixtureSourceReader,
+        &source_reader,
     );
     let outcome = run_from_with_reader(world.arguments.clone(), capabilities);
     world.exit_code = Some(outcome.exit_code);
