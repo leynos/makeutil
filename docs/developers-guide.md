@@ -46,6 +46,13 @@ them, and do not suppress the resulting unused-code warnings.
 enum only when the supported GNU Make contract adds another directive, and do
 not pass upstream strings beyond the adapter.
 
+`AssignmentOperator` is the shared, closed domain and parser-port
+representation for schema-v1 variable operators. The parser adapter is its only
+producer; `SyntaxObservation` and report types are its permitted consumers. Its
+`Define` variant serializes as an empty string and means a `define` block
+without an assignment token. Extend the enum only through a schema-versioned
+contract decision, and do not pass upstream operator strings beyond the adapter.
+
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent
 and ignore-error accessors are sensitive to modifier order. It may be called

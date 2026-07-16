@@ -13,7 +13,7 @@ use makefile_lossless::{
 use rowan::ast::AstNode as _;
 
 use crate::{
-    domain::{ConditionBranch, ConditionKind, SourceSpan},
+    domain::{AssignmentOperator, ConditionBranch, ConditionKind, SourceSpan},
     ports::{
         ConditionObservation,
         MakefileParser,
@@ -113,7 +113,10 @@ fn variable_observation(
         name: variable.name().ok_or(ParserPortError::MissingField {
             field: "variable-name",
         })?,
-        operator: variable.assignment_operator().unwrap_or_default(),
+        operator: assignment_operator(
+            variable.assignment_operator().as_deref(),
+            variable.is_define(),
+        )?,
         raw_value: variable.raw_value().unwrap_or_default(),
         exported: variable.is_export(),
         overridden: variable.is_override(),
@@ -121,6 +124,28 @@ fn variable_observation(
         conditions: conditions.to_vec(),
         span: span(variable.syntax().text_range(), source_length)?,
     })
+}
+
+fn assignment_operator(
+    operator: Option<&str>,
+    is_define: bool,
+) -> Result<AssignmentOperator, ParserPortError> {
+    match operator {
+        None if is_define => Ok(AssignmentOperator::Define),
+        Some("=") => Ok(AssignmentOperator::Recursive),
+        Some(":=") => Ok(AssignmentOperator::Simple),
+        Some("::=") => Ok(AssignmentOperator::PosixSimple),
+        Some(":::=") => Ok(AssignmentOperator::ImmediateRecursive),
+        Some("+=") => Ok(AssignmentOperator::Append),
+        Some("?=") => Ok(AssignmentOperator::Conditional),
+        Some("!=") => Ok(AssignmentOperator::Shell),
+        Some(raw_operator) => Err(ParserPortError::UnsupportedAssignmentOperator {
+            operator: raw_operator.to_owned(),
+        }),
+        None => Err(ParserPortError::MissingField {
+            field: "variable-assignment-operator",
+        }),
+    }
 }
 
 fn include_observation(
@@ -309,8 +334,8 @@ mod tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 
-    use super::{condition_kind, ensure_round_trip};
-    use crate::ports::ParserPortError;
+    use super::{assignment_operator, condition_kind, ensure_round_trip};
+    use crate::{domain::AssignmentOperator, ports::ParserPortError};
 
     #[rstest]
     fn unknown_condition_kind_is_rejected() {
@@ -329,6 +354,34 @@ mod tests {
         assert_eq!(
             ensure_round_trip(&parsed.tree(), "different:\n"),
             Err(ParserPortError::RoundTripMismatch)
+        );
+    }
+
+    #[rstest]
+    fn define_without_operator_uses_empty_schema_variant() {
+        assert_eq!(
+            assignment_operator(None, true),
+            Ok(AssignmentOperator::Define)
+        );
+    }
+
+    #[rstest]
+    fn ordinary_variable_requires_an_operator() {
+        assert_eq!(
+            assignment_operator(None, false),
+            Err(ParserPortError::MissingField {
+                field: "variable-assignment-operator",
+            })
+        );
+    }
+
+    #[rstest]
+    fn unsupported_assignment_operator_is_rejected() {
+        assert_eq!(
+            assignment_operator(Some("unknown"), false),
+            Err(ParserPortError::UnsupportedAssignmentOperator {
+                operator: "unknown".to_owned(),
+            })
         );
     }
 }

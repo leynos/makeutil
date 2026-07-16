@@ -113,7 +113,7 @@ its layers to the derived helper to build the final struct:
 
 ```rust
 use ortho_config::{MergeComposer, OrthoConfig};
-use ortho_config::json;
+use ortho_config::serde_json::json;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, OrthoConfig)]
@@ -122,17 +122,23 @@ struct AppConfig {
     salutations: Vec<String>,
 }
 
-let mut composer = MergeComposer::new();
-composer.push_defaults(json!({"recipient": "Defaults", "salutations": ["Hi"] }));
-composer.push_environment(json!({"salutations": ["Env"] }));
-composer.push_cli(json!({"recipient": "Cli" }));
+fn demo() -> ortho_config::OrthoResult<()> {
+    let mut composer = MergeComposer::new();
+    composer.push_defaults(json!({
+        "recipient": "Defaults",
+        "salutations": ["Hi"]
+    }));
+    composer.push_environment(json!({"salutations": ["Env"] }));
+    composer.push_cli(json!({"recipient": "Cli" }));
 
-let merged = AppConfig::merge_from_layers(composer.layers())?;
-assert_eq!(merged.recipient, "Cli");
-assert_eq!(
-    merged.salutations,
-    vec![String::from("Hi"), String::from("Env")]
-);
+    let merged = AppConfig::merge_from_layers(composer.layers())?;
+    assert_eq!(merged.recipient, "Cli");
+    assert_eq!(
+        merged.salutations,
+        vec![String::from("Hi"), String::from("Env")]
+    );
+    Ok(())
+}
 ```
 
 This API surfaces the same precedence as the generated `load()` method while
@@ -616,9 +622,9 @@ following steps:
 4. Adds a provider containing the CLI values (captured as `Option<T>` fields)
    as the final layer.
 
-5. Merges vector fields according to the `merge_strategy` (currently only
-   `append`) so that lists of values from lower precedence sources are extended
-   with values from higher precedence ones.
+5. Merges vector fields according to `merge_strategy`: `append` extends values
+   from lower-precedence sources with higher-precedence values, while `replace`
+   discards the lower-precedence vector when a later layer supplies one.
 
 6. Attempts to extract the merged configuration into the concrete struct. On
    success it returns the completed configuration; otherwise an `OrthoError` is

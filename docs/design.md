@@ -168,7 +168,10 @@ Schema version 1 has this shape:
 }
 ```
 
-`parse.status` is either `complete` or `recovered`.
+`parse.status` is either `complete` or `recovered`. A complete report has no
+diagnostics; a recovered report has at least one diagnostic. Schema-v1
+producers must not emit a status and diagnostics collection that violate this
+invariant.
 
 The schema does not include the complete source text or CST. The caller already
 owns the source, and duplicating it would enlarge policy input without adding
@@ -310,8 +313,10 @@ for the first bounded rules.
 }
 ```
 
-The operator remains source-faithful. The first slice does not calculate the
-effective value or precedence.
+The schema-v1 operator set is closed: `""`, `"="`, `":="`, `"::="`, `":::="`,
+`"+="`, `"?="`, and `"!="`. The empty string means a `define` block without an
+assignment token. The operator remains source-faithful; the first slice does
+not calculate the effective value or precedence.
 
 ### 6.7. Include facts
 

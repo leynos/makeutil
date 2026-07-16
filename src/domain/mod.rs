@@ -112,6 +112,52 @@ pub enum ConditionKind {
     Ifneq,
 }
 
+/// GNU Make variable assignment operator represented by schema version 1.
+///
+/// `Define` represents a define block without an assignment token and serializes
+/// as the schema's empty operator.
+///
+/// # Examples
+///
+/// ```
+/// use makeutil::domain::AssignmentOperator;
+///
+/// assert_eq!(
+///     serde_json::to_string(&AssignmentOperator::Shell)?,
+///     r#""!=""#
+/// );
+/// assert_eq!(serde_json::to_string(&AssignmentOperator::Define)?, r#""""#);
+/// # Ok::<(), serde_json::Error>(())
+/// ```
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub enum AssignmentOperator {
+    /// Define block without an assignment token.
+    #[default]
+    #[serde(rename = "")]
+    Define,
+    /// Recursively expanded assignment (`=`).
+    #[serde(rename = "=")]
+    Recursive,
+    /// Simply expanded assignment (`:=`).
+    #[serde(rename = ":=")]
+    Simple,
+    /// POSIX-style simply expanded assignment (`::=`).
+    #[serde(rename = "::=")]
+    PosixSimple,
+    /// Immediately expanded recursive assignment (`:::=`).
+    #[serde(rename = ":::=")]
+    ImmediateRecursive,
+    /// Appending assignment (`+=`).
+    #[serde(rename = "+=")]
+    Append,
+    /// Conditional assignment (`?=`).
+    #[serde(rename = "?=")]
+    Conditional,
+    /// Shell assignment (`!=`).
+    #[serde(rename = "!=")]
+    Shell,
+}
+
 /// Branch of a conditional.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -166,7 +212,7 @@ pub struct VariableFact {
     /// Variable name.
     pub name: String,
     /// Source assignment operator.
-    pub operator: String,
+    pub operator: AssignmentOperator,
     /// Unexpanded source value.
     pub raw_value: String,
     /// Whether the `export` modifier is present.

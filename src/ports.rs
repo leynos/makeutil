@@ -2,7 +2,13 @@
 
 use thiserror::Error;
 
-use crate::domain::{ConditionBranch, ConditionKind, LocationError, SourceSpan};
+use crate::domain::{
+    AssignmentOperator,
+    ConditionBranch,
+    ConditionKind,
+    LocationError,
+    SourceSpan,
+};
 
 /// Parser output expressed only in makeutil-owned observations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,7 +68,7 @@ pub enum SyntaxObservation {
         /// Variable name.
         name: String,
         /// Assignment operator.
-        operator: String,
+        operator: AssignmentOperator,
         /// Unexpanded value.
         raw_value: String,
         /// Whether exported.
@@ -118,6 +124,12 @@ pub enum ParserPortError {
     UnsupportedConditionKind {
         /// Upstream keyword that could not be represented by the domain enum.
         kind: String,
+    },
+    /// An upstream assignment operator was outside the schema-v1 set.
+    #[error("unsupported assignment operator {operator}")]
+    UnsupportedAssignmentOperator {
+        /// Upstream operator that could not be represented by the domain enum.
+        operator: String,
     },
 }
 

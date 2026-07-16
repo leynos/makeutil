@@ -2,7 +2,7 @@
 
 use makeutil::{
     adapters::MakefileLosslessParser,
-    domain::{ConditionKind, LocationIndex, ParseStatus, SourceSpan},
+    domain::{AssignmentOperator, ConditionKind, LocationIndex, ParseStatus, SourceSpan},
     parse_source,
 };
 use pretty_assertions::assert_eq;
@@ -106,16 +106,16 @@ fn recovered_parse_retains_facts_and_diagnostics() {
 }
 
 #[rstest]
-#[case("A = one\n", "=", "one")]
-#[case("A := two\n", ":=", "two")]
-#[case("A ::= three\n", "::=", "three")]
-#[case("A :::= four\n", ":::=", "four")]
-#[case("A += five\n", "+=", "five")]
-#[case("A ?= six\n", "?=", "six")]
-#[case("A != printf seven\n", "!=", "printf seven")]
+#[case("A = one\n", AssignmentOperator::Recursive, "one")]
+#[case("A := two\n", AssignmentOperator::Simple, "two")]
+#[case("A ::= three\n", AssignmentOperator::PosixSimple, "three")]
+#[case("A :::= four\n", AssignmentOperator::ImmediateRecursive, "four")]
+#[case("A += five\n", AssignmentOperator::Append, "five")]
+#[case("A ?= six\n", AssignmentOperator::Conditional, "six")]
+#[case("A != printf seven\n", AssignmentOperator::Shell, "printf seven")]
 fn assignment_operators_remain_source_faithful(
     #[case] source: &str,
-    #[case] operator: &str,
+    #[case] operator: AssignmentOperator,
     #[case] raw_value: &str,
 ) {
     let report = parse_source(source.as_bytes(), "Makefile", &MakefileLosslessParser)
@@ -126,6 +126,23 @@ fn assignment_operators_remain_source_faithful(
         .expect("one variable should be reported");
     assert_eq!(variable.operator, operator);
     assert_eq!(variable.raw_value, raw_value);
+}
+
+#[rstest]
+#[case(AssignmentOperator::Define, r#""""#)]
+#[case(AssignmentOperator::Recursive, r#""=""#)]
+#[case(AssignmentOperator::Simple, r#"":=""#)]
+#[case(AssignmentOperator::PosixSimple, r#""::=""#)]
+#[case(AssignmentOperator::ImmediateRecursive, r#"":::=""#)]
+#[case(AssignmentOperator::Append, r#""+=""#)]
+#[case(AssignmentOperator::Conditional, r#""?=""#)]
+#[case(AssignmentOperator::Shell, r#""!=""#)]
+fn assignment_operators_match_schema_values(
+    #[case] operator: AssignmentOperator,
+    #[case] expected_json: &str,
+) -> Result<(), serde_json::Error> {
+    assert_eq!(serde_json::to_string(&operator)?, expected_json);
+    Ok(())
 }
 
 #[rstest]

@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::{
     domain::{
+        AssignmentOperator,
         ConditionContext,
         IncludeFact,
         LocationError,
@@ -265,7 +266,7 @@ struct RuleParts {
 
 struct VariableParts {
     name: String,
-    operator: String,
+    operator: AssignmentOperator,
     raw_value: String,
     exported: bool,
     overridden: bool,

@@ -68,6 +68,46 @@ fn malformed_near_miss_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[rstest]
+#[case::complete_with_diagnostics(true)]
+#[case::recovered_without_diagnostics(false)]
+fn contradictory_parse_summaries_are_rejected(
+    #[case] complete_with_diagnostics: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let complete = parse_source(
+        include_bytes!("fixtures/makefiles/all-facts.mk"),
+        "Makefile",
+        &MakefileLosslessParser,
+    )?;
+    let recovered = parse_source(
+        include_bytes!("fixtures/makefiles/recovered.mk"),
+        "recovered.mk",
+        &MakefileLosslessParser,
+    )?;
+    let recovered_diagnostics = serde_json::to_value(&recovered.parse.diagnostics)?;
+    let mut document = serde_json::to_value(if complete_with_diagnostics {
+        complete
+    } else {
+        recovered
+    })?;
+    let diagnostics = if complete_with_diagnostics {
+        recovered_diagnostics
+    } else {
+        serde_json::json!([])
+    };
+    let diagnostics_slot = document
+        .pointer_mut("/parse/diagnostics")
+        .ok_or("serialized report should contain parse diagnostics")?;
+    *diagnostics_slot = diagnostics;
+
+    let validator = jsonschema::validator_for(&schema()?)?;
+    if validator.is_valid(&document) {
+        Err("contradictory parse summary unexpectedly validated".into())
+    } else {
+        Ok(())
+    }
+}
+
+#[rstest]
 fn independent_consumer_deserializes_schema_v1(
     all_facts_report: Result<ParseReport, ParseApplicationError>,
 ) -> Result<(), Box<dyn std::error::Error>> {

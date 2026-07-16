@@ -236,6 +236,11 @@ stop and resolve the conflict before editing `Cargo.toml`.
   doctests with one intentionally ignored, and clean formatting, Polonius
   type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and
   diff checks.
+- [x] (2026-07-16) Closed the `AssignmentOperator` contract and enforced the
+  status/diagnostics schema invariant. The scrutineer independently confirmed
+  72 of 72 tests, three passing doctests with one intentionally ignored,
+  unchanged snapshots, and clean formatting, Polonius type-checking, rustdoc,
+  Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
 - [ ] Obtain CodeRabbit certification of the exact terminal diff through the
   pull request. The user approved deferral from the unavailable CLI review
   during CodeRabbit's temporary outage.
@@ -310,6 +315,11 @@ stop and resolve the conflict before editing `Cargo.toml`.
   observability surface, success and recovered parsing keep stderr empty, and
   the design explicitly defers metrics. Impact: no subscriber, recorder, or new
   telemetry dependency was added during terminal review.
+- Observation: schema v1 already enumerated assignment-operator strings, while
+  the runtime carried an unrestricted string from the upstream adapter. Impact:
+  an upstream value outside the schema could be serialized into a report that
+  the checked schema rejected, so the runtime boundary must enforce the same
+  closed set.
 
 ## Decision log
 
@@ -391,6 +401,12 @@ stop and resolve the conflict before editing `Cargo.toml`.
   ports for implementation details. Permitted call sites and reuse policy are
   recorded in `docs/developers-guide.md`. Date/Author: 2026-07-14 / Wyvern
   review team.
+- Decision: represent schema-v1 assignment operators with the closed,
+  domain-owned `AssignmentOperator` enum shared by the parser port and report
+  model. The empty representation is reserved for a `define` block without an
+  assignment token. Rationale: the producer must reject upstream drift before
+  serialization rather than emit JSON outside the checked schema. Date/Author:
+  2026-07-16 / Wyvern review team.
 - Decision: define `SourceReader` in the source adapter as a narrow capability
   interface, not a domain port. `read_path` owns byte collection and
   `SourceReadError` classification; `run_from` alone constructs the
