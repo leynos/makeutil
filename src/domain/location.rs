@@ -136,3 +136,41 @@ impl<'source> LocationIndex<'source> {
         (line_index + 1, offset - line_start + 1)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Regression tests for rejected source-location boundaries.
+
+    use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
+    use super::{LocationError, LocationIndex, SourceSpan};
+
+    #[rstest]
+    #[case::reversed(3, 2, 3)]
+    #[case::end_out_of_bounds(0, 4, 3)]
+    fn invalid_spans_are_rejected(
+        #[case] start: usize,
+        #[case] end: usize,
+        #[case] source_length: usize,
+    ) {
+        assert_eq!(
+            SourceSpan::new(start, end, source_length),
+            Err(LocationError::InvalidSpan {
+                start,
+                end,
+                source_length,
+            })
+        );
+    }
+
+    #[rstest]
+    #[case::start_boundary(SourceSpan { start: 1, end: 2 })]
+    #[case::end_boundary(SourceSpan { start: 0, end: 1 })]
+    fn split_utf8_boundaries_are_rejected(#[case] span: SourceSpan) {
+        assert_eq!(
+            LocationIndex::new("é").locate(span),
+            Err(LocationError::NonUtf8Boundary { offset: 1 })
+        );
+    }
+}

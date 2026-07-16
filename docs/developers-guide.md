@@ -19,6 +19,11 @@ external capability requires another port. CLI path and stdin filename values
 must continue to use OrthoConfig's explicit `ArgMatches` extraction, without
 file or environment layers.
 
+The private `ensure_round_trip` helper owns the concrete adapter's
+byte-for-byte CST invariant. It may be called only by
+`MakefileLosslessParser::parse`; it is not a domain policy, parser port, or
+general text-comparison utility.
+
 `SourceReader` is the source adapter's narrow capability interface for opening
 one requested UTF-8 path. `read_path` owns complete byte collection and stable
 `SourceReadError` classification, but must never call `ambient_authority`

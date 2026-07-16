@@ -32,14 +32,20 @@ impl MakefileParser for MakefileLosslessParser {
     fn parse(&self, source: &str) -> Result<ParserOutcome, ParserPortError> {
         let parsed = Parse::<Makefile>::parse_makefile(source);
         let tree = parsed.tree();
-        if tree.to_string() != source {
-            return Err(ParserPortError::RoundTripMismatch);
-        }
+        ensure_round_trip(&tree, source)?;
 
         let mut observations = Vec::new();
         collect_items(tree.items(), &[], source.len(), &mut observations)?;
         collect_diagnostics(&parsed, source, &mut observations)?;
         Ok(ParserOutcome { observations })
+    }
+}
+
+fn ensure_round_trip(tree: &Makefile, source: &str) -> Result<(), ParserPortError> {
+    if tree.to_string() == source {
+        Ok(())
+    } else {
+        Err(ParserPortError::RoundTripMismatch)
     }
 }
 
@@ -299,10 +305,11 @@ fn span(
 mod tests {
     //! Adapter invariant tests for unsupported upstream syntax.
 
+    use makefile_lossless::{Makefile, Parse};
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 
-    use super::condition_kind;
+    use super::{condition_kind, ensure_round_trip};
     use crate::ports::ParserPortError;
 
     #[rstest]
@@ -312,6 +319,16 @@ mod tests {
             Err(ParserPortError::UnsupportedConditionKind {
                 kind: "ifunknown".to_owned(),
             })
+        );
+    }
+
+    #[rstest]
+    fn round_trip_mismatch_is_rejected() {
+        let parsed = Parse::<Makefile>::parse_makefile("all:\n");
+
+        assert_eq!(
+            ensure_round_trip(&parsed.tree(), "different:\n"),
+            Err(ParserPortError::RoundTripMismatch)
         );
     }
 }

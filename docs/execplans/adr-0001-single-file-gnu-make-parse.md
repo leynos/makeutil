@@ -230,6 +230,12 @@ stop and resolve the conflict before editing `Cargo.toml`.
   scrutineer independently confirmed 54 of 54 tests, two passing doctests with
   one intentionally ignored, and clean formatting, Polonius type-checking,
   rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
+- [x] (2026-07-16) Added direct regression coverage for the concrete parser's
+  round-trip mismatch guard and for invalid-span and split-UTF-8-boundary
+  `LocationError` paths. Terminal validation passed 59 of 59 tests, two
+  doctests with one intentionally ignored, and clean formatting, Polonius
+  type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and
+  diff checks.
 - [ ] Obtain CodeRabbit certification of the exact terminal diff through the
   pull request. The user approved deferral from the unavailable CLI review
   during CodeRabbit's temporary outage.
