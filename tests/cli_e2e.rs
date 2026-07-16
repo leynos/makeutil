@@ -51,15 +51,45 @@ fn recovered_path_exits_one_with_json(mut makeutil_command: Command) {
 }
 
 #[rstest]
-#[case(&["parse", "-"][..])]
-#[case(&["parse"][..])]
-fn invalid_invocation_exits_two(mut makeutil_command: Command, #[case] arguments: &[&str]) {
+#[case(&["parse", "-"][..], "--stdin-filename")]
+#[case(&["parse"][..], "Usage:")]
+fn invalid_invocation_exits_two(
+    mut makeutil_command: Command,
+    #[case] arguments: &[&str],
+    #[case] expected_detail: &str,
+) {
     let output = makeutil_command
         .args(arguments)
         .output()
         .expect("binary should run");
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
+    assert!(output.stderr.starts_with(b"makeutil: cli:"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains(expected_detail));
+}
+
+#[rstest]
+fn help_uses_clap_display_stream(mut makeutil_command: Command) {
+    let output = makeutil_command
+        .arg("--help")
+        .output()
+        .expect("binary should run");
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Usage:"));
+    assert!(serde_json::from_slice::<serde_json::Value>(&output.stdout).is_err());
+}
+
+#[rstest]
+fn version_uses_clap_display_stream(mut makeutil_command: Command) {
+    let output = makeutil_command
+        .arg("--version")
+        .output()
+        .expect("binary should run");
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty());
+    assert!(String::from_utf8_lossy(&output.stdout).contains(env!("CARGO_PKG_VERSION")));
+    assert!(serde_json::from_slice::<serde_json::Value>(&output.stdout).is_err());
 }
 
 #[rstest]

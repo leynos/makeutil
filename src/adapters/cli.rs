@@ -139,14 +139,12 @@ where
 }
 
 fn render_clap_error(error: &clap::Error, streams: &mut ProcessCapabilities<'_>) -> ProcessOutcome {
-    let exit_code = if error.use_stderr() { 2 } else { 0 };
-    let writer = if error.use_stderr() {
-        &mut streams.stderr
-    } else {
-        &mut streams.stdout
-    };
-    let _write_result = writer.write_all(error.to_string().as_bytes());
-    ProcessOutcome { exit_code }
+    let rendered = error.to_string();
+    if error.use_stderr() {
+        return fatal(streams.stderr, "cli", rendered.trim_end());
+    }
+    let _write_result = streams.stdout.write_all(rendered.as_bytes());
+    ProcessOutcome { exit_code: 0 }
 }
 
 fn run_parse(
