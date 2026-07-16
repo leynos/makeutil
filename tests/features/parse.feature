@@ -19,3 +19,24 @@ Feature: Parse one GNU Makefile into JSON facts
     Then stdout is empty
     And stderr reports the source-open operation
     And the process exits with code 2
+
+  Scenario: Reject an invalid invocation
+    Given an invalid parse invocation
+    When makeutil processes the invocation
+    Then stdout is empty
+    And stderr reports the cli operation
+    And the process exits with code 2
+
+  Scenario: Display help
+    Given a help display request
+    When makeutil processes the invocation
+    Then stdout contains command help
+    And stderr is empty
+    And the process exits with code 0
+
+  Scenario: Display version
+    Given a version display request
+    When makeutil processes the invocation
+    Then stdout contains the makeutil version
+    And stderr is empty
+    And the process exits with code 0

@@ -75,8 +75,8 @@ compact and omits build output such as `target/`.
 - `docs/`: Holds long-lived reference documentation, guides, style rules, and
   design material.
 - `docs/adrs/`: Holds sequential, stable records of architectural decisions.
-- `docs/adrs/0001-single-file-gnu-make-parse.md`: Records the proposed boundary
-  for parsing one GNU Makefile into versioned JSON facts.
+- `docs/adrs/0001-single-file-gnu-make-parse.md`: Records the boundary, accepted
+  on 2026-07-13, for parsing one GNU Makefile into versioned JSON facts.
 - `docs/execplans/`: Holds living, approval-gated implementation plans.
 - `docs/execplans/adr-0001-single-file-gnu-make-parse.md`: Plans the staged,
   test-first implementation of ADR-0001.

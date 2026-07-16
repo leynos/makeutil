@@ -223,6 +223,13 @@ stop and resolve the conflict before editing `Cargo.toml`.
   Polonius type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling,
   Mermaid, and diff checks. All targets compiled with warnings denied and no
   unused test helper.
+- [x] (2026-07-16) Reconciled ADR-0001's accepted date in the documentation
+  index and repository layout and made the imported GPUI reset snippet's hidden
+  state type match its field accesses. Added behavioural scenarios for invalid
+  invocation, help, and version, and shared the all-facts report fixture. The
+  scrutineer independently confirmed 54 of 54 tests, two passing doctests with
+  one intentionally ignored, and clean formatting, Polonius type-checking,
+  rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
 - [ ] Obtain CodeRabbit certification of the exact terminal diff through the
   pull request. The user approved deferral from the unavailable CLI review
   during CodeRabbit's temporary outage.

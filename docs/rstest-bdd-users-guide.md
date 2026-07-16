@@ -1270,8 +1270,25 @@ suite encodes:
 
 ```rust,no_run
 # use rstest_bdd_macros::given;
-# fn reset_state_before_assignment() {}
-# fn with_state<R>(_: impl FnOnce(&mut ()) -> R) -> R { unimplemented!() }
+# use std::cell::RefCell;
+# #[derive(Clone, Debug, Default)]
+# struct CounterView { value: usize }
+# #[derive(Default)]
+# struct ScenarioState {
+#     entity: Option<gpui::Entity<CounterView>>,
+#     window: Option<gpui::AnyWindowHandle>,
+#     opened_window_count: usize,
+# }
+# thread_local! {
+#     static SCENARIO_STATE: RefCell<ScenarioState> =
+#         RefCell::new(ScenarioState::default());
+# }
+# fn reset_state_before_assignment() {
+#     SCENARIO_STATE.with(|state| *state.borrow_mut() = ScenarioState::default());
+# }
+# fn with_state<R>(operation: impl FnOnce(&mut ScenarioState) -> R) -> R {
+#     SCENARIO_STATE.with(|state| operation(&mut state.borrow_mut()))
+# }
 #[given("a fresh GPUI window is opened")]
 fn fresh_gpui_window_is_opened(
     #[from(rstest_bdd_harness_context)] context: &mut gpui::TestAppContext,

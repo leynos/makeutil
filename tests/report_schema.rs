@@ -1,8 +1,13 @@
 //! JSON Schema and snapshot tests for the stable report contract.
 
-use makeutil::{adapters::MakefileLosslessParser, parse_source};
+use makeutil::{
+    ParseApplicationError,
+    adapters::MakefileLosslessParser,
+    domain::ParseReport,
+    parse_source,
+};
 use pretty_assertions::assert_eq;
-use rstest::rstest;
+use rstest::{fixture, rstest};
 
 #[derive(Debug, serde::Deserialize)]
 struct ConsumerReport {
@@ -23,6 +28,15 @@ struct ConsumerRule {
 
 fn schema() -> Result<serde_json::Value, serde_json::Error> {
     serde_json::from_str(include_str!("../schemas/makeutil.parse.v1.schema.json"))
+}
+
+#[fixture]
+fn all_facts_report() -> Result<ParseReport, ParseApplicationError> {
+    parse_source(
+        include_bytes!("fixtures/makefiles/all-facts.mk"),
+        "Makefile",
+        &MakefileLosslessParser,
+    )
 }
 
 #[rstest]
@@ -54,12 +68,10 @@ fn malformed_near_miss_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[rstest]
-fn independent_consumer_deserializes_schema_v1() -> Result<(), Box<dyn std::error::Error>> {
-    let report = parse_source(
-        include_bytes!("fixtures/makefiles/all-facts.mk"),
-        "Makefile",
-        &MakefileLosslessParser,
-    )?;
+fn independent_consumer_deserializes_schema_v1(
+    all_facts_report: Result<ParseReport, ParseApplicationError>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let report = all_facts_report?;
     let document = serde_json::to_vec(&report)?;
     let consumer: ConsumerReport = serde_json::from_slice(&document)?;
 
@@ -77,12 +89,10 @@ fn independent_consumer_deserializes_schema_v1() -> Result<(), Box<dyn std::erro
 }
 
 #[rstest]
-fn all_fact_variants_have_stable_json() -> Result<(), Box<dyn std::error::Error>> {
-    let report = parse_source(
-        include_bytes!("fixtures/makefiles/all-facts.mk"),
-        "Makefile",
-        &MakefileLosslessParser,
-    )?;
+fn all_fact_variants_have_stable_json(
+    all_facts_report: Result<ParseReport, ParseApplicationError>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let report = all_facts_report?;
     insta::assert_json_snapshot!(report);
     Ok(())
 }

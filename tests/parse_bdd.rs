@@ -51,8 +51,24 @@ fn missing_path(world: &mut World) {
     ];
 }
 
+#[given("an invalid parse invocation")]
+fn invalid_invocation(world: &mut World) {
+    world.arguments = vec!["makeutil".to_owned(), "parse".to_owned(), "-".to_owned()];
+}
+
+#[given("a help display request")]
+fn help_request(world: &mut World) {
+    world.arguments = vec!["makeutil".to_owned(), "--help".to_owned()];
+}
+
+#[given("a version display request")]
+fn version_request(world: &mut World) {
+    world.arguments = vec!["makeutil".to_owned(), "--version".to_owned()];
+}
+
 #[when("makeutil parses the fixture by path")]
 #[when("makeutil attempts to parse the missing path")]
+#[when("makeutil processes the invocation")]
 fn run_path(world: &mut World) { run_world(world); }
 
 #[when("makeutil parses dash with stdin filename Makefile")]
@@ -111,6 +127,21 @@ fn source_open(world: &World) {
     assert!(String::from_utf8_lossy(&world.stderr).contains("makeutil: source-open:"));
 }
 
+#[then("stderr reports the cli operation")]
+fn cli_error(world: &World) {
+    assert!(String::from_utf8_lossy(&world.stderr).contains("makeutil: cli:"));
+}
+
+#[then("stdout contains command help")]
+fn command_help(world: &World) {
+    assert!(String::from_utf8_lossy(&world.stdout).contains("Usage:"));
+}
+
+#[then("stdout contains the makeutil version")]
+fn command_version(world: &World) {
+    assert!(String::from_utf8_lossy(&world.stdout).contains(env!("CARGO_PKG_VERSION")));
+}
+
 fn run_world(world: &mut World) {
     let mut source_reader = MockSourceReader::new();
     source_reader.expect_open().returning(|path| {
@@ -152,3 +183,15 @@ fn parse_stdin(_world: World) {}
     name = "Reject a missing input path"
 )]
 fn reject_missing(_world: World) {}
+
+#[scenario(
+    path = "tests/features/parse.feature",
+    name = "Reject an invalid invocation"
+)]
+fn reject_invalid_invocation(_world: World) {}
+
+#[scenario(path = "tests/features/parse.feature", name = "Display help")]
+fn display_help(_world: World) {}
+
+#[scenario(path = "tests/features/parse.feature", name = "Display version")]
+fn display_version(_world: World) {}
