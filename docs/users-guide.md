@@ -28,6 +28,11 @@ makeutil parse --stdin-filename Makefile - < Makefile
 arguments are command-line-only: environment variables and configuration files
 cannot supply them.
 
+Path and standard-input sources may contain at most 16 MiB (16,777,216 bytes).
+The limit is inclusive. A larger source fails before parsing with exit code 2,
+writes a `makeutil: source-too-large: DETAIL` diagnostic to standard error, and
+emits no JSON.
+
 ## Interpret results
 
 The normative output contract is

@@ -1327,7 +1327,8 @@ repository's pedantic lint profile:
 
 ```rust,no_run
 # use rstest_bdd_macros::{then, when};
-# fn current_handles() -> (gpui::Entity<()>, gpui::AnyWindowHandle) { unimplemented!() }
+# struct CounterView { value: usize }
+# fn current_handles() -> (gpui::Entity<CounterView>, gpui::AnyWindowHandle) { unimplemented!() }
 #[when("the view is updated through a reconstructed visual context")]
 fn view_is_updated_through_reconstructed_visual_context(
     #[from(rstest_bdd_harness_context)] context: &mut gpui::TestAppContext,
@@ -1869,17 +1870,18 @@ scenarios!(
   scenarios, prefer async steps, async fixtures, or the async test body.
 
 ```rust,no_run
+use rstest_bdd::StepResult;
 use rstest_bdd_macros::when;
 
 #[when("the stream ends")]
-fn end_stream() {
+fn end_stream() -> StepResult<()> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
-        .expect("build step runtime");
+        .build()?;
     runtime.block_on(async {
         // async work here
     });
+    Ok(())
 }
 ```
 

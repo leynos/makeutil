@@ -98,7 +98,7 @@ if let Some(figment) = discovery.load_first()? {
 # }
 ```
 
-The repository ships `config/overrides.toml`, which extends
+The upstream OrthoConfig repository ships `config/overrides.toml`, which extends
 `config/baseline.toml` to set `is_excited = true`, provide a `Layered hello`
 preamble, and swap the greet punctuation for `!!!`. Behavioural tests and demo
 scripts assert the uppercase output to guard this layering.

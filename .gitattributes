@@ -1,0 +1,2 @@
+# Preserve intentional trailing whitespace in the exact-byte parser fixture.
+tests/fixtures/makefiles/multiline-define.mk -diff

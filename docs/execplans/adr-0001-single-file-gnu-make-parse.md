@@ -241,6 +241,25 @@ stop and resolve the conflict before editing `Cargo.toml`.
   72 of 72 tests, three passing doctests with one intentionally ignored,
   unchanged snapshots, and clean formatting, Polonius type-checking, rustdoc,
   Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
+- [x] (2026-07-18) Added one shared bounded-read implementation for path and
+  standard-input sources, accepting at most 16 MiB and reporting larger sources
+  through the stable `source-too-large` fatal operation.
+- [x] (2026-07-18) Corrected Cargo feature wiring so makeutil's `serde_json`
+  feature forwards to OrthoConfig while OrthoConfig default features remain
+  disabled. The no-default feature graph contains only OrthoConfig's `toml`
+  feature; the upstream no-JSON compilation defect is recorded below.
+- [x] (2026-07-18) Propagated clap help/version display write failures as
+  `stdout-write`, and added focused coverage for failed displays alongside the
+  existing successful black-box help and version cases.
+- [x] (2026-07-18) Added a dedicated external multiline `define` fixture with
+  embedded newlines and trailing whitespace, and asserted its exact domain
+  representation through the concrete parser and domain contract suite.
+- [x] (2026-07-18) The independent scrutineer confirmed 82 of 82 tests, three
+  passing doctests with one intentionally ignored, clean formatting, Polonius
+  type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and
+  diff checks. It also confirmed that the lockfile and `typos.toml` are
+  unchanged and that no-default feature resolution excludes
+  `ortho_config/serde_json`.
 - [ ] Obtain CodeRabbit certification of the exact terminal diff through the
   pull request. The user approved deferral from the unavailable CLI review
   during CodeRabbit's temporary outage.
@@ -320,6 +339,26 @@ stop and resolve the conflict before editing `Cargo.toml`.
   an upstream value outside the schema could be serialized into a report that
   the checked schema rejected, so the runtime boundary must enforce the same
   closed set.
+- Observation: path and standard-input readers collected unbounded input into
+  memory through separate implementations. Impact: both inputs need one private
+  bounded-read helper, an inclusive 16 MiB policy, and the stable
+  `source-too-large` fatal operation before parsing or JSON serialization.
+- Observation: enabling OrthoConfig's `serde_json` feature directly on the
+  dependency defeats makeutil's declared feature boundary. Impact: disable
+  OrthoConfig default features and forward only makeutil's `serde_json` feature
+  to `ortho_config/serde_json`.
+- Observation: published `ortho_config` 0.8.0 does not compile with its
+  `serde_json` feature disabled because unconditional modules import JSON-gated
+  symbols. Impact: makeutil's no-default dependency graph now correctly omits
+  that feature, but a no-default compile remains blocked upstream and must not
+  be misreported as local feature leakage.
+- Observation: clap help and version rendering ignored standard-output write
+  failures. Impact: display output must use the same checked write semantics as
+  report output, with focused failure injection and black-box success tests.
+- Observation: multiline `define` parsing and trailing assignment whitespace
+  had separate tests, but no external fixture combined the two properties.
+  Impact: a dedicated fixture must prove exact raw-body preservation through
+  the full parser and application assembly path.
 
 ## Decision log
 
@@ -382,11 +421,34 @@ stop and resolve the conflict before editing `Cargo.toml`.
   2026-07-13 / Logisphere-reviewed Codex planning team.
 - Decision: let the parser adapter return ordered makeutil-owned observations
   and source spans; keep round-trip bytes in adapter tests only. Rationale:
-  location conversion, ordinals, and status are domain policy; exact-byte
-  hashing is application-service policy. Upstream CST renderings and error
-  types must not leak through the domain-owned port. Date/Author: 2026-07-13 /
-  Logisphere-reviewed Codex planning team. Ownership wording clarified on
-  2026-07-14 during terminal documentation review.
+  location conversion, the ordinal ordering invariant, and status are
+  makeutil-owned policy; `parse_source` and its `ReportAssembly` fact collector
+  assign ordinals, while exact-byte hashing is application-service policy.
+  Upstream CST renderings and error types must not leak through the
+  domain-owned port. Date/Author: 2026-07-13 / Logisphere-reviewed Codex
+  planning team. Ownership wording clarified on 2026-07-18 during terminal
+  documentation review.
+- Decision: cap each path or standard-input source at an inclusive 16 MiB by
+  composing both adapters through one private bounded-read helper. The helper
+  is source-adapter implementation detail, not a port or general I/O utility.
+  Rationale: one policy prevents input-dependent memory growth and keeps error
+  classification identical across both input modes. Date/Author: 2026-07-18 /
+  Wyvern review team.
+- Decision: treat clap display writes as process output subject to
+  `stdout-write`, while preserving clap's normal stream and exit-zero semantics
+  when the complete display is written. Rationale: help and version output are
+  externally observable process behaviour and cannot silently discard an I/O
+  failure. Date/Author: 2026-07-18 / Wyvern review team.
+- Decision: make makeutil's `serde_json` feature the sole switch for
+  OrthoConfig's JSON integration and disable OrthoConfig default features.
+  Rationale: feature ownership stays visible at the application manifest, and
+  `--no-default-features` has predictable dependency behaviour. Date/Author:
+  2026-07-18 / Wyvern review team.
+- Decision: keep the multiline `define` regression as external Makefile input
+  and exercise it through the concrete parser and application service.
+  Rationale: the contract concerns exact source bytes across the adapter
+  boundary, so an inline domain-only case cannot prove it. Date/Author:
+  2026-07-18 / Wyvern review team.
 - Decision: serialize to memory before stdout and permit partial stdout only
   when the operating system accepts a prefix before an output failure.
   Rationale: the process can prevent serialization failures from writing JSON,
@@ -503,10 +565,11 @@ parse report ──> composition root ──> JSON reporter ──> stdout / pro
 ```
 
 The domain owns schema-v1 value types, the `SourceIdentity` contract, source
-locations, conditional ancestry, global ordinal assignment, diagnostic order,
-and complete/recovered classification. The application service validates one
-source byte buffer as UTF-8, calculates its exact-byte SHA-256 digest, and
-coordinates its logical path with the parser port. Adapters own
+locations, conditional ancestry, the global ordinal ordering invariant,
+diagnostic order, and complete/recovered classification. The application
+service validates one source byte buffer as UTF-8, calculates its exact-byte
+SHA-256 digest, coordinates its logical path with the parser port, and assigns
+ordinals through the `ReportAssembly` fact collector. Adapters own
 OrthoConfig/clap, capability-oriented file or stdin reading, upstream parsing
 into ordered observations, Serde serialization, streams, and process exit.
 Adapters never call each other; `src/main.rs` is the composition root.
@@ -596,6 +659,12 @@ literal/optional/dynamic includes, empty input, no trailing newline, CRLF,
 multibyte UTF-8, recoverable syntax, large input, deep conditionals, and
 hostile text.
 
+Include a dedicated multiline `define` fixture whose raw body contains embedded
+newlines and trailing spaces or tabs. Through `parse_source` with the concrete
+`MakefileLosslessParser`, assert the empty serialized
+`AssignmentOperator::Define` representation and the exact untrimmed raw body,
+including every embedded newline and trailing whitespace byte.
+
 Use `googletest` matchers for membership, order, option, and error semantics and
 `pretty_assertions` for full structured fact comparisons. Add `insta`
 snapshots for at least one complete document, one recovered document with
@@ -627,20 +696,23 @@ Freeze exit and error mapping before wiring: help and version display exit 0
 using clap's normal display stream; usage errors, non-UTF-8 path arguments,
 missing `--stdin-filename`, and conflicting stdin options use `cli` and exit 2;
 open and read errors use `source-open` or `source-read` and exit 2; invalid
-file bytes use `source-utf8` and exit 2; recovered parser diagnostics emit JSON
-and exit 1; parser invariant failures use `parse-internal` and exit 2;
-in-memory serialization uses `json-serialize` and exit 2; broken pipe or other
-write failure uses `stdout-write` and exit 2. Panics are defects and are not
-converted into stable diagnostics by a catch boundary.
+file bytes use `source-utf8` and exit 2; input beyond the inclusive 16 MiB
+limit uses `source-too-large` and exit 2 without JSON; recovered parser
+diagnostics emit JSON and exit 1; parser invariant failures use
+`parse-internal` and exit 2; in-memory serialization uses `json-serialize` and
+exit 2; broken pipe or other write failure uses `stdout-write` and exit 2.
+Panics are defects and are not converted into stable diagnostics by a catch
+boundary.
 
 Implement capability-oriented path reading with `cap_std::fs_utf8` and
-`camino`; keep a narrow stdin reader. Calculate SHA-256 over exact bytes,
-reject invalid UTF-8 before parsing, and retain the caller-supplied logical
-path without filesystem canonicalization. The JSON reporter writes one compact
-document plus newline to stdout for complete and recovered results and writes
-no progress prose. Fatal errors go to stderr. Serialization failures emit no
-JSON; stdout-write failures may leave only the partial prefix described in
-`docs/design.md` section 10.1.
+`camino`; keep a narrow stdin reader. Compose both readers through one private
+bounded-read helper that accepts exactly 16 MiB and rejects the next byte.
+Calculate SHA-256 over exact bytes, reject invalid UTF-8 before parsing, and
+retain the caller-supplied logical path without filesystem canonicalization.
+The JSON reporter writes one compact document plus newline to stdout for
+complete and recovered results and writes no progress prose. Fatal errors go to
+stderr. Serialization failures emit no JSON; stdout-write failures may leave
+only the partial prefix described in `docs/design.md` section 10.1.
 
 Add `tests/features/parse.feature` and Rust step bindings using `rstest-bdd`
 0.6.0-beta3. Keep this specification synchronized with the tests:
@@ -969,8 +1041,10 @@ Before adding each non-exception dependency, verify its current compatible
 caret version and smallest necessary feature set. Preserve the approved exact
 `makefile-lossless = "=0.3.40"` requirement unchanged. Resolve it through the
 temporary full-SHA fork patch recorded above until upstream contains the fix.
-Do not add both a direct `clap` dependency and OrthoConfig's re-exported
-surface unless the derive/API contract requires it.
+The direct `clap` dependency is required for derive and display-error APIs.
+Declare OrthoConfig with `default-features = false`; makeutil's default
+`serde_json` feature forwards to `ortho_config/serde_json`, so no-default
+builds do not enable that OrthoConfig integration implicitly.
 
 Planned development dependencies are `rstest = "0.26.1"`,
 `rstest-bdd = "0.6.0-beta3"`, `rstest-bdd-macros = "0.6.0-beta3"`,

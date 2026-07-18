@@ -114,9 +114,9 @@ fn recovered_parse_retains_facts_and_diagnostics() {
 #[case("A ?= six\n", AssignmentOperator::Conditional, "six")]
 #[case("A != printf seven\n", AssignmentOperator::Shell, "printf seven")]
 #[case::define_block(
-    "define SCRIPT\necho one\necho two\nendef\n",
+    include_str!("fixtures/makefiles/multiline-define.mk"),
     AssignmentOperator::Define,
-    "echo one\necho two\n"
+    "echo one  \necho two\t \n"
 )]
 fn assignment_operators_remain_source_faithful(
     #[case] source: &str,

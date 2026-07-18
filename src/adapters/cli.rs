@@ -143,8 +143,10 @@ fn render_clap_error(error: &clap::Error, streams: &mut ProcessCapabilities<'_>)
     if error.use_stderr() {
         return fatal(streams.stderr, "cli", rendered.trim_end());
     }
-    let _write_result = streams.stdout.write_all(rendered.as_bytes());
-    ProcessOutcome { exit_code: 0 }
+    match streams.stdout.write_all(rendered.as_bytes()) {
+        Ok(()) => ProcessOutcome { exit_code: 0 },
+        Err(write_error) => fatal(streams.stderr, "stdout-write", &write_error.to_string()),
+    }
 }
 
 fn run_parse(
@@ -224,7 +226,7 @@ fn read_input(
         })?;
         return read_stdin(streams.stdin)
             .map(|bytes| (bytes, logical_path))
-            .map_err(|error| fatal(streams.stderr, "source-read", &error.to_string()));
+            .map_err(|error| fatal(streams.stderr, error.operation(), &error.to_string()));
     }
     if arguments.stdin_filename.is_some() {
         return Err(fatal(

@@ -34,6 +34,13 @@ embedded callers may instead use `run_from_with_reader`. Do not use
 general filesystem access, and do not promote it into the domain-owned parser
 port.
 
+Path and standard-input collection share one private source-adapter
+bounded-read helper. It accepts an inclusive 16 MiB and probes for one further
+byte; excess input becomes `SourceReadError::TooLarge` and the stable
+`source-too-large` operation. The helper may be called only by `read_path` and
+`read_stdin`. It is not a domain port, a public stream utility, or permission
+to add other input modes.
+
 Integration tests share `MockSourceReader` from `tests/common/mod.rs`, where
 `mockall` remains a development-only dependency. Include
 `tests/common/failing_reader.rs` only in suites that exercise post-open read
@@ -81,7 +88,15 @@ the complete assignment-operator contract matrix before updating the lockfile.
 Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and
 property tests exercise the domain, `rstest-bdd` scenarios exercise observable
 behaviour, black-box tests spawn the binary, and `insta` plus the JSON Schema
-freeze the integration contract.
+freeze the integration contract. The exact-byte multiline `define` fixture is
+marked `-diff` in `.gitattributes` because its trailing whitespace is test
+data; parser tests must continue to assert those bytes explicitly.
+
+Cargo's default `serde_json` feature forwards to `ortho_config/serde_json`. Keep
+`ortho_config` configured with `default-features = false` so no-default builds
+do not enable its JSON integration implicitly. The direct `serde_json`
+dependency remains the report serialization implementation and is not a
+substitute for forwarding the OrthoConfig feature.
 
 ## Local Workflow
 

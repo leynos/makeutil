@@ -370,12 +370,14 @@ The package may expose a Rust library internally for unit tests, but only the
 CLI and JSON schema form a supported integration contract in the first release.
 
 The domain owns report types, source spans and locations, conditional ancestry,
-ordinal assignment, diagnostic ordering, the `SourceIdentity` contract, and
-complete versus recovered classification. A domain-owned parser port accepts
-UTF-8 text and returns ordered makeutil-owned syntax observations, source
-spans, and diagnostics. The `makefile-lossless` adapter implements the port and
-proves its own complete-tree round trip; it never returns Rowan nodes, upstream
-errors, or rendered CST bytes through the port.
+the global ordinal ordering invariant, diagnostic ordering, the
+`SourceIdentity` contract, and complete versus recovered classification.
+`parse_source` and its `ReportAssembly` fact collector assign ordinals while
+assembling those domain types. A domain-owned parser port accepts UTF-8 text
+and returns ordered makeutil-owned syntax observations, source spans, and
+diagnostics. The `makefile-lossless` adapter implements the port and proves its
+own complete-tree round trip; it never returns Rowan nodes, upstream errors, or
+rendered CST bytes through the port.
 
 The application service calculates SHA-256 over the exact input bytes while
 `parse_source` constructs `SourceIdentity`.
@@ -429,8 +431,10 @@ rules into an effective rule.
 - It does not follow includes or symlinks discovered from source.
 - It performs no network access.
 - Source text cannot select another parser, command, or output path.
-- Resource limits may be added later if corpus evidence shows pathological
-  inputs; the first slice still includes large-file and deep-conditional tests.
+- Path and standard-input sources are capped at an inclusive 16 MiB. The
+  reader probes at most one further byte before returning `source-too-large`.
+- Large-file tests remain below that ceiling, and deep-conditional tests guard
+  parser behaviour independently of source size.
 
 The security suite uses source-selected filesystem sentinels for `$(shell ...)`,
 `$(file ...)`, `!=`, and recipes. It separately traces file-open system calls
@@ -452,13 +456,14 @@ makeutil: <operation-id>: <detail>
 ```
 
 Operation identifiers distinguish `cli`, `source-open`, `source-read`,
-`source-utf8`, `parse-internal`, `json-serialize`, and `stdout-write`. Normal
-success and recovered parsing emit no stderr. The detail includes the logical
-path for `source-open` and `source-read` failures. Backtraces and cause chains
-are not printed by default. The binary may install one tracing subscriber, but
-it must never write tracing events to stdout; the library installs no
-subscriber. Source contents and unbounded raw paths are not tracing fields.
-This one-shot CLI emits no metrics in the first slice.
+`source-too-large`, `source-utf8`, `parse-internal`, `json-serialize`, and
+`stdout-write`. Normal success and recovered parsing emit no stderr. The detail
+includes the logical path for `source-open`, `source-read`, and
+`source-too-large` failures. Backtraces and cause chains are not printed by
+default. The binary may install one tracing subscriber, but it must never write
+tracing events to stdout; the library installs no subscriber. Source contents
+and unbounded raw paths are not tracing fields. This one-shot CLI emits no
+metrics in the first slice.
 
 ## 11. Verification strategy
 

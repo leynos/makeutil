@@ -53,6 +53,10 @@ fn recovered_path_exits_one_with_json(mut makeutil_command: Command) {
 #[rstest]
 #[case(&["parse", "-"][..], "--stdin-filename")]
 #[case(&["parse"][..], "Usage:")]
+#[case(
+    &["parse", "--stdin-filename", "Makefile", "ordinary.mk"][..],
+    "only valid when PATH is -"
+)]
 fn invalid_invocation_exits_two(
     mut makeutil_command: Command,
     #[case] arguments: &[&str],

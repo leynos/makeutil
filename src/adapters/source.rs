@@ -5,6 +5,11 @@ use std::io::Read as _;
 use camino::Utf8Path;
 use thiserror::Error;
 
+/// Maximum accepted source size for both path and standard-input reads.
+pub const MAX_SOURCE_BYTES: usize = 16 * 1024 * 1024;
+
+const BOUNDED_READ_BYTES: u64 = 16 * 1024 * 1024 + 1;
+
 /// Capability for opening one logical source path as a byte stream.
 pub trait SourceReader {
     /// Open `path` for reading without resolving ambient authority.
@@ -34,6 +39,14 @@ pub enum SourceReadError {
         /// Input/output error.
         source: std::io::Error,
     },
+    /// The source exceeded [`MAX_SOURCE_BYTES`].
+    #[error("source {path} exceeds the {limit}-byte limit")]
+    TooLarge {
+        /// Logical input path.
+        path: String,
+        /// Maximum accepted byte length.
+        limit: usize,
+    },
 }
 
 impl SourceReadError {
@@ -43,6 +56,7 @@ impl SourceReadError {
         match self {
             Self::Open { .. } => "source-open",
             Self::Read { .. } => "source-read",
+            Self::TooLarge { .. } => "source-too-large",
         }
     }
 }
@@ -51,7 +65,8 @@ impl SourceReadError {
 ///
 /// # Errors
 ///
-/// Returns [`SourceReadError`] when the source cannot be opened or read.
+/// Returns [`SourceReadError`] when the source cannot be opened, read, or
+/// exceeds [`MAX_SOURCE_BYTES`].
 pub fn read_path(
     reader: &(impl SourceReader + ?Sized),
     path: &Utf8Path,
@@ -61,27 +76,37 @@ pub fn read_path(
         path: display_path.clone(),
         source,
     })?;
-    let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes)
-        .map_err(|source| SourceReadError::Read {
-            path: display_path,
-            source,
-        })?;
-    Ok(bytes)
+    read_bounded(&mut file, display_path)
 }
 
 /// Read all bytes from an injected standard-input reader.
 ///
 /// # Errors
 ///
-/// Returns [`SourceReadError::Read`] when the stream fails.
+/// Returns [`SourceReadError`] when the stream fails or exceeds
+/// [`MAX_SOURCE_BYTES`].
 pub fn read_stdin(reader: &mut (impl std::io::Read + ?Sized)) -> Result<Vec<u8>, SourceReadError> {
+    read_bounded(reader, "standard input".to_owned())
+}
+
+fn read_bounded(
+    reader: &mut (impl std::io::Read + ?Sized),
+    display_path: String,
+) -> Result<Vec<u8>, SourceReadError> {
     let mut bytes = Vec::new();
     reader
+        .take(BOUNDED_READ_BYTES)
         .read_to_end(&mut bytes)
         .map_err(|source| SourceReadError::Read {
-            path: "standard input".to_owned(),
+            path: display_path.clone(),
             source,
         })?;
-    Ok(bytes)
+    if bytes.len() > MAX_SOURCE_BYTES {
+        Err(SourceReadError::TooLarge {
+            path: display_path,
+            limit: MAX_SOURCE_BYTES,
+        })
+    } else {
+        Ok(bytes)
+    }
 }
