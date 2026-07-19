@@ -1,5 +1,8 @@
 # makeutil
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](
+https://deepwiki.com/leynos/makeutil)
+
 This is a generated project using [Copier](https://copier.readthedocs.io/).
 
 This crate requires the Polonius borrow-checking analysis (`-Zpolonius=next`)
