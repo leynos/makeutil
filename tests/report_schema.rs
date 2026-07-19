@@ -42,6 +42,10 @@ fn all_facts_report() -> Result<ParseReport, ParseApplicationError> {
 #[rstest]
 #[case(include_bytes!("fixtures/makefiles/all-facts.mk"), "complete.mk")]
 #[case(include_bytes!("fixtures/makefiles/recovered.mk"), "recovered.mk")]
+#[case(
+    include_bytes!("fixtures/makefiles/conditional-error-directive.mk"),
+    "conditional-error-directive.mk"
+)]
 fn reports_validate_against_schema(
     #[case] source: &[u8],
     #[case] path: &str,
