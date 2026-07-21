@@ -994,10 +994,10 @@ length before timing. The nested input contained 256 deterministic `ifdef`/
 the 10 MiB median was 0.12 seconds, and all resident-set measurements were
 below 256 MiB.
 
-From `/data/leynos/Projects/concordat`, a Python 3.13 subprocess invoked the
-release binary against Concordat's Makefile, decoded JSON with the standard
-library, asserted schema version 1 and complete status, and found `build`,
-`lint`, and `test`. The successful summary was:
+An external Python subprocess invoked the release binary against a
+representative Makefile, decoded JSON with the standard library, asserted
+schema version 1 and complete status, and found `build`, `lint`, and `test`.
+The successful summary was:
 
 ```plaintext
 {"schema_version":1,"status":"complete","required_targets":["build","lint","test"],"language_binding":false}

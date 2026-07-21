@@ -162,7 +162,7 @@ fn run_world(world: &mut World) {
         &mut world.stderr,
         &source_reader,
     );
-    let outcome = run_from_with_reader(world.arguments.clone(), capabilities);
+    let outcome = run_from_with_reader(std::mem::take(&mut world.arguments), capabilities);
     world.exit_code = Some(outcome.exit_code);
 }
 

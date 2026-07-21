@@ -1,7 +1,7 @@
 //! Real-estate corpus regressions.
 //!
-//! Each fixture here reduces a construct observed in a leynos repository
-//! during the Operation Parabellum estate audit. The tests pin the parser's
+//! Each fixture here reduces a construct observed in an external repository
+//! during a prior compatibility audit. The tests pin the parser's
 //! honest behaviour for constructs it cannot yet represent: the parse must
 //! degrade to `recovered` with a positioned diagnostic, never report a
 //! false `complete`. If an upstream `makefile-lossless` release learns one
@@ -12,16 +12,17 @@ use makeutil::{adapters::MakefileLosslessParser, domain::ParseStatus, parse_sour
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 
-/// A bare `$(error ...)` directive inside a conditional (from
-/// leynos/pg-embed-setup-unpriv) must parse as recovered, with the
+/// A bare `$(error ...)` directive inside a conditional must parse as
+/// recovered, with the
 /// surrounding facts retained.
 #[rstest]
-fn bare_error_directive_recovers_with_facts_retained() -> Result<(), Box<dyn std::error::Error>> {
+fn bare_error_directive_recovers_with_facts_retained() {
     let report = parse_source(
         include_bytes!("fixtures/makefiles/conditional-error-directive.mk"),
         "conditional-error-directive.mk",
         &MakefileLosslessParser,
-    )?;
+    )
+    .expect("the conditional-error-directive corpus fixture must parse into a report");
 
     assert_eq!(report.parse.status, ParseStatus::Recovered);
     assert!(
@@ -47,5 +48,4 @@ fn bare_error_directive_recovers_with_facts_retained() -> Result<(), Box<dyn std
         rule_targets.contains(&"build"),
         "facts after the unsupported directive must survive: {rule_targets:?}",
     );
-    Ok(())
 }
