@@ -131,8 +131,8 @@ argument, the wrapper panics with
 `pattern '<pattern>' missing capture for argument '<name>'`, making the
 mismatch explicit.
 
-For cucumber-rs migration compatibility notes, see [Migration and async
-patterns][migration-async-patterns].
+For cucumber-rs migration compatibility notes, see
+[Migration and async patterns][migration-async-patterns].
 
 The procedural macro implementation expands the annotated function into two
 parts: the original function and a wrapper function that registers the step in
@@ -1040,18 +1040,20 @@ types such as `HarnessAdapter` or `ScenarioRunRequest`.
 adapter, the macro infers `GpuiAttributePolicy` from the canonical harness path
 when `attributes = ...` is omitted.
 
-#### GPUI panic diagnostics carry scenario context
+#### GPUI panic diagnostics use protected scenario context
 
-When a step running under `GpuiHarness` panics, the harness prepends the
-feature path, scenario name, and feature-file line number to the panic message
-before re-raising it through `panic::resume_unwind`. The same fields are
-emitted as a `tracing::error!` record (`harness_type`, `feature_path`,
-`scenario_name`, `scenario_line`) and as a matching `stderr` line, so test
-runners that do not collect `tracing` events still surface the scenario name on
-failure. This makes a failing GPUI scenario identifiable from the `cargo test`
-or `cargo nextest` output without cross-referencing libtest function names
-against feature files. For a concrete regression example, see
-`crates/rstest-bdd-harness-gpui/tests/scenario_name_in_logs.rs`.
+When a step running under `GpuiHarness` panics, the harness prepends a stable,
+non-sensitive scenario identifier to the panic message before re-raising it
+through `panic::resume_unwind`. The same identifier and `harness_type` are
+emitted through `tracing::error!` and a matching standard-error line, so test
+runners can correlate a failure without exposing raw feature metadata.
+
+The feature path, scenario name, and feature-file line number are protected
+values. The harness must not include them in panic messages, tracing fields, or
+standard error by default. Full provenance may be emitted only when an
+explicitly protected debug mode is enabled in an environment where the output
+has equivalent access controls. The panic message and accompanying diagnostics
+must state whether protected debug metadata was enabled.
 
 #### Stateful GPUI scenarios with durable handles
 
@@ -1061,7 +1063,7 @@ against feature files. For a concrete regression example, see
 > share mutable GPUI state across BDD steps in `rstest-bdd` 0.6.0, but it
 > exists to work around the current `StepContext::borrow_mut` contract
 > selected by
-> [ADR-007](https://github.com/leynos/rstest-bdd/blob/main/docs/adr-007-harness-context-injection.md).
+> [ADR-007](https://github.com/owner/rstest-bdd/blob/main/docs/adr-007-harness-context-injection.md).
 > Sections
 > 2.7.6.2 and 2.7.6.5 of the design document
 > ([rstest-bdd design][rstest-bdd-design]) and roadmap items 12.1.x track
@@ -1550,14 +1552,15 @@ target uses), each test is run in its own process. The `#[serial]` mutex is not
 contended across process boundaries, so the annotation is
 redundant-but-harmless for nextest runs. Keep it for `cargo test`; do not
 remove it just because nextest already isolates per-process thread-local state.
-The design rationale is recorded in [design-document §2.7.6.7][
-design-runner-parallelism], and the maintainer convention is summarized in [the
-developer guide][developer-serial-nextest].
+The design rationale is recorded in
+[design-document §2.7.6.7][ design-runner-parallelism], and the maintainer
+convention is summarized in [the developer guide][developer-serial-nextest].
 
 When separate test processes or separate test binaries must not overlap, use a
-cross-process mechanism instead of `#[serial]`. cargo-nextest [test-groups][
-nextest-test-groups] define logical mutexes across the whole nextest run. This
-example makes any test whose name contains `stateful_gpui::` run one at a time:
+cross-process mechanism instead of `#[serial]`. cargo-nextest
+[test-groups][ nextest-test-groups] define logical mutexes across the whole
+nextest run. This example makes any test whose name contains `stateful_gpui::`
+run one at a time:
 
 ```toml
 [test-groups]
@@ -1666,10 +1669,10 @@ Tests that exercise skip-heavy flows no longer need to match on enums to verify
 that a step or scenario stopped executing. Use
 `rstest_bdd::assert_step_skipped!` to unwrap a `StepExecution::Skipped`
 outcome, optionally constraining its message, and
-`rstest_bdd::assert_scenario_skipped!` to inspect [`ScenarioStatus`][
-scenario-status] records. Both macros accept `message_absent = true` to assert
-that no message was provided and substring matching to confirm that a message
-contains the expected reason.
+`rstest_bdd::assert_scenario_skipped!` to inspect
+[`ScenarioStatus`][ scenario-status] records. Both macros accept
+`message_absent = true` to assert that no message was provided and substring
+matching to confirm that a message contains the expected reason.
 
 ```rust,no_run
 use rstest_bdd::{assert_scenario_skipped, assert_step_skipped, StepExecution};
@@ -1823,8 +1826,8 @@ synchronous steps that drive async work via `tokio::spawn_local`.
 Async scenarios run on Tokio's current-thread runtime. Step functions may be
 `async fn` and are awaited sequentially, keeping fixture borrows valid across
 `.await` points. Use one of the following patterns to keep async work safe and
-predictable. This section summarizes the canonical guidance in [Migration and
-async patterns][migration-async-patterns].
+predictable. This section summarizes the canonical guidance in
+[Migration and async patterns][migration-async-patterns].
 
 - **Prefer async fixtures:** If a step needs async data, move the async call
   into a fixture and inject the resolved value into the step. The scenario
@@ -2775,11 +2778,11 @@ integrate acceptance criteria into their Rust test suites and to engage all
 three amigos in the specification process.
 
 [scenario-status]: https://docs.rs/rstest-bdd/latest/rstest_bdd/reporting/enum.ScenarioStatus.html
-[adr-001]: https://github.com/leynos/rstest-bdd/blob/main/docs/adr-001-async-fixtures-and-test.md
-[adr-013]: https://github.com/leynos/rstest-bdd/blob/main/docs/adr-013-adopt-whitaker-no-unwrap-or-else-panic.md
-[gherkin-syntax]: https://github.com/leynos/rstest-bdd/blob/main/docs/gherkin-syntax.md#section-12-the-anatomy-of-a-feature-file
-[migration-async-patterns]: https://github.com/leynos/rstest-bdd/blob/main/docs/cucumber-rs-migration-and-async-patterns.md
-[rstest-bdd-design]: https://github.com/leynos/rstest-bdd/blob/main/docs/rstest-bdd-design.md
-[design-runner-parallelism]: https://github.com/leynos/rstest-bdd/blob/main/docs/rstest-bdd-design.md#2767-test-runner-parallelism-and-scenario-state
-[developer-serial-nextest]: https://github.com/leynos/rstest-bdd/blob/main/docs/developers-guide.md#serial-file_serial-and-nextest-test-groups
+[adr-001]: https://github.com/owner/rstest-bdd/blob/main/docs/adr-001-async-fixtures-and-test.md
+[adr-013]: https://github.com/owner/rstest-bdd/blob/main/docs/adr-013-adopt-whitaker-no-unwrap-or-else-panic.md
+[gherkin-syntax]: https://github.com/owner/rstest-bdd/blob/main/docs/gherkin-syntax.md#section-12-the-anatomy-of-a-feature-file
+[migration-async-patterns]: https://github.com/owner/rstest-bdd/blob/main/docs/cucumber-rs-migration-and-async-patterns.md
+[rstest-bdd-design]: https://github.com/owner/rstest-bdd/blob/main/docs/rstest-bdd-design.md
+[design-runner-parallelism]: https://github.com/owner/rstest-bdd/blob/main/docs/rstest-bdd-design.md#2767-test-runner-parallelism-and-scenario-state
+[developer-serial-nextest]: https://github.com/owner/rstest-bdd/blob/main/docs/developers-guide.md#serial-file_serial-and-nextest-test-groups
 [nextest-test-groups]: https://nexte.st/docs/configuration/test-groups/

@@ -285,38 +285,43 @@ fn collect_diagnostics(
     source: &str,
     observations: &mut Vec<SyntaxObservation>,
 ) -> Result<(), ParserPortError> {
-    if !parsed.positioned_errors().is_empty() {
-        for error in parsed.positioned_errors() {
-            observations.push(SyntaxObservation::Diagnostic {
-                message: error.message.clone(),
-                code: error.code.clone(),
-                span: span(error.range, source.len())?,
-            });
-        }
-        return Ok(());
+    for error in parsed.positioned_errors() {
+        observations.push(SyntaxObservation::Diagnostic {
+            message: error.message.clone(),
+            code: error.code.clone(),
+            span: span(error.range, source.len())?,
+        });
     }
+    let line_spans: Vec<_> = if parsed.errors().is_empty() {
+        Vec::new()
+    } else {
+        source
+            .split_inclusive('\n')
+            .scan(0_usize, |start, segment| {
+                let span = SourceSpan {
+                    start: *start,
+                    end: start.saturating_add(segment.trim_end_matches(['\r', '\n']).len()),
+                };
+                *start = start.saturating_add(segment.len());
+                Some(span)
+            })
+            .collect()
+    };
+    let end_of_source = SourceSpan {
+        start: source.len(),
+        end: source.len(),
+    };
     for error in parsed.errors() {
         observations.push(SyntaxObservation::Diagnostic {
             message: error.message.clone(),
             code: None,
-            span: line_span(source, error.line),
+            span: line_spans
+                .get(error.line.saturating_sub(1))
+                .copied()
+                .unwrap_or(end_of_source),
         });
     }
     Ok(())
-}
-
-fn line_span(source: &str, one_based_line: usize) -> SourceSpan {
-    let target = one_based_line.saturating_sub(1);
-    let mut start = 0_usize;
-    let mut end = source.len();
-    for (line, segment) in source.split_inclusive('\n').enumerate() {
-        if line == target {
-            end = start.saturating_add(segment.trim_end_matches(['\r', '\n']).len());
-            break;
-        }
-        start = start.saturating_add(segment.len());
-    }
-    SourceSpan { start, end }
 }
 
 fn span(

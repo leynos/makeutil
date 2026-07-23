@@ -79,14 +79,17 @@ pub fn read_path(
     read_bounded(&mut file, display_path)
 }
 
-/// Read all bytes from an injected standard-input reader.
+/// Read all bytes from an injected standard-input reader under `logical_path`.
 ///
 /// # Errors
 ///
 /// Returns [`SourceReadError`] when the stream fails or exceeds
 /// [`MAX_SOURCE_BYTES`].
-pub fn read_stdin(reader: &mut (impl std::io::Read + ?Sized)) -> Result<Vec<u8>, SourceReadError> {
-    read_bounded(reader, "standard input".to_owned())
+pub fn read_stdin(
+    reader: &mut (impl std::io::Read + ?Sized),
+    logical_path: &str,
+) -> Result<Vec<u8>, SourceReadError> {
+    read_bounded(reader, logical_path.to_owned())
 }
 
 fn read_bounded(

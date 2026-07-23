@@ -21,6 +21,8 @@ compact and omits build output such as `target/`.
 
 │       └── release.yml
 
+├── data/
+│   └── typos-oxendict-base.toml
 ├── docs/
 │   ├── adrs/
 │   │   └── 0001-single-file-gnu-make-parse.md
@@ -72,6 +74,8 @@ compact and omits build output such as `target/`.
 - `.github/workflows/release.yml`: Builds and publishes binary release
   artefacts for the application flavour.
 
+- `data/typos-oxendict-base.toml`: Owns the project-wide Oxford English
+  dictionary used to generate `typos.toml`.
 - `docs/`: Holds long-lived reference documentation, guides, style rules, and
   design material.
 - `docs/adrs/`: Holds sequential, stable records of architectural decisions.

@@ -1,15 +1,15 @@
 # makeutil technical design
 
 - **Status:** Draft v0.1
-- **Audience:** Implementers, maintainers, Concordat integrators, and reviewers
+- **Audience:** Implementers, maintainers, downstream integrators, and reviewers
 - **Companion documents:** [Terms of reference](terms-of-reference.md) and
   [ADR-0001](adrs/0001-single-file-gnu-make-parse.md)
 
 ## 1. Problem statement
 
-Concordat needs structured evidence from Makefiles before OPA can enforce Rust
-lint policy. Rego should not parse Make syntax, and Concordat should not invoke
-GNU Make to inspect an untrusted file.
+A downstream policy consumer needs structured evidence from Makefiles before
+OPA can enforce Rust lint policy. Rego should not parse Make syntax, and the
+consumer should not invoke GNU Make to inspect an untrusted file.
 
 The selected `makefile-lossless` crate already provides a lossless Rowan
 concrete syntax tree, recovered parse results, source ranges, and focused APIs
@@ -29,7 +29,7 @@ Make's complete evaluation semantics.
 - Flatten nested conditional content while preserving branch ancestry.
 - Surface parser recovery explicitly.
 - Keep the upstream CST and API out of consumer contracts.
-- Support the first Concordat FP-003 and QG-001 policy slice.
+- Support the first downstream FP-003 and QG-001 policy slice.
 
 ### 2.2. Non-goals
 
@@ -53,7 +53,7 @@ and `VAR != command` remains inert source data.
 ### 3.2. Report evidence, not conclusions
 
 `makeutil` reports that a variable uses `?=` or that a recipe starts with `-`.
-Concordat and Rego decide whether those facts violate policy.
+The downstream consumer and Rego decide whether those facts violate policy.
 
 ### 3.3. Preserve uncertainty
 
@@ -77,10 +77,10 @@ rewriting, and bindings remain later decisions.
 The implementation uses
 [`makefile-lossless`](https://github.com/jelmer/makefile-lossless), initially
 pinned to `=0.3.40`. A temporary `[patch.crates-io]` override selects commit
-`8dd35801b75b332c2ac2f995ae398ef8238559fa` from the `leynos/makefile-lossless`
-fork because release 0.3.40 does not lex the documented GNU Make `!=`
-assignment operator. Remove the override when an upstream release containing
-the fix is adopted; do not replace the immutable commit with a branch name.
+`8dd35801b75b332c2ac2f995ae398ef8238559fa` from a project-maintained fork
+because release 0.3.40 does not lex the documented GNU Make `!=` assignment
+operator. Remove the override when an upstream release containing the fix is
+adopted; do not replace the immutable commit with a branch name.
 
 The crate supplies:
 
@@ -135,7 +135,7 @@ slice.
 | `1`  | The parser recovered a tree with one or more diagnostics and JSON was emitted.                           |
 | `2`  | Invocation, source reading, UTF-8 decoding, serialization, or internal failure prevented a parse result. |
 
-The distinct recovered status lets Concordat fail closed while retaining useful
+The distinct recovered status lets consumers fail closed while retaining useful
 source diagnostics.
 
 ## 6. Output model
@@ -502,9 +502,10 @@ adapter and location mapping if real corpus defects justify it.
 
 The project ships one Rust binary named `makeutil`.
 
-Concordat invokes the binary as a subprocess and validates `schema_version`.
-The first slice does not expose PyO3 or Go bindings. This avoids a native wheel
-matrix, cgo, and direct consumer coupling to upstream Rust types.
+The downstream consumer invokes the binary as a subprocess and validates
+`schema_version`. The first slice does not expose PyO3 or Go bindings. This
+avoids a native wheel matrix, cgo, and direct consumer coupling to upstream
+Rust types.
 
 CI and release packaging pin the executable version. The JSON schema, rather
 than the executable version string alone, controls compatibility.
@@ -527,7 +528,7 @@ A later command must not silently change the behaviour or schema of `parse`.
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Consumers mistake syntax facts for effective Make semantics | Name fields literally, document the single-file scope, and preserve conditional and include evidence. |
 | Upstream `0.x` changes alter behaviour                      | Pin exactly and require fixture, golden, and round-trip review for upgrades.                          |
-| Recovered parses lead to false passes                       | Emit `parse.status = recovered`, exit 1, and require Concordat to fail closed.                        |
+| Recovered parses lead to false passes                       | Emit `parse.status = recovered`, exit 1, and require consumers to fail closed.                        |
 | Raw recipe matching becomes policy-specific parsing         | Keep matching in Rego and limit the first rules to documented lexical patterns.                       |
 | Schema expands before evidence exists                       | Require a consumer use case and schema-version review for every new fact.                             |
 
@@ -540,6 +541,6 @@ The design is implemented when:
 3. Complete input round-trips byte-for-byte through the parser tree.
 4. Recovered input emits diagnostics, partial facts, and exit code 1.
 5. Rules, variables, recipes, includes, conditional ancestry, and source
-   locations cover the first Concordat fixtures.
+   locations cover the first downstream consumer fixtures.
 6. No test source can cause command execution or network access.
-7. Concordat can consume the output solely through JSON.
+7. An external consumer can use the output solely through JSON.

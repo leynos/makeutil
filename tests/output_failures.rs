@@ -70,7 +70,28 @@ fn broken_path_reader_exits_two_with_stable_operation() {
         ProcessCapabilities::new(&mut stdin, &mut stdout, &mut stderr, &source_reader);
     let outcome = run_from_with_reader(["makeutil", "parse", "Makefile"], capabilities);
     assert_eq!(outcome.exit_code, 2);
+    assert!(stdout.is_empty());
     assert!(String::from_utf8_lossy(&stderr).contains("makeutil: source-read:"));
+}
+
+#[rstest]
+fn broken_stdin_reader_uses_logical_path_and_emits_no_json() {
+    let mut stdin = failing_reader();
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let outcome = run_from(
+        ["makeutil", "parse", "--stdin-filename", "logical.mk", "-"],
+        &mut stdin,
+        &mut stdout,
+        &mut stderr,
+    );
+    assert_eq!(outcome.exit_code, 2);
+    assert!(stdout.is_empty());
+    let diagnostic = String::from_utf8_lossy(&stderr);
+    assert!(
+        diagnostic.contains("makeutil: source-read: could not read logical.mk:"),
+        "unexpected diagnostic: {diagnostic}"
+    );
 }
 
 #[rstest]
@@ -89,6 +110,10 @@ fn oversized_stdin_exits_two_with_stable_operation() {
     let diagnostic = String::from_utf8_lossy(&stderr);
     assert!(
         diagnostic.contains("makeutil: source-too-large:"),
+        "unexpected diagnostic: {diagnostic}"
+    );
+    assert!(
+        diagnostic.contains("source Makefile exceeds"),
         "unexpected diagnostic: {diagnostic}"
     );
 }

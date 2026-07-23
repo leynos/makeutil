@@ -4,7 +4,13 @@ use makefile_lossless::{Makefile, Parse};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 
-use super::{MakefileLosslessParser, assignment_operator, condition_kind, ensure_round_trip};
+use super::{
+    MakefileLosslessParser,
+    assignment_operator,
+    collect_diagnostics,
+    condition_kind,
+    ensure_round_trip,
+};
 use crate::{
     domain::AssignmentOperator,
     ports::{MakefileParser as _, ParserPortError, SyntaxObservation},
@@ -80,5 +86,22 @@ fn multiline_define_preserves_exact_body() {
     assert_eq!(
         variable,
         Some((AssignmentOperator::Define, "echo one  \necho two\t \n"))
+    );
+}
+
+#[rstest]
+fn all_upstream_diagnostic_channels_are_retained_for_large_sources() {
+    let source = "broken rule without colon\n".repeat(4_096);
+    let parsed = Parse::<Makefile>::parse_makefile(&source);
+    assert!(!parsed.positioned_errors().is_empty());
+    assert!(!parsed.errors().is_empty());
+
+    let mut observations = Vec::new();
+    collect_diagnostics(&parsed, &source, &mut observations)
+        .expect("valid upstream diagnostic spans should be retained");
+
+    assert_eq!(
+        observations.len(),
+        parsed.positioned_errors().len() + parsed.errors().len()
     );
 }

@@ -6,11 +6,11 @@ Accepted on 2026-07-13
 
 ## Context
 
-Concordat's first Rust policy slice needs to inspect root Makefiles for
-required targets and known lint-gate bypasses. OPA and Rego consume structured
-data; they should not parse Make syntax. Invoking GNU Make to inspect an
-untrusted file would also cross the static-analysis boundary because Make
-expands functions and may invoke external commands while reading source.
+A downstream policy consumer needs to inspect root Makefiles for required
+targets and known lint-gate bypasses. OPA and Rego consume structured data;
+they should not parse Make syntax. Invoking GNU Make to inspect an untrusted
+file would also cross the static-analysis boundary because Make expands
+functions and may invoke external commands while reading source.
 
 The Rust crate
 [`makefile-lossless`](https://github.com/jelmer/makefile-lossless) supplies a
@@ -72,13 +72,13 @@ compliance.
 | Output      | Compact JSON schema v1     | JSON Lines or other reporters            |
 | Mutation    | None                       | Source-preserving rewrite command        |
 | Integration | Subprocess CLI             | Optional Python or other bindings        |
-| Policy      | None                       | Remains owned by Concordat and Rego      |
+| Policy      | None                       | Remains owned by consumers and Rego      |
 
 ## Consequences
 
 ### Positive
 
-- Concordat gets the exact evidence needed for its first policy without owning a
+- The downstream policy consumer gets the evidence it needs without owning a
   Make parser.
 - Rego receives ordinary structured data with source locations.
 - Untrusted Makefile content remains inert.
@@ -109,15 +109,15 @@ Rejected. GNU Make may expand functions and execute shell commands while
 reading source. It also reports an evaluated database rather than the
 source-faithful facts needed for precise diagnostics and later editing.
 
-### Parse Makefiles in Python inside Concordat
+### Parse Makefiles in Python inside the consumer
 
 Rejected. This would duplicate a difficult grammar, lose the proven lossless
-CST, and bind parser maintenance to Concordat.
+CST, and bind parser maintenance to the consumer.
 
 ### Bind the Rust crate directly into Python now
 
 Rejected for the first slice. PyO3 would add native wheel distribution and
-couple Concordat directly to Rust packaging before subprocess overhead has
+couple the consumer directly to Rust packaging before subprocess overhead has
 shown itself to matter.
 
 ### Expose a C ABI for Go or OpenTofu integration
@@ -139,6 +139,6 @@ and decision.
    QG-001.
 4. Recovered parses never exit 0.
 5. Hostile Make functions and recipes cause no external side effect.
-6. Concordat consumes the output through JSON without a language binding.
+6. An external consumer can use the JSON output without a language binding.
 7. Include traversal, mutation, discovery, and policy remain absent from the
    implementation.

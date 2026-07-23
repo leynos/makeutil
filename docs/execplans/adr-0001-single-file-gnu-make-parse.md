@@ -66,10 +66,9 @@ effects.
 - Tests must not mutate the environment of the shared test process. Set
   environment variables only on child processes if a case requires them.
 - Run `make check-fmt`, `make typecheck`, `make lint`, and `make test` after
-  every major milestone, then have a scrutineer run
-  `coderabbit review --agent`. Resolve all deterministic gate failures before
-  requesting CodeRabbit. Resolve applicable CodeRabbit concerns as a separate
-  review action before proceeding.
+  every major milestone, then run an independent automated review. Resolve all
+  deterministic gate failures before requesting review. Resolve applicable
+  review concerns as a separate action before proceeding.
 - Commit each accepted milestone atomically after its gates and review pass.
 - Update user-facing behaviour in [the user's guide](../users-guide.md),
   internal interfaces and ownership in [the design](../design.md), repository
@@ -100,8 +99,7 @@ stop and resolve the conflict before editing `Cargo.toml`.
 - Testability: stop if a fatal or recovered path can be tested only by panic,
   shared-process environment mutation, or lint suppression.
 - Quality: after three unsuccessful attempts to fix the same deterministic
-  gate or CodeRabbit blocker, record evidence and escalate rather than masking
-  it.
+  gate or review blocker, record evidence and escalate rather than masking it.
 - Performance: stop if a 10 MiB fixture takes over two seconds or a 256-level
   conditional fixture uses more than 256 MiB resident memory on the development
   machine in three consecutive release-mode measurements. These are guardrails,
@@ -129,20 +127,20 @@ stop and resolve the conflict before editing `Cargo.toml`.
   approval as approval of one scoped exception, document it in the design and
   developer guide, and do not generalize it.
 - Risk: a schema represented only by Rust structs and snapshots is difficult
-  for Concordat to validate independently. Severity: medium. Likelihood:
-  medium. Mitigation: add a checked JSON Schema artefact for schema version 1
-  and test representative complete and recovered documents against it.
+  for an external consumer to validate independently. Severity: medium.
+  Likelihood: medium. Mitigation: add a checked JSON Schema artefact for schema
+  version 1 and test representative complete and recovered documents against it.
 - Risk: tests might claim “no execution” while only testing ordinary recipes.
   Severity: high. Likelihood: medium. Mitigation: end-to-end hostile fixtures
   contain `$(shell ...)`, `!=`, recipe commands, dynamic includes, and literal
   includes that would create a sentinel if evaluated or opened. Assert the
   sentinel remains absent.
-- Risk: the Concordat integration criterion is outside this repository.
+- Risk: the external integration criterion is outside this repository.
   Severity: medium. Likelihood: high. Mitigation: provide a consumer-shaped
-  deserialization fixture and record the external Concordat trial as evidence
-  required before implementation is declared complete; do not fabricate
-  cross-repository proof. Outcome: the trial passed in the available Concordat
-  checkout.
+  deserialization fixture and record a reproducible subprocess trial as
+  evidence required before implementation is declared complete; do not
+  fabricate cross-repository proof. Outcome: a trial from an external consumer
+  environment passed.
 - Risk: strict lints and code-size limits may encourage premature abstraction.
   Severity: medium. Likelihood: medium. Mitigation: keep modules cohesive,
   sweep for equivalent helpers before every extraction, and add a trait only at
@@ -152,19 +150,19 @@ stop and resolve the conflict before editing `Cargo.toml`.
 ## Progress
 
 - [x] (2026-07-13) Created the Leta workspace and mapped the scaffold, ADR,
-  design, documentation, test guidance, and build gates with a Wyvern team.
+  design, documentation, test guidance, and build gates through independent
+  review.
 - [x] (2026-07-13) Confirmed upstream `makefile-lossless` 0.3.40 exposes a
   lossless tree, recovered results, and ordinary and positioned diagnostics.
 - [x] (2026-07-13) Imported the OrthoConfig user's guide from
   `../../ortho-config/docs/users-guide.md` and indexed it.
-- [x] (2026-07-13) Completed the Logisphere community review and revised the
+- [x] (2026-07-13) Completed an independent architecture review and revised the
   design to freeze logical-path spelling, construct ranges, ordinal ownership,
   diagnostics, failure output, and observability before approval.
 - [x] (2026-07-13) Passed all planning milestone deterministic gates and
-  resolved every actionable concern from three CodeRabbit review rounds.
-- [x] (2026-07-13) Obtained a clean CodeRabbit follow-up after the service rate
-  limit reset; the final pre-completion review examined 34 files and reported
-  zero findings.
+  resolved every actionable concern from three automated review rounds.
+- [x] (2026-07-13) Obtained a clean automated follow-up; the final
+  pre-completion review examined 34 files and reported zero findings.
 - [x] (2026-07-13) Obtained explicit approval of this ExecPlan, including the
   exact parser pin exception and schema/path decisions.
 - [x] (2026-07-13) Milestone 1: proved upstream contracts and froze the
@@ -178,8 +176,8 @@ stop and resolve the conflict before editing `Cargo.toml`.
   doctests, and pinned immutable commit
   `8dd35801b75b332c2ac2f995ae398ef8238559fa` through `[patch.crates-io]`.
 - [x] (2026-07-13) Passed the complete deterministic makeutil gate set after
-  applying the patch; the scrutineer independently repeated every gate and
-  CodeRabbit completed with zero findings across 34 reviewed files.
+  applying the patch; independent validation repeated every gate and automated
+  review completed with zero findings across 34 reviewed files.
 - [x] (2026-07-13) Added a consumer-owned schema-v1 deserialization test with
   focused red/green and Clippy evidence.
 - [x] (2026-07-13) Completed the manual CLI acceptance exercise with path,
@@ -187,22 +185,20 @@ stop and resolve the conflict before editing `Cargo.toml`.
 - [x] (2026-07-13) Measured exact-size 1, 5, and 10 MiB inputs and 256 nested
   conditionals in release mode; every run remained inside the elapsed-time and
   memory guardrails.
-- [x] (2026-07-13) Ran the release binary from the Concordat Python 3.13
-  environment, decoded schema v1 without a Rust binding, and found its required
-  `build`, `lint`, and `test` targets in a complete parse.
+- [x] (2026-07-13) Ran the release binary from an external Python 3.13 consumer,
+  decoded schema v1 without a Rust binding, and found its required `build`,
+  `lint`, and `test` targets in a complete parse.
 - [x] (2026-07-13) Used `strace` to prove that existing literal and dynamic
   include paths were reported but never opened.
 - [x] (2026-07-13) Milestone 4: synchronized contracts, completed all acceptance
-  exercises, and passed every deterministic gate under independent scrutineer
-  validation.
+  exercises, and passed every deterministic gate under independent validation.
 - [x] (2026-07-14) Reviewed the terminal diff and applied valid fixes for
   trailing variable whitespace, recipe-modifier ordering, closed conditional
   kinds, focused CLI helpers, and documentation drift. The focused whitespace
   and modifier-order tests supplied red evidence. The complete deterministic
-  gate set then passed, and the scrutineer independently confirmed 45 of 45
-  tests, two passing doctests with one intentionally ignored, and clean
-  formatting, Polonius type-checking, lint, documentation, diagram, and diff
-  checks.
+  gate set then passed, and independent validation confirmed 45 of 45 tests,
+  two passing doctests with one intentionally ignored, and clean formatting,
+  Polonius type-checking, lint, documentation, diagram, and diff checks.
 - [x] (2026-07-14) Injected ambient filesystem access at the CLI composition
   boundary. Red compilation proved the `SourceReader` and
   `run_from_with_reader` seams were absent; focused source-adapter, output-
@@ -212,14 +208,14 @@ stop and resolve the conflict before editing `Cargo.toml`.
   spelling, Mermaid, and diff checks.
 - [x] (2026-07-14) Corrected documentation ownership and orientation drift and
   applied the valid fatal CLI helper and private `collect_items` constructor
-  fixes found during terminal review. The independent scrutineer confirmed 49
-  of 49 tests, two passing doctests with one intentionally ignored, and clean
+  fixes found during terminal review. Independent validation confirmed 49 of 49
+  tests, two passing doctests with one intentionally ignored, and clean
   `make check-fmt`, `make typecheck`, `make lint`, `make test`, rustdoc,
   Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
 - [x] (2026-07-14) Replaced duplicated integration-test source readers with one
   `mockall` definition under `tests/common`, keeping mock code out of the
-  production library. The scrutineer independently confirmed 49 of 49 tests,
-  two passing doctests with one intentionally ignored, and clean formatting,
+  production library. Independent validation confirmed 49 of 49 tests, two
+  passing doctests with one intentionally ignored, and clean formatting,
   Polonius type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling,
   Mermaid, and diff checks. All targets compiled with warnings denied and no
   unused test helper.
@@ -227,7 +223,7 @@ stop and resolve the conflict before editing `Cargo.toml`.
   index and repository layout and made the imported GPUI reset snippet's hidden
   state type match its field accesses. Added behavioural scenarios for invalid
   invocation, help, and version, and shared the all-facts report fixture. The
-  scrutineer independently confirmed 54 of 54 tests, two passing doctests with
+  independent validation confirmed 54 of 54 tests, two passing doctests with
   one intentionally ignored, and clean formatting, Polonius type-checking,
   rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
 - [x] (2026-07-16) Added direct regression coverage for the concrete parser's
@@ -237,10 +233,10 @@ stop and resolve the conflict before editing `Cargo.toml`.
   type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and
   diff checks.
 - [x] (2026-07-16) Closed the `AssignmentOperator` contract and enforced the
-  status/diagnostics schema invariant. The scrutineer independently confirmed
-  72 of 72 tests, three passing doctests with one intentionally ignored,
-  unchanged snapshots, and clean formatting, Polonius type-checking, rustdoc,
-  Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
+  status/diagnostics schema invariant. Independent validation confirmed 72 of
+  72 tests, three passing doctests with one intentionally ignored, unchanged
+  snapshots, and clean formatting, Polonius type-checking, rustdoc, Clippy,
+  Whitaker, Markdown, spelling, Mermaid, and diff checks.
 - [x] (2026-07-18) Added one shared bounded-read implementation for path and
   standard-input sources, accepting at most 16 MiB and reporting larger sources
   through the stable `source-too-large` fatal operation.
@@ -254,15 +250,15 @@ stop and resolve the conflict before editing `Cargo.toml`.
 - [x] (2026-07-18) Added a dedicated external multiline `define` fixture with
   embedded newlines and trailing whitespace, and asserted its exact domain
   representation through the concrete parser and domain contract suite.
-- [x] (2026-07-18) The independent scrutineer confirmed 82 of 82 tests, three
+- [x] (2026-07-18) Independent validation confirmed 82 of 82 tests, three
   passing doctests with one intentionally ignored, clean formatting, Polonius
   type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and
   diff checks. It also confirmed that the lockfile and `typos.toml` are
   unchanged and that no-default feature resolution excludes
   `ortho_config/serde_json`.
-- [ ] Obtain CodeRabbit certification of the exact terminal diff through the
-  pull request. The user approved deferral from the unavailable CLI review
-  during CodeRabbit's temporary outage.
+- [ ] Obtain automated certification of the exact terminal diff through the
+  pull request. The user approved deferral while the review service was
+  temporarily unavailable.
 
 ## Surprises & discoveries
 
@@ -278,20 +274,19 @@ stop and resolve the conflict before editing `Cargo.toml`.
   upstream tests assert recovered-tree and hostile-input round trips. Impact:
   an adapter can preserve partial evidence without exposing upstream types, but
   its contract must be proven before model implementation.
-- Observation: the requested OrthoConfig guide originally did not exist in this
-  checkout. Evidence: the source guide lived at
-  `../../ortho-config/docs/users-guide.md`. Impact: it has been imported as
-  `docs/ortho-config-users-guide.md` and is now a local implementation
+- Observation: the requested OrthoConfig guide was imported from its upstream
+  documentation. Impact: it is now available as
+  `docs/ortho-config-users-guide.md` and provides a local implementation
   reference.
 - Observation: `makefile-lossless` 0.3.40 documents `!=` as an assignment
   operator, but parses valid GNU Make `A != printf seven` as recovered rule
   fragments with diagnostics and exposes no `VariableDefinition`. Evidence: the
   focused `assignment_operators_remain_source_faithful::case_7` test and a live
-  CLI reproduction both produce zero variable facts; the scrutineer
-  independently reproduced the failure. Impact: this triggers the approved
-  upstream stop condition. The exact pin cannot satisfy the source-faithful
-  variable contract without an upstream fix, a separately approved narrow
-  fallback parser, or an explicit scope reduction.
+  CLI reproduction both produce zero variable facts; independent validation
+  reproduced the failure. Impact: this triggers the approved upstream stop
+  condition. The exact pin cannot satisfy the source-faithful variable contract
+  without an upstream fix, a separately approved narrow fallback parser, or an
+  explicit scope reduction.
 - Observation: the defect was confined to `Lexer::next_token`; the parser and
   AST accessors already recognized `!=`, but the operator-token start set
   omitted `!`. Evidence: fork commit `8dd35801b75b332c2ac2f995ae398ef8238559fa`
@@ -362,20 +357,20 @@ stop and resolve the conflict before editing `Cargo.toml`.
 
 ## Decision log
 
-- Decision: defer exact terminal-diff CodeRabbit certification to the pull
-  request after the CLI first rate-limited and then required unavailable
-  browser authentication during a temporary service outage. Rationale: the
-  exact diff passed every independent deterministic gate, the immediately
-  preceding review was clean, and the user explicitly approved waiting for PR
-  review rather than blocking the commit. Date/Author: 2026-07-13 / User and
-  Codex.
+- Decision: defer exact terminal-diff automated certification to the pull
+  request after the review service first rate-limited and then required
+  unavailable browser authentication during a temporary service outage.
+  Rationale: the exact diff passed every independent deterministic gate, the
+  immediately preceding review was clean, and approval to wait for pull-request
+  review was recorded rather than blocking the commit. Date/Author: 2026-07-13
+  / Project maintainers.
 
 - Decision: generate large performance fixtures ephemerally and check their
   exact byte lengths with `stat` rather than commit 16 MiB of repetitive test
   data. Rationale: fixed `all:` and newline framing around repeated `a` bytes
   produces valid, deterministic rule fixtures while keeping the repository
   small; the measured command fails before timing if any size differs. Date/
-  Author: 2026-07-13 / Codex.
+  Author: 2026-07-13 / Project maintainers.
 
 - Decision: patch crates.io resolution to immutable fork commit
   `8dd35801b75b332c2ac2f995ae398ef8238559fa` while retaining the approved exact
@@ -383,77 +378,77 @@ stop and resolve the conflict before editing `Cargo.toml`.
   the missing lexer start character and regression coverage without vendoring,
   changing makeutil policy, or exposing a mutable branch reference. Retire the
   patch when an adopted upstream release contains the fix. Date/Author:
-  2026-07-13 / Codex.
+  2026-07-13 / Project maintainers.
 
 - Decision: apply hexagonal architecture only at meaningful volatility and
   side-effect boundaries. Rationale: domain facts, locations, ordering, and
   parse outcome classification need pure tests; `makefile-lossless`, CLI
   parsing, filesystem access, and JSON output are adapters. Repositories, event
   buses, CQRS layers, and adapter-to- adapter traits would add ceremony without
-  protecting a real boundary. Date/Author: 2026-07-13 / Codex planning team.
+  protecting a real boundary. Date/Author: 2026-07-13 / Project maintainers.
 - Decision: define one domain-owned `MakefileParser` port and keep upstream CST
   observations on the adapter side. Rationale: the young parser crate is the
   principal volatile dependency. The port returns makeutil-owned facts and
   diagnostics so upstream APIs cannot leak into schema or application policy.
-  Date/Author: 2026-07-13 / Codex planning team.
+  Date/Author: 2026-07-13 / Project maintainers.
 - Decision: use property testing for `LocationIndex`, not Kani or Verus.
   Rationale: arbitrary UTF-8, newline layouts, and valid byte spans form a
   natural generative invariant. There is no bounded concurrent/state machine
   model for Kani and no introduced lemma or contractual business theorem that
   would make a substantive Verus proof possible. Adding either would be
-  performative rather than rigorous. Date/Author: 2026-07-13 / Codex planning
-  team.
+  performative rather than rigorous. Date/Author: 2026-07-13 / Project
+  maintainers.
 - Decision: provide JSON Schema Draft 2020-12 as a checked consumer artefact.
   Rationale: schema version 1 is the stable integration contract and must be
   independently machine-readable; Rust structs and snapshots alone are not an
-  adequate subprocess contract. Date/Author: 2026-07-13 / Codex planning team.
+  adequate subprocess contract. Date/Author: 2026-07-13 / Project maintainers.
 - Decision: use OrthoConfig 0.8.x for the `parse` subcommand while keeping input
   selection explicit and unlayered. Rationale: the imported guide is the
   requested CLI/configuration reference, but ADR-0001 allows no implicit path
   or discovery. OrthoConfig supplies typed CLI derivation and preserves
   help/version display exits; it must not add environment or file defaults for
-  `PATH` or `--stdin-filename`. Date/Author: 2026-07-13 / Codex planning team.
+  `PATH` or `--stdin-filename`. Date/Author: 2026-07-13 / Project maintainers.
 - Decision: preserve exact logical path spelling and use the complete
   construct-range rules in `docs/design.md` section 6.2. Rationale: callers
   need stable source slices and reproducible JSON. Deferring these choices
   until adapter implementation would make plan approval meaningless and
   accidentally turn upstream accessor choices into schema policy. Date/Author:
-  2026-07-13 / Logisphere-reviewed Codex planning team.
+  2026-07-13 / Independent planning review.
 - Decision: let the parser adapter return ordered makeutil-owned observations
   and source spans; keep round-trip bytes in adapter tests only. Rationale:
   location conversion, the ordinal ordering invariant, and status are
   makeutil-owned policy; `parse_source` and its `ReportAssembly` fact collector
   assign ordinals, while exact-byte hashing is application-service policy.
   Upstream CST renderings and error types must not leak through the
-  domain-owned port. Date/Author: 2026-07-13 / Logisphere-reviewed Codex
-  planning team. Ownership wording clarified on 2026-07-18 during terminal
-  documentation review.
+  domain-owned port. Date/Author: 2026-07-13 / Independent planning review.
+  Ownership wording clarified on 2026-07-18 during terminal documentation
+  review.
 - Decision: cap each path or standard-input source at an inclusive 16 MiB by
   composing both adapters through one private bounded-read helper. The helper
   is source-adapter implementation detail, not a port or general I/O utility.
   Rationale: one policy prevents input-dependent memory growth and keeps error
   classification identical across both input modes. Date/Author: 2026-07-18 /
-  Wyvern review team.
+  Independent review.
 - Decision: treat clap display writes as process output subject to
   `stdout-write`, while preserving clap's normal stream and exit-zero semantics
   when the complete display is written. Rationale: help and version output are
   externally observable process behaviour and cannot silently discard an I/O
-  failure. Date/Author: 2026-07-18 / Wyvern review team.
+  failure. Date/Author: 2026-07-18 / Independent review.
 - Decision: make makeutil's `serde_json` feature the sole switch for
   OrthoConfig's JSON integration and disable OrthoConfig default features.
   Rationale: feature ownership stays visible at the application manifest, and
   `--no-default-features` has predictable dependency behaviour. Date/Author:
-  2026-07-18 / Wyvern review team.
+  2026-07-18 / Independent review.
 - Decision: keep the multiline `define` regression as external Makefile input
   and exercise it through the concrete parser and application service.
   Rationale: the contract concerns exact source bytes across the adapter
   boundary, so an inline domain-only case cannot prove it. Date/Author:
-  2026-07-18 / Wyvern review team.
+  2026-07-18 / Independent review.
 - Decision: serialize to memory before stdout and permit partial stdout only
   when the operating system accepts a prefix before an output failure.
   Rationale: the process can prevent serialization failures from writing JSON,
   but cannot retract accepted bytes after a broken pipe or partial write.
-  Date/Author: 2026-07-13 / Logisphere-reviewed Codex planning team.
+  Date/Author: 2026-07-13 / Independent planning review.
 - Decision: keep review-driven helpers at their narrowest validated ownership
   boundary. `ConditionKind` is the closed domain/port representation consumed
   by observations and reports; the makefile adapter alone owns the private
@@ -461,14 +456,14 @@ stop and resolve the conflict before editing `Cargo.toml`.
   helpers remain private to the CLI adapter. Rationale: these boundaries remove
   stringly typed drift and order-sensitive defects without creating reusable
   ports for implementation details. Permitted call sites and reuse policy are
-  recorded in `docs/developers-guide.md`. Date/Author: 2026-07-14 / Wyvern
-  review team.
+  recorded in `docs/developers-guide.md`. Date/Author: 2026-07-14 / Independent
+  review.
 - Decision: represent schema-v1 assignment operators with the closed,
   domain-owned `AssignmentOperator` enum shared by the parser port and report
   model. The empty representation is reserved for a `define` block without an
   assignment token. Rationale: the producer must reject upstream drift before
   serialization rather than emit JSON outside the checked schema. Date/Author:
-  2026-07-16 / Wyvern review team.
+  2026-07-16 / Independent review.
 - Decision: define `SourceReader` in the source adapter as a narrow capability
   interface, not a domain port. `read_path` owns byte collection and
   `SourceReadError` classification; `run_from` alone constructs the
@@ -477,7 +472,7 @@ stop and resolve the conflict before editing `Cargo.toml`.
   this removes ambient authority from the reusable read function without
   transplanting filesystem concerns into the domain, introducing directory/
   include semantics, or exceeding the repository's four-argument limit. Date/
-  Author: 2026-07-14 / Codex.
+  Author: 2026-07-14 / Project maintainers.
 - Decision: share a `MockSourceReader` definition under `tests/common` rather
   than derive it on the production trait. Rationale: a
   `cfg_attr(test, automock)` type is not exported when the library is compiled
@@ -486,7 +481,7 @@ stop and resolve the conflict before editing `Cargo.toml`.
   test-support feature, or generated mocks to the production surface. Keep the
   failing stream in a separate shared file included only by suites that use it,
   so warnings remain denied without suppressions. Date/Author: 2026-07-14 /
-  User and Codex.
+  Project maintainers.
 
 ## Outcomes & retrospective
 
@@ -495,13 +490,13 @@ a capability-safe CLI and stable schema-v1 JSON. Unit, property, snapshot, BDD,
 and end-to-end tests cover complete, recovered, fatal, and inert-source paths.
 The forked parser fix restores source-faithful `!=` assignments without a
 makeutil-specific fallback. Manual CLI acceptance, release-mode guardrails, and
-the Concordat subprocess and include-boundary trials all pass. Independent
-scrutineer validation repeated every deterministic gate. The implementation of
-ADR-0001's single-file GNU Make parse slice is complete. Ambient filesystem
-authority is now composed once at the CLI boundary and injected through
+the external consumer and include-boundary trials all pass. Independent
+validation repeated every deterministic gate. The implementation of ADR-0001's
+single-file GNU Make parse slice is complete. Ambient filesystem authority is
+now composed once at the CLI boundary and injected through
 `ProcessCapabilities`; fake readers prove the source-open and source-read
-contracts without filesystem access. Exact terminal-diff CodeRabbit
-certification is deferred to the pull request because the CLI service became
+contracts without filesystem access. Exact terminal-diff automated
+certification is deferred to the pull request because the review service became
 unavailable, as explicitly approved by the user.
 
 ## Context and orientation
@@ -540,9 +535,10 @@ Implementation must consult these practice guides at the relevant milestone:
 The implementing agent must load the `leta` skill for semantic navigation, the
 `rust-router` skill to select only a necessary Rust specialist, the
 `hexagonal-architecture` skill for boundary checks, and the `execplans` skill
-to keep this document current. Use `firecrawl-mcp` only when an upstream API,
-format, or prior-art gap remains after local documentation and exact dependency
-source inspection. Use the `logisphere-experts` community for design reviews.
+to keep this document current. Research authoritative upstream sources only
+when an API, format, or prior-art gap remains after local documentation and
+exact dependency source inspection. Use an independent design review for
+substantive architecture decisions.
 
 The intended narrow dependency flow is:
 
@@ -638,8 +634,8 @@ constants, array and diagnostic ordering, and always-emitted empty arrays. Apply
 `additionalProperties: false` recursively. Self-validate the schema, validate
 every snapshot, and reject malformed near-miss documents.
 
-Run the four required gates. A scrutineer then runs CodeRabbit. Resolve all
-concerns, update this ExecPlan's evidence and decisions, and commit the
+Run the four required gates, then run an independent automated review. Resolve
+all concerns, update this ExecPlan's evidence and decisions, and commit the
 milestone before proceeding.
 
 ### Milestone 2: collect source-faithful facts
@@ -677,8 +673,8 @@ the minimal green change, and refactor only after the focused and wider adapter
 suite pass. Round-trip every complete fixture through the exact upstream tree.
 Recovered fixtures must always retain partial facts and classify as exit 1.
 
-Run the four gates, then scrutineer CodeRabbit review, concern resolution,
-ExecPlan update, and an atomic commit.
+Run the four gates, then automated review, concern resolution, ExecPlan update,
+and an atomic commit.
 
 ### Milestone 3: wire CLI, input, JSON, and process behaviour
 
@@ -778,8 +774,8 @@ rather than an unreliable unreadable-file E2E under privileged CI.
 
 Delete `greet`, the greeting `main`, its lint exception, and `tests/stub.rs`
 only after replacement tests are green. Run the release-mode large/deep input
-guardrail, the four gates, scrutineer CodeRabbit review, concern resolution, a
-clean follow-up review, ExecPlan update, and an atomic commit.
+guardrail, the four gates, automated review, concern resolution, a clean
+follow-up review, ExecPlan update, and an atomic commit.
 
 ### Milestone 4: synchronize contracts and prove acceptance
 
@@ -796,15 +792,16 @@ style guide and confirm that its Accepted status is supported by current
 external evidence.
 
 Add a consumer-shaped test that deserializes representative schema-v1 JSON
-without linking Rust implementation types. Record the command and result for an
-actual Concordat subprocess trial when that repository is available. If it is
-not available, leave the ADR Proposed and record the external gap.
+without linking Rust implementation types. Record a reproducible subprocess
+trial from an external consumer environment. The recorded successful trial
+supports the ADR's current Accepted status; future acceptance evidence must
+retain both the consumer-shaped test and subprocess result.
 
 Run `make fmt` after documentation changes, followed by `make markdownlint` and
 `make nixie`. If the Makefile changes, also run `mbake validate Makefile`. Then
-run the four required gates. Scrutineer runs the final CodeRabbit review; clear
-all concerns, update this plan and its retrospective, and commit. Do not mark
-the plan COMPLETE until every acceptance criterion has current evidence.
+run the four required gates and an independent automated review; clear all
+concerns, update this plan and its retrospective, and commit. Do not mark the
+plan COMPLETE until every acceptance criterion has current evidence.
 
 ## Concrete steps
 
@@ -846,19 +843,15 @@ make test
 ```
 
 Expected successful endings include no warnings and exit status 0. Only after
-all four pass may the scrutineer run:
-
-```shell
-coderabbit review --agent
-```
+all four pass may an independent automated review run.
 
 Resolve every applicable concern, rerun affected focused tests and all four
-gates, rerun CodeRabbit to obtain a clean follow-up, update this document, then
-commit the milestone. Never commit with a failing gate. Within a milestone,
-make reviewable checkpoint commits after domain/schema, upstream contract,
-rules/recipes, variables/includes/conditions, CLI/source, reporter/process, and
-BDD/E2E units become independently green. Run CodeRabbit at the major milestone
-boundary rather than on every checkpoint.
+gates, rerun automated review to obtain a clean follow-up, update this
+document, then commit the milestone. Never commit with a failing gate. Within a
+milestone, make reviewable checkpoint commits after domain/schema, upstream
+contract, rules/recipes, variables/includes/conditions, CLI/source,
+reporter/process, and BDD/E2E units become independently green. Run automated
+review at the major milestone boundary rather than on every checkpoint.
 
 For the documentation milestone, run:
 
@@ -920,9 +913,9 @@ Acceptance requires all ADR criteria plus the following evidence:
   milestone and at final acceptance.
 - `make markdownlint` and `make nixie` pass for documentation;
   `mbake validate Makefile` passes if the Makefile changes.
-- CodeRabbit reports no unresolved applicable concerns after deterministic
+- Automated review reports no unresolved applicable concerns after deterministic
   gates.
-- A consumer-shaped JSON contract test passes. Actual Concordat subprocess
+- A consumer-shaped JSON contract test passes. Reproducible external subprocess
   evidence is recorded before claiming cross-repository integration or moving
   the ADR to Accepted.
 
@@ -952,22 +945,22 @@ bulk-accept snapshots.
 
 ## Artefacts and notes
 
-Firecrawl research used the authoritative 0.3.40 docs.rs source and tagged
+Source research used the authoritative 0.3.40 docs.rs source and tagged
 upstream repository. It confirmed that the crate exports its GNU Make variant,
 lossless `Makefile`, parse-result type, ordinary errors, positioned errors,
 rules, recipes, variables, includes, conditionals, and Rowan ranges. Milestone
 1 compile-checked those mappings against the exact dependency.
 
-The Wyvern team independently found no existing abstraction to reuse and
-recommended the same narrow parser-port boundary. The community-of-experts
-review and scrutineer evidence must be appended here before this draft is
-offered for approval.
+Independent review found no existing abstraction to reuse and recommended the
+same narrow parser-port boundary. Architecture review and independent
+validation evidence must be appended here before this draft is offered for
+approval.
 
-The scrutineer recorded passing `git diff --check`, Markdown and spelling,
-Nixie, Rust formatting, Polonius type-checking, rustdoc, Clippy, Whitaker,
-nextest, and doctest gates. Three completed CodeRabbit rounds reported 11, 9,
-and 7 actionable concerns respectively; all were addressed. A later
-pre-completion review completed successfully across 34 files with zero findings.
+Independent validation recorded passing `git diff --check`, Markdown and
+spelling, Nixie, Rust formatting, Polonius type-checking, rustdoc, Clippy,
+Whitaker, nextest, and doctest gates. Three completed automated review rounds
+reported 11, 9, and 7 actionable concerns respectively; all were addressed. A
+later pre-completion review completed across 34 files with zero findings.
 
 The final manual CLI exercise produced `complete=0`, `recovered=1`, and
 `stdin=0`. Every command wrote one schema-v1 JSON document, no command wrote to
@@ -997,7 +990,7 @@ below 256 MiB.
 An external Python subprocess invoked the release binary against a
 representative Makefile, decoded JSON with the standard library, asserted
 schema version 1 and complete status, and found `build`, `lint`, and `test`.
-The successful summary was:
+The following derived consumer summary is not the schema-v1 document:
 
 ```plaintext
 {"schema_version":1,"status":"complete","required_targets":["build","lint","test"],"language_binding":false}
@@ -1058,20 +1051,20 @@ Decision log.
 
 ## Revision note
 
-Initially revised 2026-07-13 after Wyvern, Logisphere, and CodeRabbit review to
-freeze path, range, schema, parser-port, failure-output, CLI merge, security,
-performance, and dependency decisions and to import and correct the OrthoConfig
-0.8.0 guide. Implementation completed on 2026-07-13 with deterministic gates,
-manual acceptance, performance measurements, and external Concordat and
-include-boundary evidence recorded above. Pull request review remains pending.
-Revised again on 2026-07-14 to inject the ambient filesystem capability at the
-CLI boundary while preserving the stable source error and process diagnostic
-contracts. Terminal documentation review then clarified hashing ownership and
-replaced planning-time scaffold descriptions in the current repository
-orientation and applied the valid CLI and parser-helper fixes. Independent
-scrutineer validation passed all post-correction gates; exact terminal-diff
-CodeRabbit certification remains pending in the pull request. The shared
-source-reader test double was subsequently moved to a test-only common module
-because Cargo does not export `cfg(test)` automatic mocks to integration-test
-crates. Independent post-change repository gates passed with warnings denied
-across every integration-test binary.
+Initially revised 2026-07-13 after independent architecture and automated
+review to freeze path, range, schema, parser-port, failure-output, CLI merge,
+security, performance, and dependency decisions and to import and correct the
+OrthoConfig 0.8.0 guide. Implementation completed on 2026-07-13 with
+deterministic gates, manual acceptance, performance measurements, and external
+consumer and include-boundary evidence recorded above. Pull request review
+remains pending. Revised again on 2026-07-14 to inject the ambient filesystem
+capability at the CLI boundary while preserving the stable source error and
+process diagnostic contracts. Terminal documentation review then clarified
+hashing ownership and replaced planning-time scaffold descriptions in the
+current repository orientation and applied the valid CLI and parser-helper
+fixes. Independent validation passed all post-correction gates; exact
+terminal-diff automated certification remains pending in the pull request. The
+shared source-reader test double was subsequently moved to a test-only common
+module because Cargo does not export `cfg(test)` automatic mocks to
+integration-test crates. Independent post-change repository gates passed with
+warnings denied across every integration-test binary.

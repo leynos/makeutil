@@ -2,7 +2,14 @@
 
 use makeutil::{
     adapters::MakefileLosslessParser,
-    domain::{AssignmentOperator, ConditionKind, LocationIndex, ParseStatus, SourceSpan},
+    domain::{
+        AssignmentOperator,
+        ConditionKind,
+        LocationIndex,
+        ParseStatus,
+        SourceSpan,
+        ToolIdentity,
+    },
     parse_source,
 };
 use pretty_assertions::assert_eq;
@@ -145,9 +152,30 @@ fn assignment_operators_remain_source_faithful(
 fn assignment_operators_match_schema_values(
     #[case] operator: AssignmentOperator,
     #[case] expected_json: &str,
-) -> Result<(), serde_json::Error> {
-    assert_eq!(serde_json::to_string(&operator)?, expected_json);
-    Ok(())
+) {
+    let serialized =
+        serde_json::to_string(&operator).expect("assignment operator should serialise");
+    assert_eq!(serialized, expected_json);
+}
+
+#[rstest]
+fn parser_version_matches_manifest_pin_and_schema_constant() {
+    let parser_version = ToolIdentity::default().parser_version;
+    let expected_manifest_entry = format!(r#"makefile-lossless = "={parser_version}""#);
+    assert!(
+        include_str!("../Cargo.toml")
+            .lines()
+            .any(|line| line == expected_manifest_entry),
+        "Cargo.toml must pin makefile-lossless to {parser_version}"
+    );
+
+    let schema: serde_json::Value =
+        serde_json::from_str(include_str!("../schemas/makeutil.parse.v1.schema.json"))
+            .expect("schema should be valid JSON");
+    assert_eq!(
+        schema.pointer("/$defs/tool/properties/parser_version/const"),
+        Some(&serde_json::Value::String(parser_version.to_owned()))
+    );
 }
 
 #[rstest]

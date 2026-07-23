@@ -224,7 +224,7 @@ fn read_input(
                 "--stdin-filename is required when PATH is -",
             )
         })?;
-        return read_stdin(streams.stdin)
+        return read_stdin(streams.stdin, &logical_path)
             .map(|bytes| (bytes, logical_path))
             .map_err(|error| fatal(streams.stderr, error.operation(), &error.to_string()));
     }

@@ -1,7 +1,7 @@
 # OrthoConfig user's guide
 
 > **Upstream reference:** This imported guide describes the
-> [OrthoConfig repository](https://github.com/leynos/ortho-config), not the
+> [OrthoConfig repository](https://github.com/owner/ortho-config), not the
 > makeutil workspace. Repository-relative paths, `make` commands, examples,
 > tests, and assets mentioned below—including Hello World and
 > `config/overrides.toml`—belong to that upstream repository.
@@ -55,7 +55,7 @@ values from multiple sources. The core features are:
 The upstream OrthoConfig workspace bundles an executable Hello World example
 under `examples/hello_world`. It layers defaults, environment variables, and
 CLI flags via the derive macro; see its
-[README](https://github.com/leynos/ortho-config/blob/main/examples/hello_world/README.md)
+[README](https://github.com/owner/ortho-config/blob/main/examples/hello_world/README.md)
 for a step-by-step walkthrough and the `rstest-bdd` (Behaviour-Driven
 Development) scenarios that validate behaviour end-to-end.
 
@@ -823,7 +823,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let reference = merged_pr
         .reference
         .as_deref()
-        .ok_or("reference must be supplied by CLI, configuration, or environment")?;
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "reference must be supplied by CLI, configuration, or environment",
+            )
+        })?;
     println!("PR reference: {reference}");
     Ok(())
 }
@@ -833,10 +838,10 @@ A configuration file might include:
 
 ```toml
 [cmds.pr]
-reference = "https://github.com/leynos/mxd/pull/31"
+reference = "https://github.com/owner/repo/pull/31"
 
 [cmds.issue]
-reference = "https://github.com/leynos/mxd/issues/7"
+reference = "https://github.com/owner/repo/issues/7"
 ```
 
 and environment variables could override these defaults:
@@ -919,7 +924,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Hello world walkthrough
 
-<https://github.com/leynos/ortho-config/tree/main/examples/hello_world>
+<https://github.com/owner/ortho-config/tree/main/examples/hello_world>
 
 The `hello_world` example crate demonstrates these patterns in a compact
 setting. Global options such as `--recipient` or `--salutation` are resolved by
@@ -1020,7 +1025,7 @@ action to perform. An enum of subcommands is annotated with
 `#[clap_dispatch(fn run(...))]`, and the `load_and_merge_subcommand_for`
 function can be called on each variant before dispatching. See the
 `Subcommand Configuration` section of the `OrthoConfig`
-[README](https://github.com/leynos/ortho-config/blob/main/README.md) for a
+[README](https://github.com/owner/ortho-config/blob/main/README.md) for a
 complete example.
 
 ## Error handling

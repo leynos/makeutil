@@ -1,8 +1,5 @@
 # makeutil
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](
-https://deepwiki.com/leynos/makeutil)
-
 *Parse one GNU Makefile into deterministic, source-faithful JSON.*
 
 `makeutil` reports rules, recipes, variables, includes, conditionals, source

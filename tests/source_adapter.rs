@@ -66,26 +66,21 @@ fn path_source_over_limit_is_rejected() -> googletest::Result<()> {
 }
 
 #[rstest]
-fn standard_input_over_limit_is_rejected() -> googletest::Result<()> {
+fn standard_input_over_limit_is_rejected() {
     let mut stdin = std::io::repeat(b'x');
-    let error = read_stdin(&mut stdin).expect_err("oversized stdin should fail");
-    verify_that!(error.operation(), eq("source-too-large"))?;
-    verify_that!(
-        matches!(
-            error,
-            SourceReadError::TooLarge {
-                limit: MAX_SOURCE_BYTES,
-                ..
-            }
-        ),
-        eq(true)
-    )
+    let error = read_stdin(&mut stdin, "logical.mk").expect_err("oversized stdin should fail");
+    assert_eq!(error.operation(), "source-too-large");
+    let SourceReadError::TooLarge { path, limit } = error else {
+        panic!("oversized stdin should report a source-too-large error");
+    };
+    assert_eq!(path, "logical.mk");
+    assert_eq!(limit, MAX_SOURCE_BYTES);
 }
 
 #[rstest]
 fn standard_input_at_limit_is_accepted() -> googletest::Result<()> {
     let limit = u64::try_from(MAX_SOURCE_BYTES).expect("source limit should fit u64");
     let mut stdin = std::io::repeat(b'x').take(limit);
-    let bytes = read_stdin(&mut stdin)?;
+    let bytes = read_stdin(&mut stdin, "logical.mk")?;
     verify_that!(bytes.len(), eq(MAX_SOURCE_BYTES))
 }
