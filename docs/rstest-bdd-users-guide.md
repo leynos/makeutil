@@ -2047,7 +2047,10 @@ let request = ScenarioRunRequest::new(
 );
 
 let harness = MyHarness;
-assert_eq!(harness.run(request).expect("harness should not fail"), "ok");
+match harness.run(request) {
+    Ok(value) => assert_eq!(value, "ok"),
+    Err(error) => panic!("harness failed unexpectedly: {error}"),
+}
 ```
 
 Harnesses that need framework resources can choose a non-unit context type and
