@@ -1,0 +1,215 @@
+---
+source: tests/report_schema.rs
+expression: report
+---
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "makeutil",
+    "version": "0.1.0",
+    "parser": "makefile-lossless",
+    "parser_version": "0.3.40"
+  },
+  "source": {
+    "path": "Makefile",
+    "sha256": "1f61a290113f6dbf9b5a3b2d2d62e3e55e25ef3cb891453cea9e676299079280",
+    "byte_length": 203
+  },
+  "parse": {
+    "status": "complete",
+    "diagnostics": []
+  },
+  "rules": [
+    {
+      "ordinal": 5,
+      "targets": [
+        "check"
+      ],
+      "prerequisites": [
+        "prepare"
+      ],
+      "double_colon": true,
+      "conditions": [
+        {
+          "kind": "ifdef",
+          "expression": "CI",
+          "branch": "if",
+          "location": {
+            "start_byte": 127,
+            "end_byte": 136,
+            "start_line": 9,
+            "start_column": 1,
+            "end_line": 10,
+            "end_column": 1
+          }
+        }
+      ],
+      "recipes": [
+        {
+          "ordinal": 0,
+          "text": "@-+cargo test",
+          "silent": true,
+          "ignore_errors": true,
+          "always_execute": true,
+          "location": {
+            "start_byte": 152,
+            "end_byte": 167,
+            "start_line": 11,
+            "start_column": 1,
+            "end_line": 12,
+            "end_column": 1
+          }
+        }
+      ],
+      "location": {
+        "start_byte": 136,
+        "end_byte": 167,
+        "start_line": 10,
+        "start_column": 1,
+        "end_line": 12,
+        "end_column": 1
+      }
+    },
+    {
+      "ordinal": 6,
+      "targets": [
+        "check"
+      ],
+      "prerequisites": [
+        "local"
+      ],
+      "double_colon": false,
+      "conditions": [
+        {
+          "kind": "ifdef",
+          "expression": "CI",
+          "branch": "else",
+          "location": {
+            "start_byte": 167,
+            "end_byte": 171,
+            "start_line": 12,
+            "start_column": 1,
+            "end_line": 12,
+            "end_column": 5
+          }
+        }
+      ],
+      "recipes": [
+        {
+          "ordinal": 0,
+          "text": "echo local",
+          "silent": false,
+          "ignore_errors": false,
+          "always_execute": false,
+          "location": {
+            "start_byte": 185,
+            "end_byte": 197,
+            "start_line": 14,
+            "start_column": 1,
+            "end_line": 15,
+            "end_column": 1
+          }
+        }
+      ],
+      "location": {
+        "start_byte": 172,
+        "end_byte": 197,
+        "start_line": 13,
+        "start_column": 1,
+        "end_line": 15,
+        "end_column": 1
+      }
+    }
+  ],
+  "variables": [
+    {
+      "ordinal": 0,
+      "name": "MODE",
+      "operator": "?=",
+      "raw_value": "debug",
+      "exported": false,
+      "overridden": false,
+      "define_block": false,
+      "conditions": [],
+      "location": {
+        "start_byte": 0,
+        "end_byte": 14,
+        "start_line": 1,
+        "start_column": 1,
+        "end_line": 2,
+        "end_column": 1
+      }
+    },
+    {
+      "ordinal": 1,
+      "name": "RELEASE",
+      "operator": "=",
+      "raw_value": "yes",
+      "exported": true,
+      "overridden": false,
+      "define_block": false,
+      "conditions": [],
+      "location": {
+        "start_byte": 14,
+        "end_byte": 35,
+        "start_line": 2,
+        "start_column": 1,
+        "end_line": 3,
+        "end_column": 1
+      }
+    },
+    {
+      "ordinal": 2,
+      "name": "TOOL",
+      "operator": ":=",
+      "raw_value": "cargo",
+      "exported": false,
+      "overridden": true,
+      "define_block": false,
+      "conditions": [],
+      "location": {
+        "start_byte": 35,
+        "end_byte": 58,
+        "start_line": 3,
+        "start_column": 1,
+        "end_line": 4,
+        "end_column": 1
+      }
+    },
+    {
+      "ordinal": 3,
+      "name": "SCRIPT",
+      "operator": "",
+      "raw_value": "echo configured\n",
+      "exported": false,
+      "overridden": false,
+      "define_block": true,
+      "conditions": [],
+      "location": {
+        "start_byte": 58,
+        "end_byte": 94,
+        "start_line": 4,
+        "start_column": 1,
+        "end_line": 7,
+        "end_column": 1
+      }
+    }
+  ],
+  "includes": [
+    {
+      "ordinal": 4,
+      "raw_path": "$(CONFIG_DIR)/common.mk",
+      "optional": false,
+      "dynamic": true,
+      "conditions": [],
+      "location": {
+        "start_byte": 94,
+        "end_byte": 126,
+        "start_line": 7,
+        "start_column": 1,
+        "end_line": 8,
+        "end_column": 1
+      }
+    }
+  ]
+}

@@ -44,7 +44,7 @@ class Dictionary:
 
 @dataclasses.dataclass(frozen=True)
 class RefreshResult:
-    """Describe whether the untracked shared dictionary cache changed."""
+    """Describe whether the untracked base-dictionary cache changed."""
 
     status: str
     cache: pathlib.Path
@@ -77,7 +77,7 @@ def _table(document: cabc.Mapping[str, object], key: str) -> cabc.Mapping[str, o
 
 
 def _dictionary_from_text(text: str) -> Dictionary:
-    """Parse and validate shared dictionary text."""
+    """Parse and validate base-dictionary text."""
     document = tomllib.loads(text)
     schema = document.get("schema")
     if schema != SCHEMA_VERSION:
@@ -104,12 +104,12 @@ def _dictionary_from_text(text: str) -> Dictionary:
 
 
 def load_dictionary(path: pathlib.Path) -> Dictionary:
-    """Load a validated shared dictionary from *path*."""
+    """Load a validated base dictionary from *path*."""
     return _dictionary_from_text(path.read_text(encoding="utf-8"))
 
 
 def merge_dictionaries(base: Dictionary, local: Dictionary) -> Dictionary:
-    """Merge a shared dictionary with a non-conflicting local overlay."""
+    """Merge a base dictionary with a non-conflicting local overlay."""
     corrections = dict(base.corrections)
     for word, correction in local.corrections:
         existing = corrections.get(word)
@@ -229,7 +229,7 @@ def _write_metadata(
 
 
 def _valid_cache(cache: pathlib.Path) -> bool:
-    """Return whether *cache* contains a valid shared dictionary."""
+    """Return whether *cache* contains a valid base dictionary."""
     try:
         load_dictionary(cache)
     except (
@@ -320,7 +320,7 @@ def _https_request(
 ) -> urllib.request.Request:
     """Build a request after constraining the shared source to HTTPS."""
     if urllib.parse.urlsplit(source).scheme != "https":
-        message = f"shared dictionary URL must use HTTPS: {source}"
+        message = f"base dictionary URL must use HTTPS: {source}"
         raise ValueError(message)
     return urllib.request.Request(source, headers=dict(headers))  # noqa: S310 - HTTPS is required above.
 
@@ -390,7 +390,7 @@ def refresh_base(
     """Refresh an untracked base cache when the authoritative copy is newer."""
     if offline:
         if not _valid_cache(cache):
-            message = f"no cached shared dictionary at {cache}"
+            message = f"no cached base dictionary at {cache}"
             raise FileNotFoundError(message)
         return RefreshResult("offline-cache", cache)
     if isinstance(source, pathlib.Path) or "://" not in str(source):
