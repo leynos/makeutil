@@ -139,6 +139,11 @@ The tracked `typos.toml` is generated from the project-owned dictionary in
 when the tracked source is newer, regenerate the configuration, and check
 maintained prose.
 
+`make provenance` rejects personal repository references, local paths, named
+operational projects, and claims of validation that cannot be reproduced from
+the repository. `make markdownlint` includes this check. Generic consumer
+contracts and technical dependency coordinates remain permitted.
+
 ### Security audit ignores
 
 Security audit jobs may set `CARGO_AUDIT_IGNORES` for narrowly scoped RustSec

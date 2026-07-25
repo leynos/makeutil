@@ -1,11 +1,10 @@
-//! Real-estate corpus regressions.
+//! Unsupported-syntax corpus regressions.
 //!
-//! Each fixture here reduces a construct observed in an external repository
-//! during a prior compatibility audit. The tests pin the parser's
-//! honest behaviour for constructs it cannot yet represent: the parse must
-//! degrade to `recovered` with a positioned diagnostic, never report a
-//! false `complete`. If an upstream `makefile-lossless` release learns one
-//! of these constructs, the corresponding test fails on purpose so the pin
+//! Each fixture is a reduced unsupported-syntax regression fixture. The tests
+//! pin the parser's honest behaviour for constructs it cannot yet represent:
+//! the parse must degrade to `recovered` with a positioned diagnostic, never
+//! report a false `complete`. If an upstream `makefile-lossless` release learns
+//! one of these constructs, the corresponding test fails on purpose so the pin
 //! and the expectations are revisited together.
 
 use makeutil::{adapters::MakefileLosslessParser, domain::ParseStatus, parse_source};

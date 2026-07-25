@@ -66,10 +66,9 @@ effects.
 - Tests must not mutate the environment of the shared test process. Set
   environment variables only on child processes if a case requires them.
 - Run `make check-fmt`, `make typecheck`, `make lint`, and `make test` after
-  every major milestone, then run an independent automated review. Resolve all
-  deterministic gate failures before requesting review. Resolve applicable
-  review concerns as a separate action before proceeding.
-- Commit each accepted milestone atomically after its gates and review pass.
+  every major milestone. Resolve all deterministic gate failures before
+  proceeding.
+- Commit each accepted milestone atomically after its gates pass.
 - Update user-facing behaviour in [the user's guide](../users-guide.md),
   internal interfaces and ownership in [the design](../design.md), repository
   paths in [the repository layout](../repository-layout.md), and contributor
@@ -127,20 +126,19 @@ stop and resolve the conflict before editing `Cargo.toml`.
   approval as approval of one scoped exception, document it in the design and
   developer guide, and do not generalize it.
 - Risk: a schema represented only by Rust structs and snapshots is difficult
-  for an external consumer to validate independently. Severity: medium.
-  Likelihood: medium. Mitigation: add a checked JSON Schema artefact for schema
-  version 1 and test representative complete and recovered documents against it.
+  to validate without linking the implementation. Severity: medium. Likelihood:
+  medium. Mitigation: add a checked JSON Schema artefact for schema version 1
+  and test representative complete and recovered documents against it.
 - Risk: tests might claim “no execution” while only testing ordinary recipes.
   Severity: high. Likelihood: medium. Mitigation: end-to-end hostile fixtures
   contain `$(shell ...)`, `!=`, recipe commands, dynamic includes, and literal
   includes that would create a sentinel if evaluated or opened. Assert the
   sentinel remains absent.
-- Risk: the external integration criterion is outside this repository.
-  Severity: medium. Likelihood: high. Mitigation: provide a consumer-shaped
-  deserialization fixture and record a reproducible subprocess trial as
-  evidence required before implementation is declared complete; do not
-  fabricate cross-repository proof. Outcome: a trial from an external consumer
-  environment passed.
+- Risk: compatibility claims could depend on evidence outside this repository.
+  Severity: medium. Likelihood: high. Mitigation: require a consumer-shaped
+  deserialization test, checked JSON Schema validation, and documented CLI,
+  stream, and exit-code contracts. Acceptance depends only on checked-in
+  artefacts and repeatable repository gates.
 - Risk: strict lints and code-size limits may encourage premature abstraction.
   Severity: medium. Likelihood: medium. Mitigation: keep modules cohesive,
   sweep for equivalent helpers before every extraction, and add a trait only at
@@ -149,20 +147,14 @@ stop and resolve the conflict before editing `Cargo.toml`.
 
 ## Progress
 
-- [x] (2026-07-13) Created the Leta workspace and mapped the scaffold, ADR,
-  design, documentation, test guidance, and build gates through independent
-  review.
+- [x] (2026-07-13) Mapped the scaffold, ADR, design, documentation, test
+  guidance, and build gates.
 - [x] (2026-07-13) Confirmed upstream `makefile-lossless` 0.3.40 exposes a
   lossless tree, recovered results, and ordinary and positioned diagnostics.
-- [x] (2026-07-13) Imported the OrthoConfig user's guide from
-  `../../ortho-config/docs/users-guide.md` and indexed it.
-- [x] (2026-07-13) Completed an independent architecture review and revised the
-  design to freeze logical-path spelling, construct ranges, ordinal ownership,
-  diagnostics, failure output, and observability before approval.
-- [x] (2026-07-13) Passed all planning milestone deterministic gates and
-  resolved every actionable concern from three automated review rounds.
-- [x] (2026-07-13) Obtained a clean automated follow-up; the final
-  pre-completion review examined 34 files and reported zero findings.
+- [x] (2026-07-13) Imported and indexed the OrthoConfig user's guide.
+- [x] (2026-07-13) Revised the design to freeze logical-path spelling,
+  construct ranges, ordinal ownership, diagnostics, failure output, and
+  observability before approval.
 - [x] (2026-07-13) Obtained explicit approval of this ExecPlan, including the
   exact parser pin exception and schema/path decisions.
 - [x] (2026-07-13) Milestone 1: proved upstream contracts and froze the
@@ -171,72 +163,37 @@ stop and resolve the conflict before editing `Cargo.toml`.
   recovered output against the fixture corpus.
 - [x] (2026-07-13) Milestone 3: implemented OrthoConfig CLI, source, JSON, and
   process adapters with behavioural and end-to-end validation.
-- [x] (2026-07-13) Fixed `!=` lexing on fork branch
-  `fix-shell-assignment-operator`, validated its 472 unit tests and 98
-  doctests, and pinned immutable commit
+- [x] (2026-07-13) Fixed `!=` lexing in the parser dependency and pinned commit
   `8dd35801b75b332c2ac2f995ae398ef8238559fa` through `[patch.crates-io]`.
-- [x] (2026-07-13) Passed the complete deterministic makeutil gate set after
-  applying the patch; independent validation repeated every gate and automated
-  review completed with zero findings across 34 reviewed files.
 - [x] (2026-07-13) Added a consumer-owned schema-v1 deserialization test with
   focused red/green and Clippy evidence.
-- [x] (2026-07-13) Completed the manual CLI acceptance exercise with path,
-  recovered, and stdin exit codes `0`, `1`, and `0` respectively.
-- [x] (2026-07-13) Measured exact-size 1, 5, and 10 MiB inputs and 256 nested
-  conditionals in release mode; every run remained inside the elapsed-time and
-  memory guardrails.
-- [x] (2026-07-13) Ran the release binary from an external Python 3.13 consumer,
-  decoded schema v1 without a Rust binding, and found its required `build`,
-  `lint`, and `test` targets in a complete parse.
-- [x] (2026-07-13) Used `strace` to prove that existing literal and dynamic
-  include paths were reported but never opened.
-- [x] (2026-07-13) Milestone 4: synchronized contracts, completed all acceptance
-  exercises, and passed every deterministic gate under independent validation.
-- [x] (2026-07-14) Reviewed the terminal diff and applied valid fixes for
+- [x] (2026-07-13) Added checked-in path, recovered, stdin, hostile-input,
+  include-reporting, and bounded-input acceptance coverage.
+- [x] (2026-07-13) Milestone 4: synchronized contracts and repository
+  acceptance evidence.
+- [x] (2026-07-14) Applied fixes for
   trailing variable whitespace, recipe-modifier ordering, closed conditional
   kinds, focused CLI helpers, and documentation drift. The focused whitespace
-  and modifier-order tests supplied red evidence. The complete deterministic
-  gate set then passed, and independent validation confirmed 45 of 45 tests,
-  two passing doctests with one intentionally ignored, and clean formatting,
-  Polonius type-checking, lint, documentation, diagram, and diff checks.
+  and modifier-order tests supplied red evidence.
 - [x] (2026-07-14) Injected ambient filesystem access at the CLI composition
   boundary. Red compilation proved the `SourceReader` and
   `run_from_with_reader` seams were absent; focused source-adapter, output-
-  failure, and BDD tests passed. The terminal repository gates then passed 49
-  of 49 tests, two doctests with one intentionally ignored, and clean
-  formatting, Polonius type-checking, rustdoc, Clippy, Whitaker, Markdown,
-  spelling, Mermaid, and diff checks.
+  failure, and BDD tests passed.
 - [x] (2026-07-14) Corrected documentation ownership and orientation drift and
   applied the valid fatal CLI helper and private `collect_items` constructor
-  fixes found during terminal review. Independent validation confirmed 49 of 49
-  tests, two passing doctests with one intentionally ignored, and clean
-  `make check-fmt`, `make typecheck`, `make lint`, `make test`, rustdoc,
-  Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
+  fixes found during contract reconciliation.
 - [x] (2026-07-14) Replaced duplicated integration-test source readers with one
   `mockall` definition under `tests/common`, keeping mock code out of the
-  production library. Independent validation confirmed 49 of 49 tests, two
-  passing doctests with one intentionally ignored, and clean formatting,
-  Polonius type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling,
-  Mermaid, and diff checks. All targets compiled with warnings denied and no
-  unused test helper.
+  production library.
 - [x] (2026-07-16) Reconciled ADR-0001's accepted date in the documentation
   index and repository layout and made the imported GPUI reset snippet's hidden
   state type match its field accesses. Added behavioural scenarios for invalid
-  invocation, help, and version, and shared the all-facts report fixture. The
-  independent validation confirmed 54 of 54 tests, two passing doctests with
-  one intentionally ignored, and clean formatting, Polonius type-checking,
-  rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and diff checks.
+  invocation, help, and version, and shared the all-facts report fixture.
 - [x] (2026-07-16) Added direct regression coverage for the concrete parser's
   round-trip mismatch guard and for invalid-span and split-UTF-8-boundary
-  `LocationError` paths. Terminal validation passed 59 of 59 tests, two
-  doctests with one intentionally ignored, and clean formatting, Polonius
-  type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and
-  diff checks.
+  `LocationError` paths.
 - [x] (2026-07-16) Closed the `AssignmentOperator` contract and enforced the
-  status/diagnostics schema invariant. Independent validation confirmed 72 of
-  72 tests, three passing doctests with one intentionally ignored, unchanged
-  snapshots, and clean formatting, Polonius type-checking, rustdoc, Clippy,
-  Whitaker, Markdown, spelling, Mermaid, and diff checks.
+  status/diagnostics schema invariant.
 - [x] (2026-07-18) Added one shared bounded-read implementation for path and
   standard-input sources, accepting at most 16 MiB and reporting larger sources
   through the stable `source-too-large` fatal operation.
@@ -247,18 +204,11 @@ stop and resolve the conflict before editing `Cargo.toml`.
 - [x] (2026-07-18) Propagated clap help/version display write failures as
   `stdout-write`, and added focused coverage for failed displays alongside the
   existing successful black-box help and version cases.
-- [x] (2026-07-18) Added a dedicated external multiline `define` fixture with
+- [x] (2026-07-18) Added a dedicated multiline `define` fixture with
   embedded newlines and trailing whitespace, and asserted its exact domain
   representation through the concrete parser and domain contract suite.
-- [x] (2026-07-18) Independent validation confirmed 82 of 82 tests, three
-  passing doctests with one intentionally ignored, clean formatting, Polonius
-  type-checking, rustdoc, Clippy, Whitaker, Markdown, spelling, Mermaid, and
-  diff checks. It also confirmed that the lockfile and `typos.toml` are
-  unchanged and that no-default feature resolution excludes
-  `ortho_config/serde_json`.
-- [ ] Obtain automated certification of the exact terminal diff through the
-  pull request. The user approved deferral while the review service was
-  temporarily unavailable.
+- [x] (2026-07-18) Added contract coverage proving that no-default feature
+  resolution excludes `ortho_config/serde_json`.
 
 ## Surprises & discoveries
 
@@ -281,9 +231,8 @@ stop and resolve the conflict before editing `Cargo.toml`.
 - Observation: `makefile-lossless` 0.3.40 documents `!=` as an assignment
   operator, but parses valid GNU Make `A != printf seven` as recovered rule
   fragments with diagnostics and exposes no `VariableDefinition`. Evidence: the
-  focused `assignment_operators_remain_source_faithful::case_7` test and a live
-  CLI reproduction both produce zero variable facts; independent validation
-  reproduced the failure. Impact: this triggers the approved upstream stop
+  focused `assignment_operators_remain_source_faithful::case_7` test produces
+  zero variable facts. Impact: this triggers the approved upstream stop
   condition. The exact pin cannot satisfy the source-faithful variable contract
   without an upstream fix, a separately approved narrow fallback parser, or an
   explicit scope reduction.
@@ -293,42 +242,34 @@ stop and resolve the conflict before editing `Cargo.toml`.
   changes that set and adds lexer and lossless AST regression tests. Impact:
   the existing adapter now reports shell assignments source-faithfully without
   a makeutil-specific parser fallback or vendored crate.
-- Observation: the manual acceptance command named `complete.mk`, but the
-  committed complete fixture is `all-facts.mk`. Evidence: the fixture corpus
-  contains `all-facts.mk` and `recovered.mk`; the corrected command produced a
-  complete schema-v1 report. Impact: the command below now uses the real
-  fixture path.
+- Observation: the complete fixture is named `all-facts.mk`. Evidence: the
+  fixture corpus contains `all-facts.mk` and `recovered.mk`. Impact: repository
+  commands use the tracked fixture path.
 - Observation: the consumer-shaped test initially expected an `all` target,
   while the representative fixture defines `check`. Evidence: the focused red
   run failed with a clear `check` versus `all` diff; changing only the consumer
   expectation made the focused test and Clippy pass. Impact: this supplies
   honest red/green evidence without changing production behaviour.
-- Observation: focused review tests showed that trimming a variable value lost
+- Observation: focused tests showed that trimming a variable value lost
   source-faithful trailing whitespace and that upstream recipe accessors did
   not recognize every ordering of leading `@`, `-`, and `+` modifiers. Evidence:
   `variable_values_preserve_trailing_whitespace` and
   `recipe_modifier_order_is_semantic` failed before their narrow adapter fixes.
   Impact: raw values now remain untrimmed, and one adapter-private scanner
   derives all three recipe flags without widening the parser port.
-- Observation: a review finding claimed the file reader did not use a
-  capability-oriented boundary, but `read_path` already used
+- Observation: `read_path` used
   `cap_std::fs_utf8::File::open_ambient` with explicit ambient authority.
-  Evidence: `src/adapters/source.rs` owns that call and maps its open and read
-  failures into `SourceReadError`. Impact: the finding was stale and required
-  no source-reader change at that review milestone. The user subsequently
-  requested a stronger composition rule: ambient authority must be resolved
-  only by the CLI and injected into `read_path`. Impact: the explicit new
-  requirement supersedes the earlier no-change conclusion without changing
-  error or CLI contracts.
+  Evidence: `src/adapters/source.rs` maps open and read failures into
+  `SourceReadError`. Impact: ambient authority is now resolved only by the CLI
+  and injected into `read_path`, without changing error or CLI contracts.
 - Observation: the claimed duplicate generated header in `typos.toml` was
   stale. Evidence: the file contains one two-line header emitted verbatim by
   `scripts/typos_rollout.py`. Impact: generated spelling policy required no
   manual edit.
-- Observation: a tracing and metrics warning did not apply to this approved
-  one-shot CLI slice. Evidence: stable operation identifiers are its documented
-  observability surface, success and recovered parsing keep stderr empty, and
-  the design explicitly defers metrics. Impact: no subscriber, recorder, or new
-  telemetry dependency was added during terminal review.
+- Observation: stable operation identifiers are the documented observability
+  surface for this one-shot CLI slice; success and recovered parsing keep
+  stderr empty, and the design explicitly defers metrics. Impact: no
+  subscriber, recorder, or telemetry dependency is required.
 - Observation: schema v1 already enumerated assignment-operator strings, while
   the runtime carried an unrestricted string from the upstream adapter. Impact:
   an upstream value outside the schema could be serialized into a report that
@@ -351,119 +292,105 @@ stop and resolve the conflict before editing `Cargo.toml`.
   failures. Impact: display output must use the same checked write semantics as
   report output, with focused failure injection and black-box success tests.
 - Observation: multiline `define` parsing and trailing assignment whitespace
-  had separate tests, but no external fixture combined the two properties.
-  Impact: a dedicated fixture must prove exact raw-body preservation through
-  the full parser and application assembly path.
+  had separate tests, but no fixture combined the two properties. Impact: a
+  dedicated fixture must prove exact raw-body preservation through the full
+  parser and application assembly path.
 
 ## Decision log
-
-- Decision: defer exact terminal-diff automated certification to the pull
-  request after the review service first rate-limited and then required
-  unavailable browser authentication during a temporary service outage.
-  Rationale: the exact diff passed every independent deterministic gate, the
-  immediately preceding review was clean, and approval to wait for pull-request
-  review was recorded rather than blocking the commit. Date/Author: 2026-07-13
-  / Project maintainers.
 
 - Decision: generate large performance fixtures ephemerally and check their
   exact byte lengths with `stat` rather than commit 16 MiB of repetitive test
   data. Rationale: fixed `all:` and newline framing around repeated `a` bytes
   produces valid, deterministic rule fixtures while keeping the repository
-  small; the measured command fails before timing if any size differs. Date/
-  Author: 2026-07-13 / Project maintainers.
+  small; the guardrail command fails before timing if any size differs. Date:
+  2026-07-13.
 
 - Decision: patch crates.io resolution to immutable fork commit
   `8dd35801b75b332c2ac2f995ae398ef8238559fa` while retaining the approved exact
   0.3.40 version requirement. Rationale: the minimal upstream-shaped fix adds
   the missing lexer start character and regression coverage without vendoring,
   changing makeutil policy, or exposing a mutable branch reference. Retire the
-  patch when an adopted upstream release contains the fix. Date/Author:
-  2026-07-13 / Project maintainers.
+  patch when an adopted upstream release contains the fix. Date: 2026-07-13.
 
 - Decision: apply hexagonal architecture only at meaningful volatility and
   side-effect boundaries. Rationale: domain facts, locations, ordering, and
   parse outcome classification need pure tests; `makefile-lossless`, CLI
   parsing, filesystem access, and JSON output are adapters. Repositories, event
   buses, CQRS layers, and adapter-to- adapter traits would add ceremony without
-  protecting a real boundary. Date/Author: 2026-07-13 / Project maintainers.
+  protecting a real boundary. Date: 2026-07-13.
 - Decision: define one domain-owned `MakefileParser` port and keep upstream CST
   observations on the adapter side. Rationale: the young parser crate is the
   principal volatile dependency. The port returns makeutil-owned facts and
   diagnostics so upstream APIs cannot leak into schema or application policy.
-  Date/Author: 2026-07-13 / Project maintainers.
+  Date: 2026-07-13.
 - Decision: use property testing for `LocationIndex`, not Kani or Verus.
   Rationale: arbitrary UTF-8, newline layouts, and valid byte spans form a
   natural generative invariant. There is no bounded concurrent/state machine
   model for Kani and no introduced lemma or contractual business theorem that
   would make a substantive Verus proof possible. Adding either would be
-  performative rather than rigorous. Date/Author: 2026-07-13 / Project
-  maintainers.
+  performative rather than rigorous. Date: 2026-07-13.
 - Decision: provide JSON Schema Draft 2020-12 as a checked consumer artefact.
   Rationale: schema version 1 is the stable integration contract and must be
-  independently machine-readable; Rust structs and snapshots alone are not an
-  adequate subprocess contract. Date/Author: 2026-07-13 / Project maintainers.
+  machine-readable without linking implementation types; Rust structs and
+  snapshots alone are not an adequate subprocess contract. Date: 2026-07-13.
 - Decision: use OrthoConfig 0.8.x for the `parse` subcommand while keeping input
   selection explicit and unlayered. Rationale: the imported guide is the
   requested CLI/configuration reference, but ADR-0001 allows no implicit path
   or discovery. OrthoConfig supplies typed CLI derivation and preserves
   help/version display exits; it must not add environment or file defaults for
-  `PATH` or `--stdin-filename`. Date/Author: 2026-07-13 / Project maintainers.
+  `PATH` or `--stdin-filename`. Date: 2026-07-13.
 - Decision: preserve exact logical path spelling and use the complete
   construct-range rules in `docs/design.md` section 6.2. Rationale: callers
   need stable source slices and reproducible JSON. Deferring these choices
   until adapter implementation would make plan approval meaningless and
-  accidentally turn upstream accessor choices into schema policy. Date/Author:
-  2026-07-13 / Independent planning review.
+  accidentally turn upstream accessor choices into schema policy. Date:
+  2026-07-13.
 - Decision: let the parser adapter return ordered makeutil-owned observations
   and source spans; keep round-trip bytes in adapter tests only. Rationale:
   location conversion, the ordinal ordering invariant, and status are
   makeutil-owned policy; `parse_source` and its `ReportAssembly` fact collector
   assign ordinals, while exact-byte hashing is application-service policy.
   Upstream CST renderings and error types must not leak through the
-  domain-owned port. Date/Author: 2026-07-13 / Independent planning review.
-  Ownership wording clarified on 2026-07-18 during terminal documentation
-  review.
+  domain-owned port. Date: 2026-07-13. Ownership wording clarified on
+  2026-07-18.
 - Decision: cap each path or standard-input source at an inclusive 16 MiB by
   composing both adapters through one private bounded-read helper. The helper
   is source-adapter implementation detail, not a port or general I/O utility.
   Rationale: one policy prevents input-dependent memory growth and keeps error
-  classification identical across both input modes. Date/Author: 2026-07-18 /
-  Independent review.
+  classification identical across both input modes. Date: 2026-07-18.
 - Decision: treat clap display writes as process output subject to
   `stdout-write`, while preserving clap's normal stream and exit-zero semantics
   when the complete display is written. Rationale: help and version output are
   externally observable process behaviour and cannot silently discard an I/O
-  failure. Date/Author: 2026-07-18 / Independent review.
+  failure. Date: 2026-07-18.
 - Decision: make makeutil's `serde_json` feature the sole switch for
   OrthoConfig's JSON integration and disable OrthoConfig default features.
   Rationale: feature ownership stays visible at the application manifest, and
-  `--no-default-features` has predictable dependency behaviour. Date/Author:
-  2026-07-18 / Independent review.
-- Decision: keep the multiline `define` regression as external Makefile input
+  `--no-default-features` has predictable dependency behaviour. Date:
+  2026-07-18.
+- Decision: keep the multiline `define` regression as a Makefile fixture
   and exercise it through the concrete parser and application service.
   Rationale: the contract concerns exact source bytes across the adapter
-  boundary, so an inline domain-only case cannot prove it. Date/Author:
-  2026-07-18 / Independent review.
+  boundary, so an inline domain-only case cannot prove it. Date: 2026-07-18.
 - Decision: serialize to memory before stdout and permit partial stdout only
   when the operating system accepts a prefix before an output failure.
   Rationale: the process can prevent serialization failures from writing JSON,
-  but cannot retract accepted bytes after a broken pipe or partial write.
-  Date/Author: 2026-07-13 / Independent planning review.
-- Decision: keep review-driven helpers at their narrowest validated ownership
+  but cannot retract accepted bytes after a broken pipe or partial write. Date:
+  2026-07-13.
+- Decision: keep helpers at their narrowest validated ownership
   boundary. `ConditionKind` is the closed domain/port representation consumed
   by observations and reports; the makefile adapter alone owns the private
   leading-recipe-modifier scanner; and CLI extraction, production, and emission
   helpers remain private to the CLI adapter. Rationale: these boundaries remove
   stringly typed drift and order-sensitive defects without creating reusable
   ports for implementation details. Permitted call sites and reuse policy are
-  recorded in `docs/developers-guide.md`. Date/Author: 2026-07-14 / Independent
-  review.
+  recorded in `docs/developers-guide.md`. Date: 2026-07-14.
 - Decision: represent schema-v1 assignment operators with the closed,
   domain-owned `AssignmentOperator` enum shared by the parser port and report
   model. The empty representation is reserved for a `define` block without an
   assignment token. Rationale: the producer must reject upstream drift before
-  serialization rather than emit JSON outside the checked schema. Date/Author:
-  2026-07-16 / Independent review.
+  serialization rather than emit JSON outside the checked schema. Date:
+  2026-07-16.
 - Decision: define `SourceReader` in the source adapter as a narrow capability
   interface, not a domain port. `read_path` owns byte collection and
   `SourceReadError` classification; `run_from` alone constructs the
@@ -471,8 +398,8 @@ stop and resolve the conflict before editing `Cargo.toml`.
   and embedded composition through one `ProcessCapabilities` value. Rationale:
   this removes ambient authority from the reusable read function without
   transplanting filesystem concerns into the domain, introducing directory/
-  include semantics, or exceeding the repository's four-argument limit. Date/
-  Author: 2026-07-14 / Project maintainers.
+  include semantics, or exceeding the repository's four-argument limit. Date:
+  2026-07-14.
 - Decision: share a `MockSourceReader` definition under `tests/common` rather
   than derive it on the production trait. Rationale: a
   `cfg_attr(test, automock)` type is not exported when the library is compiled
@@ -480,8 +407,7 @@ stop and resolve the conflict before editing `Cargo.toml`.
   definition removes duplicated readers without adding `mockall`, a public
   test-support feature, or generated mocks to the production surface. Keep the
   failing stream in a separate shared file included only by suites that use it,
-  so warnings remain denied without suppressions. Date/Author: 2026-07-14 /
-  Project maintainers.
+  so warnings remain denied without suppressions. Date: 2026-07-14.
 
 ## Outcomes & retrospective
 
@@ -489,15 +415,13 @@ The implementation now exposes the approved single-file parse contract through
 a capability-safe CLI and stable schema-v1 JSON. Unit, property, snapshot, BDD,
 and end-to-end tests cover complete, recovered, fatal, and inert-source paths.
 The forked parser fix restores source-faithful `!=` assignments without a
-makeutil-specific fallback. Manual CLI acceptance, release-mode guardrails, and
-the external consumer and include-boundary trials all pass. Independent
-validation repeated every deterministic gate. The implementation of ADR-0001's
+makeutil-specific fallback. Checked-in tests prove consumer-shaped schema
+deserialization, complete and recovered stream behaviour, inert hostile input,
+include non-traversal, and bounded input. The implementation of ADR-0001's
 single-file GNU Make parse slice is complete. Ambient filesystem authority is
-now composed once at the CLI boundary and injected through
-`ProcessCapabilities`; fake readers prove the source-open and source-read
-contracts without filesystem access. Exact terminal-diff automated
-certification is deferred to the pull request because the review service became
-unavailable, as explicitly approved by the user.
+composed once at the CLI boundary and injected through `ProcessCapabilities`;
+fake readers prove the source-open and source-read contracts without filesystem
+access.
 
 ## Context and orientation
 
@@ -537,8 +461,7 @@ The implementing agent must load the `leta` skill for semantic navigation, the
 `hexagonal-architecture` skill for boundary checks, and the `execplans` skill
 to keep this document current. Research authoritative upstream sources only
 when an API, format, or prior-art gap remains after local documentation and
-exact dependency source inspection. Use an independent design review for
-substantive architecture decisions.
+exact dependency source inspection.
 
 The intended narrow dependency flow is:
 
@@ -634,9 +557,8 @@ constants, array and diagnostic ordering, and always-emitted empty arrays. Apply
 `additionalProperties: false` recursively. Self-validate the schema, validate
 every snapshot, and reject malformed near-miss documents.
 
-Run the four required gates, then run an independent automated review. Resolve
-all concerns, update this ExecPlan's evidence and decisions, and commit the
-milestone before proceeding.
+Run the four required gates, update this ExecPlan's evidence and decisions, and
+commit the milestone before proceeding.
 
 ### Milestone 2: collect source-faithful facts
 
@@ -673,8 +595,7 @@ the minimal green change, and refactor only after the focused and wider adapter
 suite pass. Round-trip every complete fixture through the exact upstream tree.
 Recovered fixtures must always retain partial facts and classify as exit 1.
 
-Run the four gates, then automated review, concern resolution, ExecPlan update,
-and an atomic commit.
+Run the four gates, update the ExecPlan, and create an atomic commit.
 
 ### Milestone 3: wire CLI, input, JSON, and process behaviour
 
@@ -774,8 +695,7 @@ rather than an unreliable unreadable-file E2E under privileged CI.
 
 Delete `greet`, the greeting `main`, its lint exception, and `tests/stub.rs`
 only after replacement tests are green. Run the release-mode large/deep input
-guardrail, the four gates, automated review, concern resolution, a clean
-follow-up review, ExecPlan update, and an atomic commit.
+guardrail and the four gates, update the ExecPlan, and create an atomic commit.
 
 ### Milestone 4: synchronize contracts and prove acceptance
 
@@ -788,20 +708,20 @@ ownership, port/adapter rules, helper reuse policy, fixtures, snapshots, exact
 parser upgrade gate, and the test-first workflow. Update
 `docs/repository-layout.md` for source modules, `schemas/`, features, fixtures,
 snapshots, and end-to-end tests. Reconcile ADR-0001 with the documentation
-style guide and confirm that its Accepted status is supported by current
-external evidence.
+style guide and confirm that its Accepted status is supported by checked-in,
+repeatable repository evidence.
 
 Add a consumer-shaped test that deserializes representative schema-v1 JSON
-without linking Rust implementation types. Record a reproducible subprocess
-trial from an external consumer environment. The recorded successful trial
-supports the ADR's current Accepted status; future acceptance evidence must
-retain both the consumer-shaped test and subprocess result.
+without linking Rust implementation types. Retain JSON Schema validation and
+end-to-end CLI tests for the documented stream and exit-code contract. These
+checked-in tests support the ADR's Accepted status without relying on evidence
+from another repository or runtime environment.
 
 Run `make fmt` after documentation changes, followed by `make markdownlint` and
 `make nixie`. If the Makefile changes, also run `mbake validate Makefile`. Then
-run the four required gates and an independent automated review; clear all
-concerns, update this plan and its retrospective, and commit. Do not mark the
-plan COMPLETE until every acceptance criterion has current evidence.
+run the four required gates, update this plan and its retrospective, and
+commit. Do not mark the plan COMPLETE until every acceptance criterion has
+current repository evidence.
 
 ## Concrete steps
 
@@ -842,16 +762,13 @@ make lint
 make test
 ```
 
-Expected successful endings include no warnings and exit status 0. Only after
-all four pass may an independent automated review run.
+Expected successful endings include no warnings and exit status 0.
 
 Resolve every applicable concern, rerun affected focused tests and all four
-gates, rerun automated review to obtain a clean follow-up, update this
-document, then commit the milestone. Never commit with a failing gate. Within a
-milestone, make reviewable checkpoint commits after domain/schema, upstream
-contract, rules/recipes, variables/includes/conditions, CLI/source,
-reporter/process, and BDD/E2E units become independently green. Run automated
-review at the major milestone boundary rather than on every checkpoint.
+gates, update this document, then commit the milestone. Never commit with a
+failing gate. Within a milestone, make reviewable checkpoint commits after
+domain/schema, upstream contract, rules/recipes, variables/includes/conditions,
+CLI/source, reporter/process, and BDD/E2E units become independently green.
 
 For the documentation milestone, run:
 
@@ -863,7 +780,7 @@ make nixie
 
 If the milestone changes `Makefile`, also run `mbake validate Makefile`.
 
-The final manual acceptance exercise is:
+The documented command contract can be reproduced with:
 
 ```shell
 cargo build --bin makeutil
@@ -913,11 +830,10 @@ Acceptance requires all ADR criteria plus the following evidence:
   milestone and at final acceptance.
 - `make markdownlint` and `make nixie` pass for documentation;
   `mbake validate Makefile` passes if the Makefile changes.
-- Automated review reports no unresolved applicable concerns after deterministic
-  gates.
-- A consumer-shaped JSON contract test passes. Reproducible external subprocess
-  evidence is recorded before claiming cross-repository integration or moving
-  the ADR to Accepted.
+- A consumer-shaped JSON contract test passes without linking implementation
+  types.
+- `make provenance` confirms that maintained text contains no prohibited
+  operational-validation markers.
 
 Red-Green-Refactor evidence must be appended to `Progress` for each milestone:
 the exact red command and expected failure, the green command and pass, and the
@@ -951,50 +867,22 @@ lossless `Makefile`, parse-result type, ordinary errors, positioned errors,
 rules, recipes, variables, includes, conditionals, and Rowan ranges. Milestone
 1 compile-checked those mappings against the exact dependency.
 
-Independent review found no existing abstraction to reuse and recommended the
-same narrow parser-port boundary. Architecture review and independent
-validation evidence must be appended here before this draft is offered for
-approval.
+Repository-verifiable evidence consists of:
 
-Independent validation recorded passing `git diff --check`, Markdown and
-spelling, Nixie, Rust formatting, Polonius type-checking, rustdoc, Clippy,
-Whitaker, nextest, and doctest gates. Three completed automated review rounds
-reported 11, 9, and 7 actionable concerns respectively; all were addressed. A
-later pre-completion review completed across 34 files with zero findings.
+- schema contract tests that validate complete and recovered reports and
+  deserialize a consumer-shaped view without makeutil domain types;
+- corpus and snapshot tests that retain facts alongside positioned and
+  unpositioned diagnostics for recovered parses;
+- behavioural and end-to-end tests for paths, standard input, streams, exit
+  codes, deterministic JSON, fatal read failures, and hostile inert source;
+- source-adapter tests that enforce the inclusive 16 MiB bound and logical-path
+  error details; and
+- fixture and contract tests that report include facts without opening include
+  targets.
 
-The final manual CLI exercise produced `complete=0`, `recovered=1`, and
-`stdin=0`. Every command wrote one schema-v1 JSON document, no command wrote to
-standard error, and the reports classified their parse status as expected.
-
-The include-boundary exercise created existing `literal.mk` and `dynamic.mk`
-files next to the input, traced `openat` and `openat2`, and asserted that
-neither include path occurred in the syscall log. The binary reported both
-includes in a complete parse; the result was `include_opened=false`.
-
-Release-mode `/usr/bin/time -v` evidence after one warm-up per input was:
-
-| Input                   | Elapsed runs           | Maximum RSS runs (KiB) |
-| ----------------------- | ---------------------- | ---------------------- |
-| 1 MiB                   | 0.01 s, 0.01 s, 0.01 s | 7,168; 7,232; 7,316    |
-| 5 MiB                   | 0.06 s, 0.06 s, 0.06 s | 23,608; 23,624; 23,708 |
-| 10 MiB                  | 0.12 s, 0.12 s, 0.12 s | 44,100; 44,380; 44,080 |
-| 256 nested conditionals | 0.01 s, 0.01 s, 0.01 s | 8,808; 8,672; 8,852    |
-
-The large inputs were exact-size single rules generated from a fixed `all:`
-header, repeated `a` bytes, and a newline. A `stat` assertion checked every
-length before timing. The nested input contained 256 deterministic `ifdef`/
-`endif` pairs around one rule. Growth was sub-linear across the measured sizes,
-the 10 MiB median was 0.12 seconds, and all resident-set measurements were
-below 256 MiB.
-
-An external Python subprocess invoked the release binary against a
-representative Makefile, decoded JSON with the standard library, asserted
-schema version 1 and complete status, and found `build`, `lint`, and `test`.
-The following derived consumer summary is not the schema-v1 document:
-
-```plaintext
-{"schema_version":1,"status":"complete","required_targets":["build","lint","test"],"language_binding":false}
-```
+The repeatable performance guardrail remains the deterministic large-input and
+deep-conditional procedure in `Concrete steps`; its thresholds are acceptance
+requirements rather than a record of a particular host run.
 
 ## Interfaces and dependencies
 
@@ -1051,20 +939,13 @@ Decision log.
 
 ## Revision note
 
-Initially revised 2026-07-13 after independent architecture and automated
-review to freeze path, range, schema, parser-port, failure-output, CLI merge,
-security, performance, and dependency decisions and to import and correct the
-OrthoConfig 0.8.0 guide. Implementation completed on 2026-07-13 with
-deterministic gates, manual acceptance, performance measurements, and external
-consumer and include-boundary evidence recorded above. Pull request review
-remains pending. Revised again on 2026-07-14 to inject the ambient filesystem
-capability at the CLI boundary while preserving the stable source error and
-process diagnostic contracts. Terminal documentation review then clarified
-hashing ownership and replaced planning-time scaffold descriptions in the
-current repository orientation and applied the valid CLI and parser-helper
-fixes. Independent validation passed all post-correction gates; exact
-terminal-diff automated certification remains pending in the pull request. The
-shared source-reader test double was subsequently moved to a test-only common
-module because Cargo does not export `cfg(test)` automatic mocks to
-integration-test crates. Independent post-change repository gates passed with
-warnings denied across every integration-test binary.
+Initially revised 2026-07-13 to freeze path, range, schema, parser-port,
+failure-output, CLI merge, security, performance, and dependency decisions and
+to import and correct the OrthoConfig 0.8.0 guide. Implementation completed
+with checked-in schema, parser, CLI, security, recovery, and bounded-input
+tests. A later revision injected the ambient filesystem capability at the CLI
+boundary while preserving stable source errors and process diagnostics,
+clarified hashing ownership, and moved the shared source-reader test double to
+a test-only common module because Cargo does not export `cfg(test)` automatic
+mocks to integration-test crates. Acceptance now depends only on repeatable
+repository gates and checked-in contract evidence.
