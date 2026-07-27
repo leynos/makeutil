@@ -161,12 +161,44 @@ fn assignment_operators_match_schema_values(
 #[rstest]
 fn parser_version_matches_manifest_pin_and_schema_constant() {
     let parser_version = ToolIdentity::default().parser_version;
+    let manifest = include_str!("../Cargo.toml");
     let expected_manifest_entry = format!(r#"makefile-lossless = "={parser_version}""#);
     assert!(
-        include_str!("../Cargo.toml")
-            .lines()
-            .any(|line| line == expected_manifest_entry),
+        manifest.lines().any(|line| line == expected_manifest_entry),
         "Cargo.toml must pin makefile-lossless to {parser_version}"
+    );
+
+    let patch_entry = manifest
+        .lines()
+        .find(|line| line.starts_with("makefile-lossless = { git = "))
+        .expect("Cargo.toml should configure the established parser patch");
+    let patch_repository = patch_entry
+        .split_once("git = \"")
+        .and_then(|(_, value)| value.split_once('"'))
+        .map(|(value, _)| value)
+        .expect("parser patch should declare a git repository");
+    let patch_revision = patch_entry
+        .split_once("rev = \"")
+        .and_then(|(_, value)| value.split_once('"'))
+        .map(|(value, _)| value)
+        .expect("parser patch should declare a revision");
+    let expected_lock_version = format!("version = \"{parser_version}\"");
+    let lock_package = include_str!("../Cargo.lock")
+        .split("[[package]]")
+        .find(|package| {
+            package
+                .lines()
+                .any(|line| line == "name = \"makefile-lossless\"")
+                && package.lines().any(|line| line == expected_lock_version)
+        })
+        .expect("Cargo.lock should resolve the pinned parser package");
+    let expected_lock_source =
+        format!("source = \"git+{patch_repository}?rev={patch_revision}#{patch_revision}\"");
+    assert!(
+        lock_package
+            .lines()
+            .any(|line| line == expected_lock_source),
+        "Cargo.lock must resolve the parser patch repository and revision"
     );
 
     let schema: serde_json::Value =

@@ -1063,7 +1063,7 @@ must state whether protected debug metadata was enabled.
 > share mutable GPUI state across BDD steps in `rstest-bdd` 0.6.0, but it
 > exists to work around the current `StepContext::borrow_mut` contract
 > selected by
-> [ADR-007](https://github.com/owner/rstest-bdd/blob/main/docs/adr-007-harness-context-injection.md).
+> [ADR-007](https://github.com/leynos/rstest-bdd/blob/main/docs/adr-007-harness-context-injection.md).
 > Sections
 > 2.7.6.2 and 2.7.6.5 of the design document
 > ([rstest-bdd design][rstest-bdd-design]) and roadmap items 12.1.x track
@@ -2781,11 +2781,11 @@ integrate acceptance criteria into their Rust test suites and to engage all
 three amigos in the specification process.
 
 [scenario-status]: https://docs.rs/rstest-bdd/latest/rstest_bdd/reporting/enum.ScenarioStatus.html
-[adr-001]: https://github.com/owner/rstest-bdd/blob/main/docs/adr-001-async-fixtures-and-test.md
-[adr-013]: https://github.com/owner/rstest-bdd/blob/main/docs/adr-013-adopt-whitaker-no-unwrap-or-else-panic.md
-[gherkin-syntax]: https://github.com/owner/rstest-bdd/blob/main/docs/gherkin-syntax.md#section-12-the-anatomy-of-a-feature-file
-[migration-async-patterns]: https://github.com/owner/rstest-bdd/blob/main/docs/cucumber-rs-migration-and-async-patterns.md
-[rstest-bdd-design]: https://github.com/owner/rstest-bdd/blob/main/docs/rstest-bdd-design.md
-[design-runner-parallelism]: https://github.com/owner/rstest-bdd/blob/main/docs/rstest-bdd-design.md#2767-test-runner-parallelism-and-scenario-state
-[developer-serial-nextest]: https://github.com/owner/rstest-bdd/blob/main/docs/developers-guide.md#serial-file_serial-and-nextest-test-groups
+[adr-001]: https://github.com/leynos/rstest-bdd/blob/main/docs/adr-001-async-fixtures-and-test.md
+[adr-013]: https://github.com/leynos/rstest-bdd/blob/main/docs/adr-013-adopt-whitaker-no-unwrap-or-else-panic.md
+[gherkin-syntax]: https://github.com/leynos/rstest-bdd/blob/main/docs/gherkin-syntax.md#section-12-the-anatomy-of-a-feature-file
+[migration-async-patterns]: https://github.com/leynos/rstest-bdd/blob/main/docs/cucumber-rs-migration-and-async-patterns.md
+[rstest-bdd-design]: https://github.com/leynos/rstest-bdd/blob/main/docs/rstest-bdd-design.md
+[design-runner-parallelism]: https://github.com/leynos/rstest-bdd/blob/main/docs/rstest-bdd-design.md#2767-test-runner-parallelism-and-scenario-state
+[developer-serial-nextest]: https://github.com/leynos/rstest-bdd/blob/main/docs/developers-guide.md#serial-file_serial-and-nextest-test-groups
 [nextest-test-groups]: https://nexte.st/docs/configuration/test-groups/

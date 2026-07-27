@@ -12,7 +12,7 @@ use super::{
     ensure_round_trip,
 };
 use crate::{
-    domain::AssignmentOperator,
+    domain::{AssignmentOperator, SourceSpan},
     ports::{MakefileParser as _, ParserPortError, SyntaxObservation},
 };
 
@@ -100,8 +100,47 @@ fn all_upstream_diagnostic_channels_are_retained_for_large_sources() {
     collect_diagnostics(&parsed, &source, &mut observations)
         .expect("valid upstream diagnostic spans should be retained");
 
+    let positioned_count = parsed.positioned_errors().len();
+    assert_eq!(observations.len(), positioned_count + parsed.errors().len());
     assert_eq!(
-        observations.len(),
-        parsed.positioned_errors().len() + parsed.errors().len()
+        observations.first(),
+        Some(&SyntaxObservation::Diagnostic {
+            message: "expected ':'".to_owned(),
+            code: None,
+            span: SourceSpan {
+                start: 106_470,
+                end: 106_476,
+            },
+        })
+    );
+    assert_eq!(
+        observations.get(1),
+        Some(&SyntaxObservation::Diagnostic {
+            message: "expected ':'".to_owned(),
+            code: None,
+            span: SourceSpan {
+                start: 106_444,
+                end: 106_450,
+            },
+        })
+    );
+    assert_eq!(
+        observations.get(positioned_count.saturating_sub(1)),
+        Some(&SyntaxObservation::Diagnostic {
+            message: "expected ':'".to_owned(),
+            code: None,
+            span: SourceSpan { start: 0, end: 6 },
+        })
+    );
+    assert_eq!(
+        observations.get(positioned_count),
+        Some(&SyntaxObservation::Diagnostic {
+            message: "expected ':'".to_owned(),
+            code: None,
+            span: SourceSpan {
+                start: source.len(),
+                end: source.len(),
+            },
+        })
     );
 }

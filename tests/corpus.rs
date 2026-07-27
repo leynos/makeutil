@@ -28,6 +28,12 @@ fn bare_error_directive_recovers_with_facts_retained() {
         !report.parse.diagnostics.is_empty(),
         "a recovered parse must carry at least one diagnostic",
     );
+    assert!(
+        report.parse.diagnostics.iter().any(|diagnostic| {
+            diagnostic.location.start_byte == 330 && diagnostic.location.end_byte == 331
+        }),
+        "the recovered parse must retain the positioned upstream diagnostic",
+    );
 
     let variable_names: Vec<&str> = report
         .variables

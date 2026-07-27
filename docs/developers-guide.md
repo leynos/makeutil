@@ -142,7 +142,8 @@ maintained prose.
 `make provenance` rejects personal repository references, local paths, named
 operational projects, and claims of validation that cannot be reproduced from
 the repository. `make markdownlint` includes this check. Generic consumer
-contracts and technical dependency coordinates remain permitted.
+contracts, technical dependency coordinates, and canonical citations in the
+imported `rstest-bdd` guide remain permitted.
 
 ### Security audit ignores
 

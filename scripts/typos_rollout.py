@@ -44,7 +44,16 @@ class Dictionary:
 
 @dataclasses.dataclass(frozen=True)
 class RefreshResult:
-    """Describe whether the untracked base-dictionary cache changed."""
+    """Describe the result of refreshing the base-dictionary cache.
+
+    Attributes
+    ----------
+    status
+        Refresh outcome: ``refreshed``, ``current``, ``stale-cache``, or
+        ``offline-cache``.
+    cache
+        Path to the validated cache used for configuration generation.
+    """
 
     status: str
     cache: pathlib.Path
@@ -104,12 +113,50 @@ def _dictionary_from_text(text: str) -> Dictionary:
 
 
 def load_dictionary(path: pathlib.Path) -> Dictionary:
-    """Load a validated base dictionary from *path*."""
+    """Load and validate a dictionary from a TOML file.
+
+    Parameters
+    ----------
+    path
+        Dictionary file to load.
+
+    Returns
+    -------
+    Dictionary
+        Validated, deterministically ordered dictionary entries.
+
+    Raises
+    ------
+    OSError
+        If ``path`` cannot be read.
+    TypeError
+        If a dictionary value has the wrong type.
+    ValueError
+        If the TOML or dictionary schema is invalid.
+    """
     return _dictionary_from_text(path.read_text(encoding="utf-8"))
 
 
 def merge_dictionaries(base: Dictionary, local: Dictionary) -> Dictionary:
-    """Merge a base dictionary with a non-conflicting local overlay."""
+    """Merge a base dictionary with a non-conflicting local overlay.
+
+    Parameters
+    ----------
+    base
+        Project-owned base dictionary.
+    local
+        Repository overlay whose entries extend ``base``.
+
+    Returns
+    -------
+    Dictionary
+        Deterministically ordered union of both dictionaries.
+
+    Raises
+    ------
+    ValueError
+        If both dictionaries correct the same word differently.
+    """
     corrections = dict(base.corrections)
     for word, correction in local.corrections:
         existing = corrections.get(word)

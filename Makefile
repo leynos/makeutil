@@ -76,11 +76,16 @@ spelling: ## Enforce en-GB-oxendict spelling in Markdown prose
 		xargs -0 $(TYPOS) --config typos.toml --force-exclude
 
 provenance: ## Reject non-reproducible operational provenance
-	! git grep -n -i -E \
+	@status=0; \
+	git grep -n -i -E \
 		'Concordat|/data/|pg-embed|Parabellum|compatibility audit|external consumer environment|subprocess trial|independent validation' \
-		-- ':(exclude)Makefile'
-	! git grep -n -i 'leynos/' -- '*.md' '*.rs' '*.py' '*.toml' \
-		':(exclude)Cargo.toml'
+		-- ':(exclude)Makefile' || status=$$?; \
+	case $$status in 0) exit 1 ;; 1) ;; *) exit $$status ;; esac
+	@status=0; \
+	git grep -n -i 'leynos/' -- '*.md' '*.rs' '*.py' '*.toml' \
+		':(exclude)Cargo.toml' \
+		':(exclude)docs/rstest-bdd-users-guide.md' || status=$$?; \
+	case $$status in 0) exit 1 ;; 1) ;; *) exit $$status ;; esac
 
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
