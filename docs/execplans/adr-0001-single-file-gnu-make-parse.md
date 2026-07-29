@@ -718,7 +718,7 @@ checked-in tests support the ADR's Accepted status without relying on evidence
 from another repository or runtime environment.
 
 Run `make fmt` after documentation changes, followed by `make markdownlint` and
-`make nixie`. If the Makefile changes, also run `mbake validate Makefile`. Then
+`make nixie`. If the Makefile changes, also run `make validate-makefile`. Then
 run the four required gates, update this plan and its retrospective, and
 commit. Do not mark the plan COMPLETE until every acceptance criterion has
 current repository evidence.
@@ -778,7 +778,7 @@ make markdownlint
 make nixie
 ```
 
-If the milestone changes `Makefile`, also run `mbake validate Makefile`.
+If the milestone changes `Makefile`, also run `make validate-makefile`.
 
 The documented command contract can be reproduced with:
 
@@ -829,7 +829,7 @@ Acceptance requires all ADR criteria plus the following evidence:
 - `make check-fmt`, `make typecheck`, `make lint`, and `make test` pass at every
   milestone and at final acceptance.
 - `make markdownlint` and `make nixie` pass for documentation;
-  `mbake validate Makefile` passes if the Makefile changes.
+  `make validate-makefile` passes if the Makefile changes.
 - A consumer-shaped JSON contract test passes without linking implementation
   types.
 - `make provenance` confirms that maintained text contains no prohibited

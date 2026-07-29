@@ -1,5 +1,7 @@
 //! `makefile-lossless` 0.3.40 adapter for the domain-owned parser port.
 
+use std::collections::BTreeMap;
+
 use makefile_lossless::{
     Conditional,
     Include,
@@ -292,21 +294,26 @@ fn collect_diagnostics(
             span: span(error.range, source.len())?,
         });
     }
-    let line_spans: Vec<_> = if parsed.errors().is_empty() {
-        Vec::new()
-    } else {
-        source
-            .split_inclusive('\n')
-            .scan(0_usize, |start, segment| {
-                let span = SourceSpan {
-                    start: *start,
-                    end: start.saturating_add(segment.trim_end_matches(['\r', '\n']).len()),
-                };
-                *start = start.saturating_add(segment.len());
-                Some(span)
-            })
-            .collect()
-    };
+    let mut line_spans: BTreeMap<_, Option<SourceSpan>> = parsed
+        .errors()
+        .iter()
+        .map(|error| (error.line.saturating_sub(1), None))
+        .collect();
+    let mut unresolved_lines = line_spans.len();
+    let mut start = 0_usize;
+    for (line, segment) in source.split_inclusive('\n').enumerate() {
+        if let Some(resolved_span) = line_spans.get_mut(&line) {
+            *resolved_span = Some(SourceSpan {
+                start,
+                end: start.saturating_add(segment.trim_end_matches(['\r', '\n']).len()),
+            });
+            unresolved_lines = unresolved_lines.saturating_sub(1);
+        }
+        start = start.saturating_add(segment.len());
+        if unresolved_lines == 0 {
+            break;
+        }
+    }
     let end_of_source = SourceSpan {
         start: source.len(),
         end: source.len(),
@@ -316,8 +323,9 @@ fn collect_diagnostics(
             message: error.message.clone(),
             code: None,
             span: line_spans
-                .get(error.line.saturating_sub(1))
+                .get(&error.line.saturating_sub(1))
                 .copied()
+                .flatten()
                 .unwrap_or(end_of_source),
         });
     }

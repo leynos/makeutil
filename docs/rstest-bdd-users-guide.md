@@ -1085,19 +1085,12 @@ must state whether protected debug metadata was enabled.
 >
 <!-- markdownlint-disable MD013 -->
 >
-> | Operation | Vendored gpui (regression suite + these snippets) | Published
-> `gpui 0.2.2` (downstream adopters) |
+> | Operation | Vendored gpui (regression suite + these snippets) | Published `gpui 0.2.2` (downstream adopters) |
 > | --- | --- | --- |
-> | `add_window_view` closure | `\|_context\| View::default()` (one argument) |
-> `\|_window, view_cx\| View::new(view_cx)` (two arguments) |
-> | obtain window handle | `visual_cx.window_handle()` (inherent method on
-> `VisualTestContext`) | `vcx.window_handle()` (same call, but `window_handle`
-> is a `VisualContext` trait method, so add `use gpui::VisualContext;`) |
-> | `VisualTestContext::from_window` | returns `Option<VisualTestContext>`
-> (`let … else { panic!(…) }`) | returns `VisualTestContext` by value (no
-> `Option`) |
-> | `read_entity` / `update_entity` | `Option`/`Result` wrappers (`Some(1)`,
-> `Ok(())`) | identity `type Result<T> = T`; returns `R` directly |
+> | `add_window_view` closure | `\|_context\| View::default()` (one argument) | `\|_window, view_cx\| View::new(view_cx)` (two arguments) |
+> | obtain window handle | `visual_cx.window_handle()` (inherent method on `VisualTestContext`) | `vcx.window_handle()` (same call, but `window_handle` is a `VisualContext` trait method, so add `use gpui::VisualContext;`) |
+> | `VisualTestContext::from_window` | returns `Option<VisualTestContext>` (`let … else { panic!(…) }`) | returns `VisualTestContext` by value (no `Option`) |
+> | `read_entity` / `update_entity` | `Option`/`Result` wrappers (`Some(1)`, `Ok(())`) | identity `type Result<T> = T`; returns `R` directly |
 >
 <!-- markdownlint-enable MD013 -->
 >

@@ -39,6 +39,9 @@ compact and omits build output such as `target/`.
 │   └── ...
 ├── schemas/
 │   └── makeutil.parse.v1.schema.json
+├── scripts/
+│   ├── generate_typos_config.py
+│   └── typos_rollout.py
 ├── src/
 │   ├── adapters/
 │   ├── domain/
@@ -102,6 +105,10 @@ compact and omits build output such as `target/`.
   constraints, and success criteria that govern the design.
 
 - `schemas/`: Holds normative, versioned external JSON contracts.
+- `scripts/generate_typos_config.py`: Generates the repository spelling
+  configuration from the project-owned Oxford English dictionary.
+- `scripts/typos_rollout.py`: Refreshes and checks the spelling configuration
+  used by the repository-wide spelling workflow.
 - `src/adapters/`: Implements CLI, source, and GNU Make parser edges.
 - `src/domain/`: Owns the stable report and source-location model.
 - `src/application.rs`: Validates source and assembles reports through the

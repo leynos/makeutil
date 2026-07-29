@@ -143,7 +143,7 @@ maintained prose.
 operational projects, and claims of validation that cannot be reproduced from
 the repository. `make markdownlint` includes this check. Generic consumer
 contracts, technical dependency coordinates, and canonical citations in the
-imported `rstest-bdd` guide remain permitted.
+imported upstream guides remain permitted.
 
 ### Security audit ignores
 
