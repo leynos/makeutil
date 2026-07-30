@@ -746,7 +746,7 @@ test's actual module and scenario names and record exact output in `Progress`:
 RUSTFLAGS="-Zpolonius=next -D warnings" cargo test location_index --all-features
 RUSTFLAGS="-Zpolonius=next -D warnings" cargo test parser_adapter --all-features
 RUSTFLAGS="-Zpolonius=next -D warnings" cargo test --test parse_bdd --all-features
-RUSTFLAGS="-Zpolonius=next -D warnings" cargo test --test parse_cli --all-features
+RUSTFLAGS="-Zpolonius=next -D warnings" cargo test --test cli_e2e --all-features
 ```
 
 The red run must fail because the new behaviour is absent, not because the test
@@ -948,4 +948,5 @@ boundary while preserving stable source errors and process diagnostics,
 clarified hashing ownership, and moved the shared source-reader test double to
 a test-only common module because Cargo does not export `cfg(test)` automatic
 mocks to integration-test crates. Acceptance now depends only on repeatable
-repository gates and checked-in contract evidence.
+repository gates and checked-in contract evidence. The focused CLI command now
+names the checked-in `cli_e2e` integration-test target.
