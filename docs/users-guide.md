@@ -3,6 +3,9 @@
 This guide explains how to parse one GNU Makefile into source-faithful JSON
 facts with `makeutil`.
 
+Integrations upgrading from the greeting scaffold should follow the
+[version 0.2.0 migration guide](v0-2-0-migration-guide.md).
+
 ## Parse a file
 
 Pass exactly one UTF-8 path to the `parse` subcommand:
@@ -49,5 +52,7 @@ are one-based.
 _Table 1: `makeutil parse` exit codes._
 
 Fatal failures write a stable `makeutil: OPERATION: DETAIL` diagnostic to
-standard error and do not intentionally emit JSON. Recovered reports are
-insufficient proof that a Makefile is compliant.
+standard error and do not intentionally emit JSON. Control characters in
+caller-supplied paths are escaped in this diagnostic so its first line cannot
+be forged. The JSON report preserves the exact caller-supplied logical path.
+Recovered reports are insufficient proof that a Makefile is compliant.

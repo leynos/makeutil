@@ -11,6 +11,8 @@ set.
   implementation tooling for contributors.
 - [Repository layout](repository-layout.md) explains the generated project's
   top-level files, directories, and ownership boundaries.
+- [Version 0.2.0 migration guide](v0-2-0-migration-guide.md) explains how to
+  replace the removed greeting API with the parse command and JSON contract.
 - [Polonius migration](polonius.md) records the compiler requirement,
   borrow-centric design rules, and audit inventory.
 - [Documentation style guide](documentation-style-guide.md) defines the

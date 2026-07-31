@@ -242,7 +242,22 @@ fn read_input(
 }
 
 fn fatal(stderr: &mut dyn std::io::Write, operation: &str, detail: &str) -> ProcessOutcome {
-    let message = format!("makeutil: {operation}: {detail}\n");
+    let safe_detail = escape_control_characters(detail);
+    let message = format!("makeutil: {operation}: {safe_detail}\n");
     let _write_result = stderr.write_all(message.as_bytes());
     ProcessOutcome { exit_code: 2 }
+}
+
+fn escape_control_characters(detail: &str) -> String {
+    detail.chars().fold(
+        String::with_capacity(detail.len()),
+        |mut escaped, character| {
+            if character.is_control() {
+                escaped.extend(character.escape_default());
+            } else {
+                escaped.push(character);
+            }
+            escaped
+        },
+    )
 }

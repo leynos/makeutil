@@ -209,6 +209,9 @@ stop and resolve the conflict before editing `Cargo.toml`.
   representation through the concrete parser and domain contract suite.
 - [x] (2026-07-18) Added contract coverage proving that no-default feature
   resolution excludes `ortho_config/serde_json`.
+- [x] (2026-07-31) Replaced recursive conditional collection with an explicit
+  traversal stack, added a 256-level ancestry regression, and measured three
+  warmed release runs below the 256 MiB resident-memory guardrail.
 
 ## Surprises & discoveries
 
@@ -385,6 +388,10 @@ stop and resolve the conflict before editing `Cargo.toml`.
   stringly typed drift and order-sensitive defects without creating reusable
   ports for implementation details. Permitted call sites and reuse policy are
   recorded in `docs/developers-guide.md`. Date: 2026-07-14.
+- Decision: traverse conditional syntax with adapter-private LIFO events and
+  one mutable ancestry vector, cloning ancestry only when a fact is emitted.
+  Rationale: this preserves source and branch order while removing recursive
+  stack growth and repeated cloning at every nesting level. Date: 2026-07-31.
 - Decision: represent schema-v1 assignment operators with the closed,
   domain-owned `AssignmentOperator` enum shared by the parser port and report
   model. The empty representation is reserved for a `define` block without an
@@ -882,7 +889,10 @@ Repository-verifiable evidence consists of:
 
 The repeatable performance guardrail remains the deterministic large-input and
 deep-conditional procedure in `Concrete steps`; its thresholds are acceptance
-requirements rather than a record of a particular host run.
+requirements. On 2026-07-31, the warmed release-mode 256-level regression
+passed three times. GNU `/usr/bin/time` was unavailable, so Linux `wait4(2)`
+resource accounting measured 4,964 KiB, 4,976 KiB, and 4,976 KiB peak resident
+memory, with elapsed times of 0.005975 s, 0.005172 s, and 0.005230 s.
 
 ## Interfaces and dependencies
 
@@ -949,4 +959,6 @@ clarified hashing ownership, and moved the shared source-reader test double to
 a test-only common module because Cargo does not export `cfg(test)` automatic
 mocks to integration-test crates. Acceptance now depends only on repeatable
 repository gates and checked-in contract evidence. The focused CLI command now
-names the checked-in `cli_e2e` integration-test target.
+names the checked-in `cli_e2e` integration-test target. The 2026-07-31 revision
+records iterative conditional traversal, its 256-level regression and measured
+resource bound, and the strengthened inert-input and diagnostic contracts.

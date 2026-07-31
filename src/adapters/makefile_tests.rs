@@ -1,5 +1,7 @@
 //! Adapter invariant tests for unsupported upstream syntax.
 
+use std::fmt::Write as _;
+
 use makefile_lossless::{Makefile, Parse};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -12,8 +14,8 @@ use super::{
     ensure_round_trip,
 };
 use crate::{
-    domain::{AssignmentOperator, SourceSpan},
-    ports::{MakefileParser as _, ParserPortError, SyntaxObservation},
+    domain::{AssignmentOperator, ConditionBranch, ConditionKind, SourceSpan},
+    ports::{ConditionObservation, MakefileParser as _, ParserPortError, SyntaxObservation},
 };
 
 #[rstest]
@@ -86,6 +88,68 @@ fn multiline_define_preserves_exact_body() {
     assert_eq!(
         variable,
         Some((AssignmentOperator::Define, "echo one  \necho two\t \n"))
+    );
+}
+
+#[rstest]
+fn deeply_nested_conditionals_use_iterative_ancestry() {
+    const DEPTH: usize = 256;
+
+    let mut source = String::new();
+    let mut opening_spans = Vec::with_capacity(DEPTH);
+    for depth in 0..DEPTH {
+        let start = source.len();
+        writeln!(&mut source, "ifdef LEVEL_{depth}")
+            .expect("writing a generated Makefile to a String should succeed");
+        opening_spans.push(SourceSpan {
+            start,
+            end: source.len(),
+        });
+    }
+    source.push_str("VALUE = yes\n");
+    source.push_str(&"endif\n".repeat(DEPTH));
+
+    let outcome = MakefileLosslessParser
+        .parse(&source)
+        .expect("256 nested conditionals should parse without recursive traversal");
+    let conditions = outcome
+        .observations
+        .iter()
+        .find_map(|observation| {
+            if let SyntaxObservation::Variable { conditions, .. } = observation {
+                Some(conditions)
+            } else {
+                None
+            }
+        })
+        .expect("the generated variable should be observed");
+    let first_span = opening_spans
+        .first()
+        .copied()
+        .expect("the generated source should contain an opening directive");
+    let last_span = opening_spans
+        .last()
+        .copied()
+        .expect("the generated source should contain an opening directive");
+
+    assert_eq!(conditions.len(), DEPTH);
+    assert_eq!(
+        conditions.first(),
+        Some(&ConditionObservation {
+            kind: ConditionKind::Ifdef,
+            expression: "LEVEL_0".to_owned(),
+            branch: ConditionBranch::If,
+            span: first_span,
+        })
+    );
+    assert_eq!(
+        conditions.last(),
+        Some(&ConditionObservation {
+            kind: ConditionKind::Ifdef,
+            expression: "LEVEL_255".to_owned(),
+            branch: ConditionBranch::If,
+            span: last_span,
+        })
     );
 }
 

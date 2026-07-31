@@ -37,7 +37,7 @@ impl MakefileParser for MakefileLosslessParser {
         ensure_round_trip(&tree, source)?;
 
         let mut observations = Vec::new();
-        collect_items(tree.items(), &[], source.len(), &mut observations)?;
+        collect_items(tree.items(), source.len(), &mut observations)?;
         collect_diagnostics(&parsed, source, &mut observations)?;
         Ok(ParserOutcome { observations })
     }
@@ -53,27 +53,92 @@ fn ensure_round_trip(tree: &Makefile, source: &str) -> Result<(), ParserPortErro
 
 fn collect_items(
     items: impl Iterator<Item = MakefileItem>,
-    conditions: &[ConditionObservation],
     source_length: usize,
     observations: &mut Vec<SyntaxObservation>,
 ) -> Result<(), ParserPortError> {
-    for item in items {
-        match item {
-            MakefileItem::Rule(rule) => {
-                observations.push(rule_observation(&rule, conditions, source_length)?);
+    let mut pending = items
+        .map(TraversalEvent::Item)
+        .collect::<Vec<TraversalEvent>>();
+    pending.reverse();
+    let mut conditions = Vec::new();
+
+    while let Some(event) = pending.pop() {
+        match event {
+            TraversalEvent::Push(condition) => conditions.push(condition),
+            TraversalEvent::Restore(depth) => conditions.truncate(depth),
+            TraversalEvent::Item(MakefileItem::Rule(rule)) => {
+                observations.push(rule_observation(&rule, &conditions, source_length)?);
             }
-            MakefileItem::Variable(variable) => {
-                observations.push(variable_observation(&variable, conditions, source_length)?);
+            TraversalEvent::Item(MakefileItem::Variable(variable)) => {
+                observations.push(variable_observation(&variable, &conditions, source_length)?);
             }
-            MakefileItem::Include(include) => {
-                observations.push(include_observation(&include, conditions, source_length)?);
+            TraversalEvent::Item(MakefileItem::Include(include)) => {
+                observations.push(include_observation(&include, &conditions, source_length)?);
             }
-            MakefileItem::Conditional(conditional) => {
-                collect_conditional(&conditional, conditions, source_length, observations)?;
+            TraversalEvent::Item(MakefileItem::Conditional(conditional)) => {
+                schedule_conditional(&conditional, source_length, conditions.len(), &mut pending)?;
             }
-            MakefileItem::Vpath(_) => {}
+            TraversalEvent::Item(MakefileItem::Vpath(_)) => {}
         }
     }
+    Ok(())
+}
+
+enum TraversalEvent {
+    Item(MakefileItem),
+    Push(ConditionObservation),
+    Restore(usize),
+}
+
+fn schedule_conditional(
+    conditional: &Conditional,
+    source_length: usize,
+    outer_depth: usize,
+    pending: &mut Vec<TraversalEvent>,
+) -> Result<(), ParserPortError> {
+    let opening = conditional
+        .syntax()
+        .children()
+        .find(|node| node.kind() == SyntaxKind::CONDITIONAL_IF)
+        .ok_or(ParserPortError::MissingField {
+            field: "conditional-opening",
+        })?;
+    let raw_kind = conditional
+        .conditional_type()
+        .ok_or(ParserPortError::MissingField {
+            field: "conditional-kind",
+        })?;
+    let kind = condition_kind(&raw_kind)?;
+    let expression = conditional.condition().unwrap_or_default();
+    let if_condition = ConditionObservation {
+        kind,
+        expression: expression.clone(),
+        branch: ConditionBranch::If,
+        span: span(opening.text_range(), source_length)?,
+    };
+    let mut events = vec![TraversalEvent::Push(if_condition)];
+    events.extend(conditional.if_items().map(TraversalEvent::Item));
+    events.push(TraversalEvent::Restore(outer_depth));
+
+    if conditional.has_else() {
+        let else_node = conditional
+            .syntax()
+            .children()
+            .find(|node| node.kind() == SyntaxKind::CONDITIONAL_ELSE)
+            .ok_or(ParserPortError::MissingField {
+                field: "conditional-else",
+            })?;
+        events.push(TraversalEvent::Push(ConditionObservation {
+            kind,
+            expression,
+            branch: ConditionBranch::Else,
+            span: span(else_node.text_range(), source_length)?,
+        }));
+        events.extend(conditional.else_items().map(TraversalEvent::Item));
+        events.push(TraversalEvent::Restore(outer_depth));
+    }
+
+    pending.extend(events.into_iter().rev());
     Ok(())
 }
 
@@ -163,90 +228,6 @@ fn include_observation(
         conditions: conditions.to_vec(),
         span: span(include.syntax().text_range(), source_length)?,
     })
-}
-
-fn collect_conditional(
-    conditional: &Conditional,
-    outer: &[ConditionObservation],
-    source_length: usize,
-    observations: &mut Vec<SyntaxObservation>,
-) -> Result<(), ParserPortError> {
-    let opening = conditional
-        .syntax()
-        .children()
-        .find(|node| node.kind() == SyntaxKind::CONDITIONAL_IF)
-        .ok_or(ParserPortError::MissingField {
-            field: "conditional-opening",
-        })?;
-    let raw_kind = conditional
-        .conditional_type()
-        .ok_or(ParserPortError::MissingField {
-            field: "conditional-kind",
-        })?;
-    let kind = condition_kind(&raw_kind)?;
-    let expression = conditional.condition().unwrap_or_default();
-    let mut if_conditions = outer.to_vec();
-    if_conditions.push(ConditionObservation {
-        kind,
-        expression: expression.clone(),
-        branch: ConditionBranch::If,
-        span: span(opening.text_range(), source_length)?,
-    });
-    collect_items(
-        conditional.if_items(),
-        &if_conditions,
-        source_length,
-        observations,
-    )?;
-
-    collect_else_branch(
-        conditional,
-        outer,
-        ElseBranch {
-            kind,
-            expression,
-            source_length,
-        },
-        observations,
-    )?;
-    Ok(())
-}
-
-fn collect_else_branch(
-    conditional: &Conditional,
-    outer: &[ConditionObservation],
-    branch: ElseBranch,
-    observations: &mut Vec<SyntaxObservation>,
-) -> Result<(), ParserPortError> {
-    if !conditional.has_else() {
-        return Ok(());
-    }
-    let else_node = conditional
-        .syntax()
-        .children()
-        .find(|node| node.kind() == SyntaxKind::CONDITIONAL_ELSE)
-        .ok_or(ParserPortError::MissingField {
-            field: "conditional-else",
-        })?;
-    let mut else_conditions = outer.to_vec();
-    else_conditions.push(ConditionObservation {
-        kind: branch.kind,
-        expression: branch.expression,
-        branch: ConditionBranch::Else,
-        span: span(else_node.text_range(), branch.source_length)?,
-    });
-    collect_items(
-        conditional.else_items(),
-        &else_conditions,
-        branch.source_length,
-        observations,
-    )
-}
-
-struct ElseBranch {
-    kind: ConditionKind,
-    expression: String,
-    source_length: usize,
 }
 
 #[derive(Debug, Default)]

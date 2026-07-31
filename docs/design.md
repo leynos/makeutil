@@ -395,8 +395,8 @@ when deterministic failure testing requires them; they are not domain ports.
 4. Parse with the GNU Make default of `makefile-lossless`.
 5. Obtain the tree even when parser diagnostics exist.
 6. Walk root items in source order.
-7. Recurse into the `if` and `else` arms of each conditional while extending the
-   condition context.
+7. Traverse the `if` and `else` arms with an explicit event stack while
+   extending one mutable condition context.
 8. Emit flattened rule, variable, and include facts with global source-order
    ordinals.
 9. Serialize one compact JSON document.
@@ -459,11 +459,13 @@ Operation identifiers distinguish `cli`, `source-open`, `source-read`,
 `source-too-large`, `source-utf8`, `parse-internal`, `json-serialize`, and
 `stdout-write`. Normal success and recovered parsing emit no stderr. The detail
 includes the logical path for `source-open`, `source-read`, and
-`source-too-large` failures. Backtraces and cause chains are not printed by
-default. The binary may install one tracing subscriber, but it must never write
-tracing events to stdout; the library installs no subscriber. Source contents
-and unbounded raw paths are not tracing fields. This one-shot CLI emits no
-metrics in the first slice.
+`source-too-large` failures. Control characters in caller-supplied paths are
+escaped before stderr formatting so each diagnostic remains one physical line;
+the JSON report retains the exact caller-supplied logical path. Backtraces and
+cause chains are not printed by default. The binary may install one tracing
+subscriber, but it must never write tracing events to stdout; the library
+installs no subscriber. Source contents and unbounded raw paths are not tracing
+fields. This one-shot CLI emits no metrics in the first slice.
 
 ## 11. Verification strategy
 

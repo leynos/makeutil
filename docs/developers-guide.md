@@ -73,11 +73,21 @@ are not domain ports or general utilities; reuse outside `collect_items`
 requires a new adapter-owned call-site with the same complete-observation
 contract, not a move into the domain or ports modules.
 
+`TraversalEvent` and `schedule_conditional` are private makefile-adapter
+mechanics for the iterative CST walk. They may be used only by `collect_items`
+to preserve source order while mutating one conditional-ancestry vector. Do not
+expose them through the parser port or reuse them as a general tree walker.
+
 The CLI adapter's private extraction, report-production, and report-emission
 helpers divide its orchestration into focused steps. They may be called only by
 the CLI adapter and must remain ordinary private functions. Promote one to a
 port only if a distinct external capability needs the same contract, not merely
 to share implementation detail or simplify a test.
+
+The private `escape_control_characters` helper is restricted to fatal stderr
+details. It preserves printable Unicode and escapes controls so one diagnostic
+cannot forge another physical line; it is not a general path normalizer or JSON
+encoder.
 
 The exact 0.3.40 parser requirement is temporarily patched to immutable fork
 commit `8dd35801b75b332c2ac2f995ae398ef8238559fa`, which adds `!=` lexer
@@ -105,7 +115,9 @@ Use `make all` as the public entrypoint for formatting, linting, and tests.
 `cargo nextest run` and falls back to `cargo test` when cargo-nextest is not
 available. `make audit` derives the Rust workspace root with `cargo metadata`,
 logs workspace member manifests, and runs `cargo audit` once from the workspace
-root. `make coverage` uses `cargo llvm-cov` with `lld`.
+root. `make coverage` uses `cargo llvm-cov` with `lld`. Run
+`make validate-makefile` whenever `Makefile` changes; the target invokes
+`mbake validate Makefile` as the repository's Makefile validation entrypoint.
 
 GitHub Actions Act validation lives in `.github/workflows/act-validation.yml`.
 The main `.github/workflows/ci.yml` workflow deliberately does not run
@@ -127,8 +139,12 @@ not an unpinned `cargo +nightly`, because the development profile also requires
 the pinned Cranelift component. See [Polonius migration](polonius.md) before
 introducing borrow-checker workarounds.
 
-Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
-full generated workflow locally on Linux.
+Install `clang`, `lld`, `mold`, `python3`, `cargo-audit`, and `mbake` before
+running the full generated workflow locally on Linux. Install `mbake` with:
+
+```shell
+uv tool install mbake
+```
 
 ## Spelling policy
 
