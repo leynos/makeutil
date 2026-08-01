@@ -4,7 +4,7 @@ This guide explains how to parse one GNU Makefile into source-faithful JSON
 facts with `makeutil`.
 
 Integrations upgrading from the greeting scaffold should follow the
-[version 0.2.0 migration guide](v0-2-0-migration-guide.md).
+[version 0.1.0 migration guide](v0-1-0-migration-guide.md).
 
 ## Parse a file
 

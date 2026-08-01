@@ -1,11 +1,11 @@
-# Migrate to makeutil 0.2.0
+# Migrate to makeutil 0.1.0
 
-Version 0.2.0 replaces the generated greeting scaffold with a command that
+Version 0.1.0 replaces the generated greeting scaffold with a command that
 parses one GNU Makefile into versioned JSON facts.
 
 ## Remove the greeting API
 
-Remove imports and calls to `makeutil::greet`. Version 0.2.0 does not provide a
+Remove imports and calls to `makeutil::greet`. Version 0.1.0 does not provide a
 replacement library function. Integrations should invoke the `makeutil`
 executable and consume its versioned JSON output instead.
 
