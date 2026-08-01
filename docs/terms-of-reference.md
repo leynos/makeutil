@@ -1,7 +1,7 @@
 # makeutil terms of reference
 
 - **Status:** Draft v0.1
-- **Audience:** `makeutil` implementers, Concordat policy authors, and
+- **Audience:** `makeutil` implementers, downstream policy authors, and
   integration reviewers
 - **Companion documents:** [Technical design](design.md) and
   [ADR-0001](adrs/0001-single-file-gnu-make-parse.md)
@@ -11,9 +11,9 @@
 `makeutil` exists to turn one GNU Makefile into deterministic, source-located
 structured data without evaluating or executing the file.
 
-Its first consumer is Concordat. Concordat needs enough evidence to audit the
-required Makefile targets and the binding of the Rust lint gate, while keeping
-Make syntax and source-location handling outside Rego and Python.
+Its first downstream policy consumer needs enough evidence to audit required
+Makefile targets and the binding of the Rust lint gate, while keeping Make
+syntax and source-location handling outside Rego and Python.
 
 These terms of reference define the problem and the ownership boundary. The
 technical design chooses the implementation shape.
@@ -22,7 +22,7 @@ technical design chooses the implementation shape.
 
 The domain is static, source-faithful inspection of GNU Makefiles. `makeutil`
 sits between Make syntax and tools that consume ordinary JSON, including OPA,
-Conftest, Concordat, tests, and future editor integrations.
+Conftest, policy consumers, tests, and future editor integrations.
 
 A Makefile is an executable program. Parsing can establish which rules,
 variable definitions, recipes, conditionals, and include directives appear in
@@ -34,12 +34,12 @@ not claim to supply GNU Make's effective runtime model.
 
 ## 3. Users and stakeholders
 
-| Actor                   | Role                                             | Need                                                                         |
-| ----------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| Concordat policy author | Writes Rego rules over repository evidence       | Receive stable facts rather than parse Make syntax in policy.                |
-| Concordat orchestrator  | Runs policy against a repository checkout        | Invoke a deterministic command and associate findings with source locations. |
-| `makeutil` maintainer   | Maintains the parser adapter and output contract | Keep upstream parser changes behind a narrow, tested boundary.               |
-| CI and fixture author   | Verifies policy and parser behaviour             | Exercise representative Makefiles without running their recipes.             |
+| Actor                 | Role                                             | Need                                                                         |
+| --------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Policy author         | Writes Rego rules over repository evidence       | Receive stable facts rather than parse Make syntax in policy.                |
+| Policy orchestrator   | Runs policy against a repository checkout        | Invoke a deterministic command and associate findings with source locations. |
+| `makeutil` maintainer | Maintains the parser adapter and output contract | Keep upstream parser changes behind a narrow, tested boundary.               |
+| CI and fixture author | Verifies policy and parser behaviour             | Exercise representative Makefiles without running their recipes.             |
 
 ## 4. Job to be done
 
@@ -48,7 +48,7 @@ reports explicit source constructs and their locations, so it can make a policy
 decision without invoking `make`, embedding a Make parser, or relying on
 regular expressions over the complete file.
 
-For the first Concordat use case, the consumer needs to answer these questions:
+For the first downstream use case, the consumer needs to answer these questions:
 
 - Does the root Makefile explicitly define `build`, `test`, and `lint` targets?
 - Does a relevant target sit inside a conditional branch?
@@ -84,7 +84,7 @@ The first release will not:
 - follow `include`, `-include`, or `sinclude` directives;
 - discover Makefiles, repositories, Git refs, or Cargo workspaces;
 - parse `Cargo.toml`, workflow YAML, shell syntax, or Rego;
-- decide whether a repository or Makefile complies with Concordat policy;
+- decide whether a repository or Makefile complies with downstream policy;
 - rewrite or format a Makefile;
 - expose Python, Go, C, or WebAssembly bindings;
 - support BSD Make, POSIX Make, or Microsoft NMake dialects;
@@ -111,7 +111,7 @@ The first release succeeds when:
 - parsing a file containing `$(shell ...)`, `!=`, or hostile recipe text causes
   no external process or filesystem side effect;
 - fixture and golden tests cover the accepted contract;
-- Concordat can consume the output without importing Rust or
+- an external consumer can use the output without importing Rust or
   `makefile-lossless` types.
 
 ## 8. Constraints
@@ -134,9 +134,9 @@ The first release succeeds when:
 - The initial Rust repository corpus uses UTF-8 root Makefiles.
 - The first policies can work from explicit rules and raw recipe text without a
   complete GNU Make evaluator.
-- A one-process invocation per repository is fast enough for the first local
-  Concordat slice.
-- Concordat will reject or mark incomplete any recovered parse rather than
+- A one-process invocation per repository is fast enough for the first
+  downstream slice.
+- The consumer will reject or mark incomplete any recovered parse rather than
   treating partial evidence as proof of compliance.
 - Include traversal and source mutation can wait until the single-file contract
   has proved useful against real repositories.
@@ -146,7 +146,7 @@ The first release succeeds when:
 - Whether later commands should follow literal include paths.
 - Whether the project should expose a source-preserving `rewrite` command.
 - Whether high-volume estate scans justify a JSON Lines batch mode.
-- Whether Python bindings improve Concordat performance enough to justify native
+- Whether Python bindings improve consumer performance enough to justify native
   wheel distribution.
 - Whether the parser adapter should recognize a restricted set of Make
   functions semantically.

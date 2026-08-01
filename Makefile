@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint spelling nixie audit rust-audit
+.PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint spelling provenance validate-makefile nixie audit rust-audit
 
 SHELL := bash
 
@@ -69,10 +69,27 @@ check-fmt: ## Verify formatting
 markdownlint: ## Lint Markdown files
 	$(MDLINT) '**/*.md'
 	+$(MAKE) spelling
+	+$(MAKE) provenance
 spelling: ## Enforce en-GB-oxendict spelling in Markdown prose
 	uv run scripts/generate_typos_config.py
 	find . -type f -name '*.md' -not -path './target/*' -print0 | \
 		xargs -0 $(TYPOS) --config typos.toml --force-exclude
+
+provenance: ## Reject non-reproducible operational provenance
+	@status=0; \
+	git grep -n -i -E \
+		'Concordat|/data/|pg-embed|Parabellum|compatibility audit|external consumer environment|subprocess trial|independent validation' \
+		-- ':(exclude)Makefile' || status=$$?; \
+	case $$status in 0) exit 1 ;; 1) ;; *) exit $$status ;; esac
+	@status=0; \
+	git grep -n -i 'leynos/' -- '*.md' '*.rs' '*.py' '*.toml' \
+		':(exclude)Cargo.toml' \
+		':(exclude)docs/ortho-config-users-guide.md' \
+		':(exclude)docs/rstest-bdd-users-guide.md' || status=$$?; \
+	case $$status in 0) exit 1 ;; 1) ;; *) exit $$status ;; esac
+
+validate-makefile: ## Validate the Makefile
+	mbake validate Makefile
 
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
