@@ -460,7 +460,7 @@ Operation identifiers distinguish `cli`, `source-open`, `source-read`,
 `stdout-write`. Normal success and recovered parsing emit no stderr. The detail
 includes the logical path for `source-open`, `source-read`, and
 `source-too-large` failures. Control characters in caller-supplied paths are
-escaped before stderr formatting so each diagnostic remains one physical line;
+escaped before stderr formatting, so each diagnostic remains one physical line;
 the JSON report retains the exact caller-supplied logical path. Backtraces and
 cause chains are not printed by default. The binary may install one tracing
 subscriber, but it must never write tracing events to stdout; the library

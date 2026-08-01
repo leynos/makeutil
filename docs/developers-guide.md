@@ -85,7 +85,7 @@ port only if a distinct external capability needs the same contract, not merely
 to share implementation detail or simplify a test.
 
 The private `escape_control_characters` helper is restricted to fatal stderr
-details. It preserves printable Unicode and escapes controls so one diagnostic
+details. It preserves printable Unicode and escapes controls, so one diagnostic
 cannot forge another physical line; it is not a general path normalizer or JSON
 encoder.
 

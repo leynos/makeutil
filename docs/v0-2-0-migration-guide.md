@@ -32,9 +32,9 @@ Configuration files and environment variables cannot supply them.
 Validate output against
 [`schemas/makeutil.parse.v1.schema.json`](../schemas/makeutil.parse.v1.schema.json)
 and require `schema_version` to equal `1`. Exit status `0` emits a complete
-report. Exit status `1` emits a recovered report with diagnostics. Exit status
-`2` denotes a fatal invocation, input, serialization, or output failure and
-does not intentionally emit JSON.
+report, status `1` emits a recovered report with diagnostics, and status `2`
+denotes a fatal invocation, input, serialization, or output failure and does
+not intentionally emit JSON.
 
 See the [user guide](users-guide.md) for the complete command, stream, and
 source-location contracts.

@@ -53,6 +53,6 @@ _Table 1: `makeutil parse` exit codes._
 
 Fatal failures write a stable `makeutil: OPERATION: DETAIL` diagnostic to
 standard error and do not intentionally emit JSON. Control characters in
-caller-supplied paths are escaped in this diagnostic so its first line cannot
+caller-supplied paths are escaped in this diagnostic, so its first line cannot
 be forged. The JSON report preserves the exact caller-supplied logical path.
 Recovered reports are insufficient proof that a Makefile is compliant.
