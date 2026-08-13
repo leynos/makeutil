@@ -324,9 +324,21 @@ effective value or precedence.
 A bare `export NAME` names a variable assigned elsewhere and carries no
 operator and no value. It is represented as an entry in `variables` with the
 empty operator, an empty `raw_value`, `exported` true, and `define_block`
-false; a directive naming several variables yields one entry per name. The
-discriminating predicate for consumers is
+false. The discriminating predicate for consumers is
 `operator == "" && define_block == false`.
+
+A directive naming several variables is intended to yield one entry per name,
+but the pinned parser revision keeps only the first name inside the definition
+node and discards the rest, so such a line currently yields one entry and a
+`recovered` status. Completing it needs a parser change, not a `makeutil` one.
+A form the parser cannot name at all — a bare `export`, or
+`export define NAME` — yields no entry rather than an invented one, and the
+upstream diagnostic keeps the report `recovered` rather than falsely `complete`.
+
+The names on a directive line are read from the definition node's identifier
+tokens, anchored on the name the parser itself reports. Keyword text cannot be
+used to skip the directive prefix, because a variable may legitimately be called
+`export` or `unexport`.
 
 The alternative — a new top-level `exports` array — is more honest but the
 schema sets `"additionalProperties": false` at every level, so it would be a
@@ -336,7 +348,10 @@ because consumers fail closed on any status other than `complete` and every
 Makefile with a bare export would remain effectively unparsable. The accepted
 cost is conflation: a consumer treating every entry in `variables` as an
 assignment sees extra entries for export directives. See
-[the bare export execution plan](execplans/bare-export-directives.md).
+[ADR-0002](adrs/0002-bare-export-directive-representation.md) for the full
+decision and
+[the bare export execution plan](execplans/bare-export-directives.md) for the
+delivery record.
 
 An `unexport` directive remains unrepresented: it parses as a rule whose first
 target is `unexport` and forces a `recovered` status. Expressing an explicit

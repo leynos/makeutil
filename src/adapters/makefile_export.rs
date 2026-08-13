@@ -36,6 +36,12 @@ impl OperatorContext {
 /// An absent operator is legitimate for a `define` block and for a bare
 /// `export` directive; both use the schema's empty operator. Any other
 /// operator-less definition is a broken tree and must fail loudly.
+///
+/// The `is_export` half of that allowance is defensive: a directive-only
+/// export never reaches here because [`export_directive_observations`] handles
+/// it and supplies the operator itself. It is retained so that an upstream
+/// change routing some other operator-less export down this path cannot
+/// resurrect the fatal abort this module exists to remove.
 pub(super) fn assignment_operator(
     operator: Option<&str>,
     context: OperatorContext,
@@ -83,22 +89,30 @@ pub(super) fn export_directive_observations(
         .collect()
 }
 
-/// Keywords that may precede the names on a directive line.
-const DIRECTIVE_KEYWORDS: [&str; 4] = ["export", "unexport", "override", "define"];
-
 /// Collect every identifier a directive-only `export` line names.
 ///
-/// A bare `export A B C` names three variables. Upstream's
-/// `VariableDefinition::name()` returns only the first, so walk the node's own
-/// identifier tokens, skipping the directive keywords themselves.
+/// A bare `export A B C` names three variables but upstream's
+/// `VariableDefinition::name()` returns only the first, so the remaining names
+/// have to be read from the node's own identifier tokens.
+///
+/// That first name anchors the walk rather than a list of keywords to skip:
+/// the directive keywords upstream consumed are exactly the identifier tokens
+/// preceding it, and a variable may legitimately be called `unexport` or
+/// `export`. Filtering by keyword text instead would silently discard
+/// `export unexport`, which upstream parses cleanly as exporting a variable
+/// named `unexport`. An absent name means upstream could not find one and has
+/// said so with a diagnostic, so the line names nothing.
 pub(super) fn directive_names(variable: &VariableDefinition) -> Vec<String> {
+    let Some(first_name) = variable.name() else {
+        return Vec::new();
+    };
     variable
         .syntax()
         .children_with_tokens()
         .filter_map(rowan::NodeOrToken::into_token)
         .filter(|token| token.kind() == SyntaxKind::IDENTIFIER)
         .map(|token| token.text().to_owned())
-        .filter(|text| !DIRECTIVE_KEYWORDS.contains(&text.as_str()))
+        .skip_while(|text| *text != first_name)
         .collect()
 }
 

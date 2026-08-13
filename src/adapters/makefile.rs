@@ -186,6 +186,16 @@ fn variable_observation(
     };
     let definition_span = span(variable.syntax().text_range(), source_length)?;
 
+    // An export line upstream could not name is unrepresentable rather than
+    // broken: a bare `export` exports everything, and `export define FOO` is
+    // modelled with no name at all. Upstream diagnoses both, so yielding no
+    // facts leaves the report honestly recovered instead of aborting the whole
+    // file. A name-less definition that is not an export is still a broken
+    // tree and keeps failing loudly below.
+    if context.is_export && variable.name().is_none() {
+        return Ok(Vec::new());
+    }
+
     if operator.is_none() && context.is_directive_only() {
         return Ok(export_directive_observations(
             variable,

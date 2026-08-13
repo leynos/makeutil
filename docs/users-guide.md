@@ -65,13 +65,26 @@ carries no assignment operator and no value. Such a directive appears in the
 the empty string, `exported` set to `true`, and `define_block` set to `false`.
 A consumer that wants only genuine assignments should therefore filter on a
 non-empty `operator`; the predicate `operator == "" && define_block == false`
-identifies a bare export directive rather than an assignment. A directive
-naming several variables yields one entry per name.
+identifies a bare export directive rather than an assignment. A name may appear
+twice, once for its assignment and once for the directive that exports it, so
+the operator rather than the name distinguishes the two.
+
+A directive naming several variables, such as `export A B C`, is not yet fully
+modelled: the pinned parser captures only the first name and drops the rest
+before `makeutil` sees them, so the report contains one entry and its status is
+`recovered` rather than `complete`. Full support awaits a parser revision that
+keeps every name. Until then, treat a `recovered` status on such a line as a
+gap in the facts rather than as evidence about the Makefile.
 
 The empty operator is shared with `define` blocks, which is why `define_block`
 is part of the predicate. An `export NAME := value` line is an ordinary
 assignment: it reports its real operator and its value, with `exported` set to
 `true`.
+
+A bare `export` with no names at all means "export every variable", which
+schema version 1 cannot express. Such a line produces no entry rather than an
+invented one, and the report is `recovered`. The same holds for
+`export define NAME`, which the pinned parser does not name.
 
 ### `unexport` is not yet supported
 

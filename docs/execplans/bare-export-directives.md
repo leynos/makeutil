@@ -209,6 +209,18 @@ Recorded during investigation, before implementation began.
   Stage E removes the diagnostic for this input entirely, so the mislocation
   stops being visible for exports, but it presumably remains for other
   recovered constructs. Worth its own investigation.
+- Observation (stage review): `export unexport` is a legitimate, cleanly parsed
+  Makefile line exporting a variable named `unexport`. Evidence: upstream
+  reports `name = Some("unexport")`, `is_export() = true`, and no errors at
+  all. Impact: any implementation that identifies directive keywords by token
+  text discards it. The first implementation did exactly that and reported
+  `complete` with the fact missing. See the `Decision Log`.
+- Observation (stage review): `export define FOO ... endef` is modelled by
+  upstream with `name() = None`, `is_export() = true` and `is_define() = true`,
+  together with three errors. Evidence: the same holds for `export define` with
+  no name. Impact: gating the no-facts path on "export and not define" left
+  this form aborting with exit code 2. The plan's Stage C wording did not
+  anticipate the two modifiers co-occurring.
 - Observation: a target-specific export is silently modelled wrongly and, unlike
   the cases above, reports `complete`. Evidence: `foo: export BAR := baz\n`
   parses with `"status": "complete"` and a single rule whose prerequisites are
@@ -287,6 +299,41 @@ Recorded during investigation, before implementation began.
   concept. The call site in `collect_items` becomes `observations.extend(...)`,
   which reads better than a conditional push. Date/Author: 2026-08-13,
   implementer.
+
+- Decision: directive names are read by anchoring on the name the parser
+  itself reports, not by skipping identifier tokens whose text matches a
+  directive keyword. Rationale: the first implementation followed the plan's
+  Stage C wording and filtered out any identifier whose text was `export`,
+  `unexport`, `override` or `define`. Review found this silently discarded
+  `export unexport`, which upstream parses cleanly as exporting a variable
+  legitimately named `unexport`, while the report still claimed `complete` — a
+  direct breach of the honesty constraint. Upstream's
+  `VariableDefinition::name()` is the authority for the first name and returns
+  `None` precisely when the line names nothing it could parse, so the
+  identifier tokens preceding that name are exactly the prefix keywords
+  consumed. This is also correct for `export export FOO`, where upstream
+  consumes both leading `export` tokens. The plan's Stage C wording is
+  superseded on this point. Date/Author: 2026-08-13, implementer, after stage
+  review.
+
+- Decision: an `export` line whose name upstream cannot determine yields no
+  facts regardless of whether it is also a `define`. Rationale: the first
+  implementation gated this on `is_directive_only`, which excludes `define`, so
+  `export define FOO` and `export define` still aborted with exit code 2 —
+  failing the plan's own acceptance criterion 3. Upstream models both with no
+  name at all and diagnoses both, so dropping the facts leaves the report
+  honestly `recovered`. A name-less definition that is not an export still
+  fails loudly, so genuinely broken trees are not masked. Date/Author:
+  2026-08-13, implementer, after stage review.
+
+- Decision (review nit declined): the extracted module keeps the name
+  `makefile_export.rs` rather than being renamed to `makefile_variable.rs`.
+  Rationale: review observed correctly that the module also owns the generic
+  operator mapping for all eight operators, which is not export-specific. The
+  name is however the one the plan's Stage C names as the extraction target,
+  and the module comment states the wider scope. Renaming would diverge from
+  the plan for a cosmetic gain. Date/Author: 2026-08-13, implementer, after
+  stage review.
 
 - TOLERANCE BREACH (recorded, not worked around): the scope tolerance for
   Stages B to D — "more than six files or more than 250 net lines" — is

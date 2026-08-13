@@ -31,6 +31,85 @@ fn variable<'report>(report: &'report ParseReport, name: &str) -> Option<&'repor
         .find(|variable| variable.name == name)
 }
 
+/// Find the directive fact for a name.
+///
+/// A name may appear twice — once for its assignment and once for the `export`
+/// directive that names it — so the empty operator, not the name, selects the
+/// directive.
+fn directive<'report>(report: &'report ParseReport, name: &str) -> Option<&'report VariableFact> {
+    report
+        .variables
+        .iter()
+        .find(|variable| variable.name == name && variable.operator == AssignmentOperator::Define)
+}
+
+/// No `export` or `unexport` form may abort the parse.
+///
+/// A form upstream cannot name is dropped rather than invented, so the status
+/// must be `recovered`: reporting `complete` while discarding a construct
+/// would tell a consumer the facts are trustworthy when they are incomplete.
+#[rstest]
+#[case::single("export FOO\n", ParseStatus::Complete)]
+#[case::multiple("export FOO BAR BAZ\n", ParseStatus::Recovered)]
+#[case::name_less("export\n", ParseStatus::Recovered)]
+#[case::keyword_named_variable("export unexport\n", ParseStatus::Complete)]
+#[case::repeated_keyword_prefix("export export FOO\n", ParseStatus::Complete)]
+#[case::unnameable("export export\n", ParseStatus::Recovered)]
+#[case::overridden("override export FOO\n", ParseStatus::Complete)]
+#[case::exported_define("export define FOO\nbody\nendef\n", ParseStatus::Recovered)]
+#[case::name_less_exported_define("export define\nbody\nendef\n", ParseStatus::Recovered)]
+#[case::assignment("export FOO := bar\n", ParseStatus::Complete)]
+#[case::unexport_single("unexport FOO\n", ParseStatus::Recovered)]
+#[case::unexport_multiple("unexport FOO BAR\n", ParseStatus::Recovered)]
+#[case::unexport_name_less("unexport\n", ParseStatus::Recovered)]
+fn no_export_form_aborts(
+    #[case] source: &str,
+    #[case] expected: ParseStatus,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let report = parse_source(source.as_bytes(), "export.mk", &MakefileLosslessParser)?;
+
+    assert_eq!(report.parse.status, expected);
+    Ok(())
+}
+
+/// A variable may legitimately be called `unexport`. Deciding directive names
+/// by keyword text would discard it while still reporting `complete`.
+#[rstest]
+fn a_variable_named_like_a_keyword_is_not_discarded() -> Result<(), Box<dyn std::error::Error>> {
+    let report = parse_source(b"export unexport\n", "export.mk", &MakefileLosslessParser)?;
+    let directive =
+        variable(&report, "unexport").ok_or("the exported name must not be discarded")?;
+
+    assert_eq!(
+        (
+            directive.operator,
+            directive.exported,
+            directive.define_block
+        ),
+        (AssignmentOperator::Define, true, false),
+    );
+    Ok(())
+}
+
+/// An `export define` block is dropped rather than invented, so no fact may
+/// claim the keyword itself was exported.
+#[rstest]
+fn exported_define_block_invents_no_fact() -> Result<(), Box<dyn std::error::Error>> {
+    let report = parse_source(
+        b"export define FOO\nbody\nendef\n",
+        "export.mk",
+        &MakefileLosslessParser,
+    )?;
+    let names: Vec<&str> = report
+        .variables
+        .iter()
+        .map(|variable| variable.name.as_str())
+        .collect();
+
+    assert_eq!(names, Vec::<&str>::new());
+    Ok(())
+}
+
 /// Pins the consumer-facing discriminating predicate for bare export
 /// directives: an empty `operator` with `define_block` false identifies a
 /// directive rather than an assignment, and `raw_value` is empty.
@@ -44,12 +123,7 @@ fn single_name_bare_export_is_complete(
     assert_eq!(report.parse.diagnostics, Vec::new());
 
     for name in ["MOLD_VERSION_FILE", "RUST_TOOLCHAIN_FILE"] {
-        let directive = report
-            .variables
-            .iter()
-            .find(|variable| {
-                variable.name == name && variable.operator == AssignmentOperator::Define
-            })
+        let directive = directive(&report, name)
             .ok_or_else(|| format!("the report must contain a directive fact for {name}"))?;
         assert_eq!(
             (

@@ -114,8 +114,12 @@ pub enum ConditionKind {
 
 /// GNU Make variable assignment operator represented by schema version 1.
 ///
-/// `Define` represents a define block without an assignment token and serializes
-/// as the schema's empty operator.
+/// `Define` represents a definition carrying no assignment token and
+/// serializes as the schema's empty operator. Two constructs use it: a
+/// `define` block, and a bare `export NAME` directive naming a variable
+/// assigned elsewhere. The `define_block` flag on [`VariableFact`] tells them
+/// apart, so `operator == Define && !define_block` identifies an export
+/// directive rather than an assignment.
 ///
 /// # Examples
 ///
@@ -131,7 +135,8 @@ pub enum ConditionKind {
 /// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub enum AssignmentOperator {
-    /// Define block without an assignment token.
+    /// Definition without an assignment token: a `define` block or a bare
+    /// `export` directive.
     #[default]
     #[serde(rename = "")]
     Define,
