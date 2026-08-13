@@ -69,12 +69,9 @@ identifies a bare export directive rather than an assignment. A name may appear
 twice, once for its assignment and once for the directive that exports it, so
 the operator rather than the name distinguishes the two.
 
-A directive naming several variables, such as `export A B C`, is not yet fully
-modelled: the pinned parser captures only the first name and drops the rest
-before `makeutil` sees them, so the report contains one entry and its status is
-`recovered` rather than `complete`. Full support awaits a parser revision that
-keeps every name. Until then, treat a `recovered` status on such a line as a
-gap in the facts rather than as evidence about the Makefile.
+A directive naming several variables, such as `export A B C`, yields one entry
+per name and reports `complete`. The names may be spread across a line
+continuation.
 
 The empty operator is shared with `define` blocks, which is why `define_block`
 is part of the predicate. An `export NAME := value` line is an ordinary
@@ -86,7 +83,10 @@ schema version 1 cannot express. Such a line produces no entry rather than an
 invented one, a diagnostic explains the omission, and the report is
 `recovered`. The same holds for `export define NAME`, and for a line exporting
 a variable whose name is itself `export`, `override` or `define`, none of which
-the pinned parser names.
+the parser names.
+
+`override export NAME` is reported as an ordinary export directive, although
+GNU Make itself rejects that combination. Its multi-name form is `recovered`.
 
 ### `unexport` is not yet supported
 

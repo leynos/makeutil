@@ -141,16 +141,16 @@ fn directive_only_lines_are_recognized(
     assert_eq!(context(is_define, is_export).is_directive_only(), expected);
 }
 
-/// Upstream keeps only the first name of a multi-name `export` inside the
-/// variable node, so the helper reports one name until the pinned parser
-/// revision learns the directive list form.
+/// Every name a directive line carries is collected, now that the pinned
+/// parser revision keeps the whole list inside the variable node.
 ///
 /// The keyword-named cases guard the anchoring rule: a variable may be called
 /// `unexport`, and `export export FOO` has upstream consume both leading
 /// keywords, so neither may be decided by matching keyword text.
 #[rstest]
 #[case::single("export FOO\n", vec!["FOO"])]
-#[case::multiple_names_lost_upstream("export FOO BAR BAZ\n", vec!["FOO"])]
+#[case::multiple("export FOO BAR BAZ\n", vec!["FOO", "BAR", "BAZ"])]
+#[case::continued("export FOO \\\n\tBAR\n", vec!["FOO", "BAR"])]
 #[case::name_less("export\n", Vec::new())]
 #[case::keyword_named_variable("export unexport\n", vec!["unexport"])]
 #[case::repeated_keyword_prefix("export export FOO\n", vec!["FOO"])]

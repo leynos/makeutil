@@ -52,12 +52,17 @@ fn directive<'report>(report: &'report ParseReport, name: &str) -> Option<&'repo
 /// upstream's, which is not always present — keeps such a report `recovered`.
 #[rstest]
 #[case::single("export FOO\n", ParseStatus::Complete, vec!["FOO"])]
-#[case::multiple("export FOO BAR BAZ\n", ParseStatus::Recovered, vec!["FOO"])]
+#[case::multiple("export FOO BAR BAZ\n", ParseStatus::Complete, vec!["FOO", "BAR", "BAZ"])]
+#[case::continued("export FOO \\\n\tBAR\n", ParseStatus::Complete, vec!["FOO", "BAR"])]
 #[case::name_less("export\n", ParseStatus::Recovered, Vec::new())]
 #[case::keyword_named_variable("export unexport\n", ParseStatus::Complete, vec!["unexport"])]
 #[case::repeated_keyword_prefix("export export FOO\n", ParseStatus::Complete, vec!["FOO"])]
 #[case::unnameable("export export\n", ParseStatus::Recovered, Vec::new())]
+// GNU Make actually rejects `override export FOO` with "missing separator".
+// The parser accepts the single-name form, which predates this work and is
+// left alone; only the multi-name form was in scope. Pinned as it behaves.
 #[case::overridden("override export FOO\n", ParseStatus::Complete, vec!["FOO"])]
+#[case::overridden_list("override export FOO BAR\n", ParseStatus::Recovered, vec!["FOO"])]
 #[case::undiagnosed_upstream("override export override\n", ParseStatus::Recovered, Vec::new())]
 #[case::exported_define("export define FOO\nbody\nendef\n", ParseStatus::Recovered, Vec::new())]
 #[case::name_less_exported_define(
@@ -210,15 +215,32 @@ fn facts_after_a_bare_export_survive(
     }
 }
 
+/// The real-world shape: one directive exporting several already-assigned
+/// variables, which must now report every name and a complete parse.
 #[rstest]
-fn multi_name_export_never_aborts() -> Result<(), Box<dyn std::error::Error>> {
+fn multi_name_export_is_complete() -> Result<(), Box<dyn std::error::Error>> {
     let report = parse_source(
         include_bytes!("fixtures/makefiles/export-directive-list.mk"),
         "export-directive-list.mk",
         &MakefileLosslessParser,
     )?;
 
-    assert_eq!(report.parse.status, ParseStatus::Recovered);
+    assert_eq!(report.parse.status, ParseStatus::Complete);
+    assert_eq!(report.parse.diagnostics, Vec::new());
+
+    for name in [
+        "MOLD_VERSION_FILE",
+        "MOLD_SHA256SUMS_FILE",
+        "RUST_TOOLCHAIN_FILE",
+    ] {
+        let fact = directive(&report, name)
+            .ok_or_else(|| format!("the report must contain a directive fact for {name}"))?;
+        assert_eq!(
+            (fact.exported, fact.define_block, fact.raw_value.as_str()),
+            (true, false, ""),
+            "{name} must be an exported, valueless directive",
+        );
+    }
     Ok(())
 }
 

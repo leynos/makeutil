@@ -77,10 +77,13 @@ rewriting, and bindings remain later decisions.
 The implementation uses
 [`makefile-lossless`](https://github.com/jelmer/makefile-lossless), initially
 pinned to `=0.3.40`. A temporary `[patch.crates-io]` override selects commit
-`8dd35801b75b332c2ac2f995ae398ef8238559fa` from a project-maintained fork
-because release 0.3.40 does not lex the documented GNU Make `!=` assignment
-operator. Remove the override when an upstream release containing the fix is
-adopted; do not replace the immutable commit with a branch name.
+`2ae7134beb04416851ab18c8a5d5893348fbe26c` from a project-maintained fork,
+which carries two fixes absent from release 0.3.40: lexing the documented GNU
+Make `!=` assignment operator, and retaining every name of a multi-name
+`export A B C` directive within the definition node. Remove the override when
+an upstream release containing both is adopted; do not replace the immutable
+commit with a branch name. The published version string stays `0.3.40`, so
+`parser_version` is unaffected by a revision bump.
 
 The crate supplies:
 
@@ -327,16 +330,16 @@ empty operator, an empty `raw_value`, `exported` true, and `define_block`
 false. The discriminating predicate for consumers is
 `operator == "" && define_block == false`.
 
-A directive naming several variables is intended to yield one entry per name,
-but the pinned parser revision keeps only the first name inside the definition
-node and discards the rest, so such a line currently yields one entry and a
-`recovered` status. Completing it needs a parser change, not a `makeutil` one.
-A form the parser cannot name at all — a bare `export`, `export define NAME`,
-or a name whose text the parser treats as one of its own keywords — yields no
-entry rather than an invented one, together with a diagnostic that keeps the
-report `recovered` rather than falsely `complete`. That diagnostic is
-`makeutil`'s own rather than the parser's, because the parser does not always
-emit one: `override export override` is dropped upstream silently.
+A directive naming several variables yields one entry per name, sharing the
+span of the whole directive. This needed a parser change: the previously pinned
+revision trapped the second name in an error node and pushed the rest out of
+the definition node entirely, so `makeutil` could not recover them. A form the
+parser cannot name at all — a bare `export`, `export define NAME`, or a name
+whose text the parser treats as one of its own keywords — yields no entry
+rather than an invented one, together with a diagnostic that keeps the report
+`recovered` rather than falsely `complete`. That diagnostic is `makeutil`'s own
+rather than the parser's, because the parser does not always emit one:
+`override export override` is dropped upstream silently.
 
 The names on a directive line are read from the definition node's identifier
 tokens, anchored on the name the parser itself reports. Keyword text cannot be
@@ -377,8 +380,9 @@ the merge of the `bare-export-directives` work should know that:
   "assignments only" view.
 - `unexport` remains unsupported and still reports a misleading rule with a
   `recovered` status.
-- A multi-name `export A B C` no longer aborts but still reports `recovered`
-  with only the first name, pending a parser change.
+- A multi-name `export A B C` reports `complete` with one entry per name. This
+  required a parser revision bump, so the `[patch.crates-io]` commit differs
+  from earlier builds; the published `parser_version` is unchanged at `0.3.40`.
 - `schema_version` is unchanged at `1`, and
   `schemas/makeutil.parse.v1.schema.json` is byte-identical, so no schema
   re-validation work is required.

@@ -34,10 +34,8 @@ did.
 A bare `export NAME` directive is reported as an entry in the existing
 `variables` array, using the operator enum's existing empty-string variant,
 with an empty `raw_value`, `exported` true, and `define_block` false. A
-directive naming several variables is intended to yield one entry per name, but
-the parser revision pinned when this decision was taken keeps only the first
-name inside the definition node, so such a line yields one entry and a
-`recovered` status until the parser learns the directive list form.
+directive naming several variables yields one entry per name, each carrying the
+span of the whole directive.
 
 The discriminating predicate for consumers is
 `operator == "" && define_block == false`, which identifies an export directive
@@ -107,8 +105,10 @@ member is as breaking as a new key.
   test.
 - The representation cannot express "export every variable", so that form is
   reported as an absence plus a diagnostic rather than as a fact.
-- A multi-name `export A B C` is not yet fully modelled: it reports `recovered`
-  with only the first name until the pinned parser keeps the rest.
+- Supporting the multi-name form required a change to the parser fork and a
+  revision bump of the `[patch.crates-io]` pin, so this decision is not
+  confined to `makeutil` after all. The published `parser_version` is
+  unaffected.
 - A variable whose name is `export`, `override` or `define` is unrepresentable,
   because the parser reports no name for such a line. It degrades to a
   diagnostic rather than a fact.

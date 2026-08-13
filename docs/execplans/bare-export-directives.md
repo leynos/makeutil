@@ -4,10 +4,10 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
 and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-Status: BLOCKED — Stages A to D, F and G are complete and merged into this
-branch. Stage E cannot proceed under the delegated authority for this work
-because it changes a separate repository; see the `Decision Log`. Everything
-achievable without that change has been delivered.
+Status: COMPLETE — every stage, A to G, has been delivered on this branch. The
+Stage E parser change lives in the pinned fork on branch
+`bare-export-directive-lists` and is under review as a draft pull request
+there; this branch pins the resulting revision.
 
 ## Purpose / big picture
 
@@ -153,8 +153,10 @@ around it.
       Evidence in `Artefacts and notes`.
 - [x] Stage C: minimal makeutil change so no `export` or `unexport` form aborts.
 - [x] Stage D: refactor, documentation, snapshots, and full commit gates.
-- [ ] Stage E: BLOCKED. The upstream parser fix lives in a separate repository
-      that this work is not authorized to push to. See the `Decision Log`.
+- [x] Stage E: parser change landed on the fork branch
+      `bare-export-directive-lists`, revision bumped here, and both deferred
+      pins flipped. `export A B C` now reports `complete` with one entry per
+      name. Initially blocked on authority; see the `Decision Log`.
 - [x] Stage F: `unexport` behaviour pinned by regression test
       (`unexport_directive_degrades_honestly` in `tests/corpus.rs`) and
       documented as a known limitation in `docs/users-guide.md`.
@@ -403,18 +405,61 @@ Recorded during investigation, before implementation began.
   because compressing the work into six files would mean discarding
   deliverables the plan requires. Date/Author: 2026-08-13, implementer.
 
-- BLOCKED: Stage E cannot be executed under the delegated authority for this
-  work, which forbids pushes, pull requests, or issues against any repository
-  other than the makeutil repository itself. Stage E's substance is a parser
-  change in the separate `makefile-lossless` fork, followed by a revision bump
-  here that can only point at a commit published in that fork. Consequence: the
-  multi-name form `export A B C` continues to report `recovered` and to capture
-  only the first name, exactly as the plan's Stage C go/no-go anticipates.
-  Stages B to D, F, and G stand on their own: no form of `export` or `unexport`
-  aborts any more, and the single-name case is `complete`.
-  `multi_name_export_never_aborts` and `bare_export_names_are_all_collected`
-  remain in their Stage C form, so whoever resumes Stage E has the pins already
-  written and need only flip them. Date/Author: 2026-08-13, implementer.
+- UNBLOCKED (2026-08-13): the Stage E blockage below is resolved. The fork the
+  plan directs Stage E at is the same estate-owned repository that
+  `[patch.crates-io]` already points `makefile-lossless` to, so authority to
+  change it was granted. Stage E proceeded as planned: the parser change is on
+  the fork branch `bare-export-directive-lists`, open as a draft pull request
+  there, and this branch pins the resulting revision. Date/Author: 2026-08-13,
+  implementer.
+
+- Decision: the upstream name-list path is gated on the line *leading* with
+  `export`, not on any directive keyword having been consumed as the plan's
+  Stage E wording proposed. Rationale: review checked the first implementation
+  against GNU Make 4.4.1 and found the looser gate accepted
+  `override export FOO BAR`, which make rejects with "missing separator". Make
+  accepts a name list only when the line starts with `export`; the converse
+  spelling `export override FOO` is accepted, reading `override` as one of the
+  names. The plan's wording is superseded on this point, and both behaviours
+  are pinned by tests. Date/Author: 2026-08-13, implementer, after upstream
+  review.
+
+- Decision: `export define FOO ... endef` is deliberately left reporting its
+  existing diagnostic rather than being drawn into the name-list path.
+  Rationale: it is valid GNU Make, but the parser's name slot swallows the
+  `define` keyword, so the following identifier is the block's name and not a
+  further export name. The first implementation consumed it as a name, which
+  erased the only signal that the line had not been understood — the node
+  looked clean while the body was mangled into bogus rules elsewhere. Modelling
+  exported define blocks properly is a separate piece of work. Date/Author:
+  2026-08-13, implementer, after upstream review.
+
+- Decision (review findings declined upstream): `$(BAR)` as a name in an
+  export list stays unsupported, and no `exported_names()` accessor was added
+  to the parser crate. Rationale: accepting `$(BAR)` would put the name inside
+  a nested EXPR node rather than a direct identifier token, so this consumer's
+  walk would skip it silently and report `complete` with a name missing —
+  trading a loud error for a quiet omission. It remains an error, which is
+  honest. The accessor was declined because the plan's `Decision Log` already
+  records that makeutil, not the crate, owns name extraction, so that the
+  upstream diff stays small and no new API has to be supported forever. The
+  reviewer's contrary argument — that a maintainer will want the contract
+  inside the crate — is reasonable and is noted for whoever proposes this
+  upstream. Date/Author: 2026-08-13, implementer, after upstream review.
+
+- BLOCKED (superseded by the entry above): Stage E cannot be executed under
+  the delegated authority for this work, which forbids pushes, pull requests,
+  or issues against any repository other than the makeutil repository itself.
+  Stage E's substance is a parser change in the separate `makefile-lossless`
+  fork, followed by a revision bump here that can only point at a commit
+  published in that fork. Consequence: the multi-name form `export A B C`
+  continues to report `recovered` and to capture only the first name, exactly
+  as the plan's Stage C go/no-go anticipates. Stages B to D, F, and G stand on
+  their own: no form of `export` or `unexport` aborts any more, and the
+  single-name case is `complete`. `multi_name_export_never_aborts` and
+  `bare_export_names_are_all_collected` remain in their Stage C form, so
+  whoever resumes Stage E has the pins already written and need only flip them.
+  Date/Author: 2026-08-13, implementer.
 
 - Decision: Stages B and C are delivered as a single commit rather than one
   commit each. Rationale: `AGENTS.md` forbids committing anything that fails a
@@ -427,18 +472,16 @@ Recorded during investigation, before implementation began.
 
 Recorded at the end of Stage G, with Stage E blocked.
 
-Does `export A B C` parse to `complete` with all three names? No. It parses
-without aborting and reports `recovered` with the first name only. The pinned
-parser traps the second name in an error node and pushes the third out of the
-variable node entirely, so `makeutil` cannot recover them. Closing this needs
-Stage E, which is blocked on authority to change a separate repository. The
-tests that would prove it are already written and merely need their
-expectations flipped.
+Does `export A B C` parse to `complete` with all three names? Yes, after Stage
+E. `tests/fixtures/makefiles/export-directive-list.mk` reports `complete` with
+no diagnostics and six variable entries — three assignments and three directive
+facts — plus its `check` rule.
 
-Did any snapshot change unexpectedly? No snapshot changed at all. The upstream
-revision was never bumped, and both `insta` snapshots in `tests/snapshots/` are
-byte-identical to their pre-change state, as is
-`schemas/makeutil.parse.v1.schema.json`.
+Did any snapshot change unexpectedly? No snapshot changed at all, before or
+after the revision bump. Both `insta` snapshots in `tests/snapshots/` and
+`schemas/makeutil.parse.v1.schema.json` are byte-identical to their pre-change
+state. The bump's tripwire therefore never fired, which is the evidence that
+the upstream change is confined to multi-name export lines.
 
 Did the `variables`-reuse representation cause confusion in review? Not the
 representation itself, which review accepted twice. What review caught were
@@ -464,11 +507,24 @@ no facts. Fourteen export and unexport forms are pinned by a parameterized test
 asserting status and variable names together, so a form that stopped producing
 its fact could not keep passing.
 
-Two further defects were observed and deliberately left alone, both outside
-this plan's scope and both deserving their own plan, ideally a shared one:
+Stage E repeated the pattern in a third setting, which is worth recording
+because it is now a clear trend rather than a coincidence. Its first
+implementation was reviewed against GNU Make itself as an oracle rather than
+against the plan, and that immediately found two lines whose parse changed in
+ways make does not sanction — `override export FOO BAR`, which make rejects, and
+`export define FOO`, where the change erased a diagnostic. Both had passed the
+whole gate set. Checking a parser change against the thing it parses, rather
+than against the tests written alongside it, was the single most valuable
+technique used in this work.
+
+Several defects were observed and deliberately left alone, all outside this
+plan's scope and all deserving their own plan, ideally a shared one:
 `foo: export BAR := baz` reports `complete` with prerequisites
-`["export", "BAR", ":=", "baz"]`, and `override define FOO ... endef` still
-aborts with exit code 2, losing the whole file.
+`["export", "BAR", ":=", "baz"]`; `override define FOO ... endef` still aborts
+with exit code 2, losing the whole file; `override export FOO` in its
+single-name form parses `complete` although GNU Make rejects it; and
+`export define FOO ... endef` is valid GNU Make that the parser still does not
+model, though it now degrades honestly rather than aborting.
 
 ## Context and orientation
 
@@ -1174,13 +1230,37 @@ Stage review green: `export unexport` now reports `complete` with the
 `unexport` fact present, and both `export define` forms report `recovered` with
 exit code 1 and no invented facts.
 
+Stage E, upstream: 483 tests and 98 doctests pass on the fork branch, with
+`cargo fmt --check` and `cargo clippy --all-targets` clean. Review there ran a
+2016-case differential sweep against the previous revision, confirming that
+every changed case is an `export`-led line and that the lossless round-trip
+holds throughout. Parity with GNU Make 4.4.1 was checked directly for the
+decisive lines: `export FOO BAR` and `export override FOO` are accepted by both;
+`override export FOO BAR` and `override FOO BAR` are rejected by both.
+
+Stage E, the one-command success criterion:
+
+```console
+$ printf 'FOO := 1\nBAR := 2\nexport FOO BAR\n' > demo.mk
+$ makeutil parse demo.mk | python3 -m json.tool | head -20
+    "parse": { "status": "complete", "diagnostics": [] }
+$ echo "exit=$?"
+exit=0
+```
+
+`variables` holds four entries for that input: the two assignments and one
+directive fact per exported name. The plan's prose asks for five entries and
+three directive facts, which belongs to the three-name example in
+`Purpose / big picture` rather than to this two-name command. The three-name
+fixture does produce six entries — three assignments and three directives — with
+`complete` status and no diagnostics.
+
 Final gate run, all sequential and all passing: `make check-fmt`, `make lint`
-(including the `whitaker` driver), `make typecheck`, `make test` (129 tests
-run, 129 passed, 0 skipped, plus 3 doctests), and `make markdownlint` (which
-also runs `spelling` and `provenance`), 0 errors.
+(including the `whitaker` driver), `make typecheck`, `make test`, and
+`make markdownlint` (which also runs `spelling` and `provenance`), 0 errors.
 
 Both `insta` snapshots and `schemas/makeutil.parse.v1.schema.json` are
-unchanged from their pre-change state.
+unchanged from their pre-change state, before and after the revision bump.
 
 ### Captured concrete syntax trees
 
