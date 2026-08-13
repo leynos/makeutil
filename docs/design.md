@@ -314,9 +314,34 @@ for the first bounded rules.
 ```
 
 The schema-v1 operator set is closed: `""`, `"="`, `":="`, `"::="`, `":::="`,
-`"+="`, `"?="`, and `"!="`. The empty string means a `define` block without an
-assignment token. The operator remains source-faithful; the first slice does
-not calculate the effective value or precedence.
+`"+="`, `"?="`, and `"!="`. The empty string means a definition without an
+assignment token: either a `define` block or a bare `export` directive. The
+operator remains source-faithful; the first slice does not calculate the
+effective value or precedence.
+
+#### 6.6.1. Bare `export` directives
+
+A bare `export NAME` names a variable assigned elsewhere and carries no
+operator and no value. It is represented as an entry in `variables` with the
+empty operator, an empty `raw_value`, `exported` true, and `define_block`
+false; a directive naming several variables yields one entry per name. The
+discriminating predicate for consumers is
+`operator == "" && define_block == false`.
+
+The alternative — a new top-level `exports` array — is more honest but the
+schema sets `"additionalProperties": false` at every level, so it would be a
+breaking change requiring schema version 2 and a coordinated re-pin by every
+consumer. Recording the directive only as a diagnostic was also rejected,
+because consumers fail closed on any status other than `complete` and every
+Makefile with a bare export would remain effectively unparsable. The accepted
+cost is conflation: a consumer treating every entry in `variables` as an
+assignment sees extra entries for export directives. See
+[the bare export execution plan](execplans/bare-export-directives.md).
+
+An `unexport` directive remains unrepresented: it parses as a rule whose first
+target is `unexport` and forces a `recovered` status. Expressing an explicit
+un-export needs a field that schema version 1 does not have, so support is
+deferred to a future schema version.
 
 ### 6.7. Include facts
 

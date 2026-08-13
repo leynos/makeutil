@@ -7,6 +7,13 @@ Feature: Parse one GNU Makefile into JSON facts
     And the process exits with code 0
     And stderr is empty
 
+  Scenario: Parse a Makefile that exports already-defined variables
+    Given a Makefile fixture that exports already-defined variables
+    When makeutil parses the fixture by path
+    Then stdout contains one schema version 1 JSON document
+    And the process exits with code 0
+    And stderr is empty
+
   Scenario: Parse complete source from standard input
     Given complete GNU Makefile source on standard input
     When makeutil parses dash with stdin filename Makefile

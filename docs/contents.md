@@ -31,6 +31,8 @@ set.
   work:
   - [Implement ADR-0001](execplans/adr-0001-single-file-gnu-make-parse.md)
     plans the single-file GNU Make parser and its verification.
+  - [Parse bare export directives](execplans/bare-export-directives.md) plans
+    the removal of the fatal abort on `export` and `unexport` directives.
 
 ## Rust reference material
 

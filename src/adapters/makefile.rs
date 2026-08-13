@@ -14,8 +14,9 @@ use makefile_lossless::{
 };
 use rowan::ast::AstNode as _;
 
+use super::makefile_export::{OperatorContext, assignment_operator, export_directive_observations};
 use crate::{
-    domain::{AssignmentOperator, ConditionBranch, ConditionKind, SourceSpan},
+    domain::{ConditionBranch, ConditionKind, SourceSpan},
     ports::{
         ConditionObservation,
         MakefileParser,
@@ -70,7 +71,7 @@ fn collect_items(
                 observations.push(rule_observation(&rule, &conditions, source_length)?);
             }
             TraversalEvent::Item(MakefileItem::Variable(variable)) => {
-                observations.push(variable_observation(&variable, &conditions, source_length)?);
+                observations.extend(variable_observation(&variable, &conditions, source_length)?);
             }
             TraversalEvent::Item(MakefileItem::Include(include)) => {
                 observations.push(include_observation(&include, &conditions, source_length)?);
@@ -171,48 +172,40 @@ fn rule_observation(
     })
 }
 
+/// One `export A B C` line names several variables, and a name-less `export`
+/// names none, so a single definition node can yield any number of facts.
 fn variable_observation(
     variable: &VariableDefinition,
     conditions: &[ConditionObservation],
     source_length: usize,
-) -> Result<SyntaxObservation, ParserPortError> {
-    Ok(SyntaxObservation::Variable {
+) -> Result<Vec<SyntaxObservation>, ParserPortError> {
+    let operator = variable.assignment_operator();
+    let context = OperatorContext {
+        is_define: variable.is_define(),
+        is_export: variable.is_export(),
+    };
+    let definition_span = span(variable.syntax().text_range(), source_length)?;
+
+    if operator.is_none() && context.is_directive_only() {
+        return Ok(export_directive_observations(
+            variable,
+            conditions,
+            definition_span,
+        ));
+    }
+
+    Ok(vec![SyntaxObservation::Variable {
         name: variable.name().ok_or(ParserPortError::MissingField {
             field: "variable-name",
         })?,
-        operator: assignment_operator(
-            variable.assignment_operator().as_deref(),
-            variable.is_define(),
-        )?,
+        operator: assignment_operator(operator.as_deref(), context)?,
         raw_value: variable.raw_value().unwrap_or_default(),
-        exported: variable.is_export(),
+        exported: context.is_export,
         overridden: variable.is_override(),
-        define_block: variable.is_define(),
+        define_block: context.is_define,
         conditions: conditions.to_vec(),
-        span: span(variable.syntax().text_range(), source_length)?,
-    })
-}
-
-fn assignment_operator(
-    operator: Option<&str>,
-    is_define: bool,
-) -> Result<AssignmentOperator, ParserPortError> {
-    match operator {
-        None if is_define => Ok(AssignmentOperator::Define),
-        Some("=") => Ok(AssignmentOperator::Recursive),
-        Some(":=") => Ok(AssignmentOperator::Simple),
-        Some("::=") => Ok(AssignmentOperator::PosixSimple),
-        Some(":::=") => Ok(AssignmentOperator::ImmediateRecursive),
-        Some("+=") => Ok(AssignmentOperator::Append),
-        Some("?=") => Ok(AssignmentOperator::Conditional),
-        Some("!=") => Ok(AssignmentOperator::Shell),
-        Some(raw_operator) => Err(ParserPortError::UnsupportedAssignmentOperator {
-            operator: raw_operator.to_owned(),
-        }),
-        None => Err(ParserPortError::MissingField {
-            field: "variable-assignment-operator",
-        }),
-    }
+        span: definition_span,
+    }])
 }
 
 fn include_observation(

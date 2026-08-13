@@ -56,3 +56,28 @@ standard error and do not intentionally emit JSON. Control characters in
 caller-supplied paths are escaped in this diagnostic, so its first line cannot
 be forged. The JSON report preserves the exact caller-supplied logical path.
 Recovered reports are insufficient proof that a Makefile is compliant.
+
+### Bare `export` directives
+
+A bare `export NAME` directive names a variable assigned elsewhere, so it
+carries no assignment operator and no value. Such a directive appears in the
+`variables` array with `operator` set to the empty string, `raw_value` set to
+the empty string, `exported` set to `true`, and `define_block` set to `false`.
+A consumer that wants only genuine assignments should therefore filter on a
+non-empty `operator`; the predicate `operator == "" && define_block == false`
+identifies a bare export directive rather than an assignment. A directive
+naming several variables yields one entry per name.
+
+The empty operator is shared with `define` blocks, which is why `define_block`
+is part of the predicate. An `export NAME := value` line is an ordinary
+assignment: it reports its real operator and its value, with `exported` set to
+`true`.
+
+### `unexport` is not yet supported
+
+An `unexport` directive is currently reported as a rule whose first target is
+the word `unexport`, and it forces a `recovered` status with an `expected ':'`
+diagnostic. Schema version 1 has no way to express "this name was explicitly
+un-exported", so faithful support awaits a schema version that can. Treat any
+`unexport` line in a report as an unrepresented construct rather than as a real
+rule.

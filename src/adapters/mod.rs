@@ -2,6 +2,7 @@
 
 pub mod cli;
 mod makefile;
+mod makefile_export;
 pub mod source;
 
 pub use makefile::MakefileLosslessParser;
