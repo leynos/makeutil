@@ -4,7 +4,10 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
 and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-Status: IN PROGRESS
+Status: BLOCKED — Stages A to D, F and G are complete and merged into this
+branch. Stage E cannot proceed under the delegated authority for this work
+because it changes a separate repository; see the `Decision Log`. Everything
+achievable without that change has been delivered.
 
 ## Purpose / big picture
 
@@ -152,9 +155,12 @@ around it.
 - [x] Stage D: refactor, documentation, snapshots, and full commit gates.
 - [ ] Stage E: BLOCKED. The upstream parser fix lives in a separate repository
       that this work is not authorized to push to. See the `Decision Log`.
-- [ ] Stage F: `unexport` behaviour pinned by regression test and documented as
-      a known limitation.
-- [ ] Stage G: consumer-facing note recording the new revision to pin.
+- [x] Stage F: `unexport` behaviour pinned by regression test
+      (`unexport_directive_degrades_honestly` in `tests/corpus.rs`) and
+      documented as a known limitation in `docs/users-guide.md`.
+- [x] Stage G: consumer-facing note added as §6.6.2 of `docs/design.md`. It
+      records the behaviour change rather than a new parser revision to pin,
+      because Stage E did not run.
 
 ## Surprises & discoveries
 
@@ -375,11 +381,37 @@ Recorded during investigation, before implementation began.
 
 ## Outcomes & retrospective
 
-To be completed at the end of Stage G. At minimum, record: whether a Makefile
-containing `export A B C` now parses to `complete` with all three names
-present; whether any snapshot changed unexpectedly when the upstream revision
-was bumped; and whether the `variables`-reuse representation caused confusion
-in review.
+Recorded at the end of Stage G, with Stage E blocked.
+
+Does `export A B C` parse to `complete` with all three names? No. It parses
+without aborting and reports `recovered` with the first name only. The pinned
+parser traps the second name in an error node and pushes the third out of the
+variable node entirely, so `makeutil` cannot recover them. Closing this needs
+Stage E, which is blocked on authority to change a separate repository. The
+tests that would prove it are already written and merely need their
+expectations flipped.
+
+Did any snapshot change unexpectedly? No snapshot changed at all. The upstream
+revision was never bumped, and both `insta` snapshots in `tests/snapshots/` are
+byte-identical to their pre-change state, as is
+`schemas/makeutil.parse.v1.schema.json`.
+
+Did the `variables`-reuse representation cause confusion in review? Not the
+representation itself, which review accepted. What review did catch were two
+defects in how the directive was recognized, both recorded in the
+`Decision Log`: identifying directive keywords by token text silently discarded
+`export unexport`, and gating the no-facts path on "export and not define" left
+`export define FOO` aborting with exit code 2. Both breached the plan's own
+constraints while every gate passed, which is the lesson worth keeping: the
+fixture set was drawn from the plan's enumerated forms, and it took an
+adversarial reading of the *implementation* — not of the plan — to find inputs
+the plan had not imagined. The corrected implementation anchors on the name
+upstream reports rather than on a keyword list, and every export and unexport
+form is now pinned by a parameterized status test.
+
+A further honesty defect was observed and deliberately left alone:
+`foo: export BAR := baz` reports `complete` with prerequisites
+`["export", "BAR", ":=", "baz"]`. It deserves its own plan.
 
 ## Context and orientation
 
@@ -1068,6 +1100,30 @@ with exit code 2 where 0 was expected.
 
 Stage C green, `cargo test --test export_directives`: 5 passed, 0 failed.
 `cargo test --lib`: 20 passed, 0 failed.
+
+Stage review red, after the reviewer identified the keyword-text defect. Both
+were reproduced against the built binary before being fixed:
+
+```console
+$ printf 'A := 1\nexport unexport\nb:\n\techo\n' > t.mk
+$ makeutil parse t.mk    # status=complete, variables=['A'], exit=0
+$ printf 'export define FOO\nbody\nendef\n' > t.mk
+$ makeutil parse t.mk
+makeutil: parse-internal: required variable-name accessor was absent
+exit=2
+```
+
+Stage review green: `export unexport` now reports `complete` with the
+`unexport` fact present, and both `export define` forms report `recovered` with
+exit code 1 and no invented facts.
+
+Final gate run, all sequential and all passing: `make check-fmt`, `make lint`
+(including the `whitaker` driver), `make typecheck`, `make test` (129 tests
+run, 129 passed, 0 skipped, plus 3 doctests), and `make markdownlint` (which
+also runs `spelling` and `provenance`), 0 errors.
+
+Both `insta` snapshots and `schemas/makeutil.parse.v1.schema.json` are
+unchanged from their pre-change state.
 
 ### Captured concrete syntax trees
 

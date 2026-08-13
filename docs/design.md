@@ -358,6 +358,27 @@ target is `unexport` and forces a `recovered` status. Expressing an explicit
 un-export needs a field that schema version 1 does not have, so support is
 deferred to a future schema version.
 
+#### 6.6.2. Note for consumers pinning `makeutil`
+
+Downstream repositories pin `makeutil` by commit SHA, so this change reaches
+them only when they move their pin. Consumers moving to a commit on or after
+the merge of the `bare-export-directives` work should know that:
+
+- A bare `export NAME` directive no longer aborts the parse. Before the change
+  a single such line produced no JSON at all and exit code 2, discarding every
+  fact in the file; it now appears in `variables` with an empty `operator`.
+- Reports may therefore contain more `variables` entries than before, and a
+  name may appear twice — once for its assignment and once for the directive
+  that exports it. Filter on a non-empty `operator` to recover the previous
+  "assignments only" view.
+- `unexport` remains unsupported and still reports a misleading rule with a
+  `recovered` status.
+- A multi-name `export A B C` no longer aborts but still reports `recovered`
+  with only the first name, pending a parser change.
+- `schema_version` is unchanged at `1`, and
+  `schemas/makeutil.parse.v1.schema.json` is byte-identical, so no schema
+  re-validation work is required.
+
 ### 6.7. Include facts
 
 ```json
