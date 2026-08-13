@@ -88,6 +88,11 @@ the parser names.
 `override export NAME` is reported as an ordinary export directive, although
 GNU Make itself rejects that combination. Its multi-name form is `recovered`.
 
+A directive that exports a variable named `export`, `override` or `define`
+alongside an ordinary one, such as `export export FOO`, reports only the
+ordinary name and still says `complete`. GNU Make exports both. Treat such a
+line as under-reported; it is a known gap.
+
 ### `unexport` is not yet supported
 
 An `unexport` directive is currently reported as a rule whose first target is

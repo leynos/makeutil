@@ -137,6 +137,13 @@ around it.
   upstream. Stage E is a separate, independently revertible commit. If upstream
   is unavailable, stop after Stage D and record the multi-name limitation as a
   known gap.
+- Risk: the revision pinned after Stage E lives on an unmerged fork branch, so
+  a rebase, force-push, or branch deletion during review could make it
+  unreachable and break every build of this branch. Severity: high. Likelihood:
+  medium. Mitigation: the fork carries an annotated tag,
+  `makeutil-pin-2ae7134`, pointing at the pinned commit, which keeps it
+  reachable independently of the branch. The pin itself stays an immutable
+  commit hash rather than the tag name, as the repository requires.
 - Risk: `make lint` runs `cargo doc` with `-D warnings` and a third-party lint
   driver (`whitaker`) that may not be installed in every environment. Severity:
   low. Likelihood: medium. Mitigation: run
@@ -160,12 +167,12 @@ around it.
 - [x] Stage F: `unexport` behaviour pinned by regression test
       (`unexport_directive_degrades_honestly` in `tests/corpus.rs`) and
       documented as a known limitation in `docs/users-guide.md`.
-- [x] Stage G: consumer-facing note added as §6.6.2 of `docs/design.md`. Two
-      deviations: it records the behaviour change rather than a new parser
-      revision to pin, because Stage E did not run; and it names the merge of
-      this branch rather than the merge commit SHA the plan asks for, which is
-      unknowable before the merge happens. Whoever merges should substitute the
-      SHA, or accept the branch reference as sufficient.
+- [x] Stage G: consumer-facing note added as §6.6.2 of `docs/design.md`,
+      recording both the behaviour change and the new parser revision to pin.
+      One deviation: it names the merge of this branch rather than the merge
+      commit SHA the plan asks for, which is unknowable before the merge
+      happens. Whoever merges should substitute the SHA, or accept the branch
+      reference as sufficient.
 
 ## Surprises & discoveries
 
@@ -418,11 +425,14 @@ Recorded during investigation, before implementation began.
   Stage E wording proposed. Rationale: review checked the first implementation
   against GNU Make 4.4.1 and found the looser gate accepted
   `override export FOO BAR`, which make rejects with "missing separator". Make
-  accepts a name list only when the line starts with `export`; the converse
-  spelling `export override FOO` is accepted, reading `override` as one of the
-  names. The plan's wording is superseded on this point, and both behaviours
-  are pinned by tests. Date/Author: 2026-08-13, implementer, after upstream
-  review.
+  accepts a name list only when the line starts with `export`. The plan's
+  wording is superseded on this point, and the rejection is pinned by tests on
+  both sides. The converse spelling `export override FOO` is a separate matter:
+  make accepts it, reading `override` as one of the exported names, and the
+  parser accepts the line too — but its `name()` accessor refuses `override` as
+  a name, so makeutil reports only `FOO` while still saying `complete`. That
+  gap predates this stage and is recorded below rather than claimed as fixed.
+  Date/Author: 2026-08-13, implementer, after upstream review.
 
 - Decision: `export define FOO ... endef` is deliberately left reporting its
   existing diagnostic rather than being drawn into the name-list path.
@@ -470,7 +480,7 @@ Recorded during investigation, before implementation began.
 
 ## Outcomes & retrospective
 
-Recorded at the end of Stage G, with Stage E blocked.
+Recorded at the end of Stage G, after Stage E landed.
 
 Does `export A B C` parse to `complete` with all three names? Yes, after Stage
 E. `tests/fixtures/makefiles/export-directive-list.mk` reports `complete` with
@@ -503,7 +513,7 @@ than one inherited from a dependency.
 
 The corrected implementation anchors on the name upstream reports rather than
 on a keyword list, and emits its own diagnostic whenever an export line yields
-no facts. Fourteen export and unexport forms are pinned by a parameterized test
+no facts. Sixteen export and unexport forms are pinned by a parameterized test
 asserting status and variable names together, so a form that stopped producing
 its fact could not keep passing.
 
@@ -522,9 +532,18 @@ plan's scope and all deserving their own plan, ideally a shared one:
 `foo: export BAR := baz` reports `complete` with prerequisites
 `["export", "BAR", ":=", "baz"]`; `override define FOO ... endef` still aborts
 with exit code 2, losing the whole file; `override export FOO` in its
-single-name form parses `complete` although GNU Make rejects it; and
+single-name form parses `complete` although GNU Make rejects it;
 `export define FOO ... endef` is valid GNU Make that the parser still does not
-model, though it now degrades honestly rather than aborting.
+model, though it now degrades honestly rather than aborting; and
+`export export FOO` or `export override FOO` reports only `FOO` with a
+`complete` status where GNU Make exports both names.
+
+That last one is the only known surviving breach of the honesty rule, and it is
+worth stating plainly rather than burying: the omission is silent. It is
+pre-existing, unchanged by this work, and pinned by `no_export_form_aborts` so
+it stays visible. Closing it means redefining what the parser's `name()`
+accessor treats as a name, which is a breaking change for every consumer of
+that crate and needs its own decision, not a quiet fix appended to this plan.
 
 ## Context and orientation
 
@@ -1122,8 +1141,8 @@ Acceptance is behavioural, not structural.
    `"status": "complete"` with exit code 0 and all three names present in
    `variables`. Verified by `multi_name_export_is_complete` after Stage E.
 3. No form of `export` or `unexport` produces a `parse-internal` message or exit
-   code 2. Verified by `multi_name_export_never_aborts`,
-   `name_less_export_degrades_to_a_diagnostic`, and
+   code 2. Verified by `no_export_form_aborts`, which covers sixteen forms,
+   together with `name_less_export_degrades_to_a_diagnostic` and
    `unexport_directive_degrades_honestly`.
 4. Bare export directives are distinguishable from assignments by the
    `operator` field alone. Verified by

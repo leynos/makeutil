@@ -346,6 +346,11 @@ tokens, anchored on the name the parser itself reports. Keyword text cannot be
 used to skip the directive prefix, because a variable may legitimately be called
 `unexport`. Names the parser itself treats as keywords — `export`, `override`
 and `define` — remain unrepresentable, because it reports no name for them.
+Where such a name is the only one on the line the report is `recovered`, but
+where it accompanies a nameable one, as in `export export FOO`, GNU Make
+exports both while the report names only `FOO` and still says `complete`. That
+omission is silent and is a known gap; closing it means redefining what the
+parser considers a name, which would break every consumer of that crate.
 
 The alternative — a new top-level `exports` array — is more honest but the
 schema sets `"additionalProperties": false` at every level, so it would be a

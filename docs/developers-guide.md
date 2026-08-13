@@ -56,9 +56,11 @@ not pass upstream strings beyond the adapter.
 `AssignmentOperator` is the shared, closed domain and parser-port
 representation for schema-v1 variable operators. The parser adapter is its only
 producer; `SyntaxObservation` and report types are its permitted consumers. Its
-`Define` variant serializes as an empty string and means a `define` block
-without an assignment token. Extend the enum only through a schema-versioned
-contract decision, and do not pass upstream operator strings beyond the adapter.
+`Define` variant serializes as an empty string and means a definition without
+an assignment token: either a `define` block or a bare `export` directive, told
+apart by the `define_block` flag. Extend the enum only through a
+schema-versioned contract decision, and do not pass upstream operator strings
+beyond the adapter.
 
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent
@@ -90,10 +92,12 @@ cannot forge another physical line; it is not a general path normalizer or JSON
 encoder.
 
 The exact 0.3.40 parser requirement is temporarily patched to immutable fork
-commit `8dd35801b75b332c2ac2f995ae398ef8238559fa`, which adds `!=` lexer
-support. Keep the commit pin reproducible. When upgrading to an upstream
-release that contains the fix, remove the `[patch.crates-io]` entry and rerun
-the complete assignment-operator contract matrix before updating the lockfile.
+commit `2ae7134beb04416851ab18c8a5d5893348fbe26c`, which adds `!=` lexer
+support and retains every name of a multi-name `export A B C` directive inside
+the definition node. Keep the commit pin reproducible. When upgrading to an
+upstream release that contains both fixes, remove the `[patch.crates-io]` entry
+and rerun the complete assignment-operator contract matrix and the
+export-directive suite before updating the lockfile.
 
 Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and
 property tests exercise the domain, `rstest-bdd` scenarios exercise observable

@@ -56,7 +56,12 @@ fn directive<'report>(report: &'report ParseReport, name: &str) -> Option<&'repo
 #[case::continued("export FOO \\\n\tBAR\n", ParseStatus::Complete, vec!["FOO", "BAR"])]
 #[case::name_less("export\n", ParseStatus::Recovered, Vec::new())]
 #[case::keyword_named_variable("export unexport\n", ParseStatus::Complete, vec!["unexport"])]
+// GNU Make exports both names on these two lines. The parser's name accessor
+// refuses `export` and `override` as names, so only the ordinary one is
+// reported and the status stays `complete` — a known silent omission,
+// documented in ADR-0002 and pinned here so it stays visible.
 #[case::repeated_keyword_prefix("export export FOO\n", ParseStatus::Complete, vec!["FOO"])]
+#[case::override_named_variable("export override FOO\n", ParseStatus::Complete, vec!["FOO"])]
 #[case::unnameable("export export\n", ParseStatus::Recovered, Vec::new())]
 // GNU Make actually rejects `override export FOO` with "missing separator".
 // The parser accepts the single-name form, which predates this work and is
@@ -228,6 +233,7 @@ fn multi_name_export_is_complete() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(report.parse.status, ParseStatus::Complete);
     assert_eq!(report.parse.diagnostics, Vec::new());
 
+    let mut spans = Vec::new();
     for name in [
         "MOLD_VERSION_FILE",
         "MOLD_SHA256SUMS_FILE",
@@ -236,11 +242,21 @@ fn multi_name_export_is_complete() -> Result<(), Box<dyn std::error::Error>> {
         let fact = directive(&report, name)
             .ok_or_else(|| format!("the report must contain a directive fact for {name}"))?;
         assert_eq!(
-            (fact.exported, fact.define_block, fact.raw_value.as_str()),
-            (true, false, ""),
+            (
+                fact.exported,
+                fact.overridden,
+                fact.define_block,
+                fact.raw_value.as_str()
+            ),
+            (true, false, false, ""),
             "{name} must be an exported, valueless directive",
         );
+        spans.push((fact.location.start_byte, fact.location.end_byte));
     }
+
+    // Every name on one directive line shares that line's span, because the
+    // directive is the only source range any of them has.
+    assert_eq!(spans.first(), spans.last());
     Ok(())
 }
 

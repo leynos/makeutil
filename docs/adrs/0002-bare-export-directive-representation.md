@@ -46,9 +46,9 @@ Neither `schema_version` nor `schemas/makeutil.parse.v1.schema.json` changes,
 because the empty operator was already in the enum for `define` blocks and no
 new key or enum member is introduced.
 
-A form the parser cannot name — a bare `export` with no names, which means
-"export every variable", `export define NAME`, or a name whose text the parser
-treats as one of its own keywords — yields no entry rather than an invented
+A line the parser can name nothing on — a bare `export` with no names, which
+means "export every variable", `export define NAME`, or a line whose only name
+is one the parser treats as a keyword — yields no entry rather than an invented
 one, together with a diagnostic of `makeutil`'s own. The diagnostic is emitted
 rather than relying on the parser to emit one, because the parser does not
 always do so: `override export override` is dropped upstream without any error.
@@ -110,8 +110,15 @@ member is as breaking as a new key.
   confined to `makeutil` after all. The published `parser_version` is
   unaffected.
 - A variable whose name is `export`, `override` or `define` is unrepresentable,
-  because the parser reports no name for such a line. It degrades to a
-  diagnostic rather than a fact.
+  because the parser's name accessor skips those texts. When such a name is the
+  only one on the line, as in `export export`, no fact is produced and the
+  report is `recovered`. When it is mixed with a nameable one, as in
+  `export export FOO` or `export override FOO`, GNU Make exports both but the
+  report names only `FOO` and still says `complete` — a silent omission, and a
+  known departure from the honesty rule above. Correcting it means changing
+  what the parser's `name()` accessor considers a name, which is a breaking
+  change for every consumer of that crate and is deliberately not attempted
+  here.
 
 ### Neutral
 
