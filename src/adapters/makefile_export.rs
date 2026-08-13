@@ -37,11 +37,11 @@ impl OperatorContext {
 /// `export` directive; both use the schema's empty operator. Any other
 /// operator-less definition is a broken tree and must fail loudly.
 ///
-/// The `is_export` half of that allowance is defensive: a directive-only
-/// export never reaches here because [`export_directive_observations`] handles
-/// it and supplies the operator itself. It is retained so that an upstream
-/// change routing some other operator-less export down this path cannot
-/// resurrect the fatal abort this module exists to remove.
+/// The `is_export` half of that allowance is unreachable as the caller is
+/// written: an operator-less export reaching here must also be a `define`,
+/// which the first disjunct already covers. It is retained only so the
+/// function is correct in isolation — an operator-less `export` has a
+/// well-defined answer whatever routes to it — and never as a live guard.
 pub(super) fn assignment_operator(
     operator: Option<&str>,
     context: OperatorContext,
@@ -97,23 +97,32 @@ pub(super) fn export_directive_observations(
 ///
 /// That first name anchors the walk rather than a list of keywords to skip:
 /// the directive keywords upstream consumed are exactly the identifier tokens
-/// preceding it, and a variable may legitimately be called `unexport` or
-/// `export`. Filtering by keyword text instead would silently discard
-/// `export unexport`, which upstream parses cleanly as exporting a variable
-/// named `unexport`. An absent name means upstream could not find one and has
-/// said so with a diagnostic, so the line names nothing.
+/// preceding it, and a variable may legitimately be called `unexport`.
+/// Filtering by keyword text instead would silently discard `export unexport`,
+/// which upstream parses cleanly. Names upstream itself treats as keywords —
+/// `export`, `override` and `define` — remain unrepresentable, because it
+/// reports no name for them at all; the caller turns that into a diagnostic.
+///
+/// The walk assumes the anchor is a direct identifier token of the definition
+/// node, which is how upstream finds it too. Should that ever cease to hold,
+/// the anchor is still reported on its own rather than the line being dropped.
 pub(super) fn directive_names(variable: &VariableDefinition) -> Vec<String> {
     let Some(first_name) = variable.name() else {
         return Vec::new();
     };
-    variable
+    let names: Vec<String> = variable
         .syntax()
         .children_with_tokens()
         .filter_map(rowan::NodeOrToken::into_token)
         .filter(|token| token.kind() == SyntaxKind::IDENTIFIER)
         .map(|token| token.text().to_owned())
         .skip_while(|text| *text != first_name)
-        .collect()
+        .collect();
+    if names.is_empty() {
+        vec![first_name]
+    } else {
+        names
+    }
 }
 
 #[cfg(test)]

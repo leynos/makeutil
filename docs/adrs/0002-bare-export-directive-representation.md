@@ -34,7 +34,10 @@ did.
 A bare `export NAME` directive is reported as an entry in the existing
 `variables` array, using the operator enum's existing empty-string variant,
 with an empty `raw_value`, `exported` true, and `define_block` false. A
-directive naming several variables yields one entry per name.
+directive naming several variables is intended to yield one entry per name, but
+the parser revision pinned when this decision was taken keeps only the first
+name inside the definition node, so such a line yields one entry and a
+`recovered` status until the parser learns the directive list form.
 
 The discriminating predicate for consumers is
 `operator == "" && define_block == false`, which identifies an export directive
@@ -46,15 +49,18 @@ because the empty operator was already in the enum for `define` blocks and no
 new key or enum member is introduced.
 
 A form the parser cannot name — a bare `export` with no names, which means
-"export every variable", or `export define NAME` — yields no entry rather than
-an invented one. The parser already diagnoses these, so the report degrades to
-`recovered` rather than falsely claiming `complete`.
+"export every variable", `export define NAME`, or a name whose text the parser
+treats as one of its own keywords — yields no entry rather than an invented
+one, together with a diagnostic of `makeutil`'s own. The diagnostic is emitted
+rather than relying on the parser to emit one, because the parser does not
+always do so: `override export override` is dropped upstream without any error.
+Without it such a line would leave a report claiming `complete` with the
+construct silently missing, which the honesty rule forbids.
 
 The names on a directive line are read from the definition node's identifier
 tokens, anchored on the name the parser itself reports rather than by skipping
 identifiers whose text matches a directive keyword. A variable may legitimately
-be called `export` or `unexport`, so keyword-text filtering would silently
-discard real facts.
+be called `unexport`, and keyword-text filtering would silently discard it.
 
 `unexport` remains unrepresented and is documented as a known gap.
 
@@ -101,6 +107,11 @@ member is as breaking as a new key.
   test.
 - The representation cannot express "export every variable", so that form is
   reported as an absence plus a diagnostic rather than as a fact.
+- A multi-name `export A B C` is not yet fully modelled: it reports `recovered`
+  with only the first name until the pinned parser keeps the rest.
+- A variable whose name is `export`, `override` or `define` is unrepresentable,
+  because the parser reports no name for such a line. It degrades to a
+  diagnostic rather than a fact.
 
 ### Neutral
 

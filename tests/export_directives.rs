@@ -43,33 +43,62 @@ fn directive<'report>(report: &'report ParseReport, name: &str) -> Option<&'repo
         .find(|variable| variable.name == name && variable.operator == AssignmentOperator::Define)
 }
 
-/// No `export` or `unexport` form may abort the parse.
+/// No `export` or `unexport` form may abort the parse, and none may go missing
+/// from a report that still claims `complete`.
 ///
-/// A form upstream cannot name is dropped rather than invented, so the status
-/// must be `recovered`: reporting `complete` while discarding a construct
-/// would tell a consumer the facts are trustworthy when they are incomplete.
+/// The variable names are asserted alongside the status so that a form which
+/// silently stopped producing its fact could not keep passing. A form the
+/// parser cannot name yields no fact, and the adapter's own diagnostic — not
+/// upstream's, which is not always present — keeps such a report `recovered`.
 #[rstest]
-#[case::single("export FOO\n", ParseStatus::Complete)]
-#[case::multiple("export FOO BAR BAZ\n", ParseStatus::Recovered)]
-#[case::name_less("export\n", ParseStatus::Recovered)]
-#[case::keyword_named_variable("export unexport\n", ParseStatus::Complete)]
-#[case::repeated_keyword_prefix("export export FOO\n", ParseStatus::Complete)]
-#[case::unnameable("export export\n", ParseStatus::Recovered)]
-#[case::overridden("override export FOO\n", ParseStatus::Complete)]
-#[case::exported_define("export define FOO\nbody\nendef\n", ParseStatus::Recovered)]
-#[case::name_less_exported_define("export define\nbody\nendef\n", ParseStatus::Recovered)]
-#[case::assignment("export FOO := bar\n", ParseStatus::Complete)]
-#[case::unexport_single("unexport FOO\n", ParseStatus::Recovered)]
-#[case::unexport_multiple("unexport FOO BAR\n", ParseStatus::Recovered)]
-#[case::unexport_name_less("unexport\n", ParseStatus::Recovered)]
+#[case::single("export FOO\n", ParseStatus::Complete, vec!["FOO"])]
+#[case::multiple("export FOO BAR BAZ\n", ParseStatus::Recovered, vec!["FOO"])]
+#[case::name_less("export\n", ParseStatus::Recovered, Vec::new())]
+#[case::keyword_named_variable("export unexport\n", ParseStatus::Complete, vec!["unexport"])]
+#[case::repeated_keyword_prefix("export export FOO\n", ParseStatus::Complete, vec!["FOO"])]
+#[case::unnameable("export export\n", ParseStatus::Recovered, Vec::new())]
+#[case::overridden("override export FOO\n", ParseStatus::Complete, vec!["FOO"])]
+#[case::undiagnosed_upstream("override export override\n", ParseStatus::Recovered, Vec::new())]
+#[case::exported_define("export define FOO\nbody\nendef\n", ParseStatus::Recovered, Vec::new())]
+#[case::name_less_exported_define(
+    "export define\nbody\nendef\n",
+    ParseStatus::Recovered,
+    Vec::new()
+)]
+#[case::assignment("export FOO := bar\n", ParseStatus::Complete, vec!["FOO"])]
+#[case::unexport_single("unexport FOO\n", ParseStatus::Recovered, Vec::new())]
+#[case::unexport_multiple("unexport FOO BAR\n", ParseStatus::Recovered, Vec::new())]
+#[case::unexport_name_less("unexport\n", ParseStatus::Recovered, Vec::new())]
 fn no_export_form_aborts(
     #[case] source: &str,
     #[case] expected: ParseStatus,
+    #[case] expected_names: Vec<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let report = parse_source(source.as_bytes(), "export.mk", &MakefileLosslessParser)?;
+    let names: Vec<&str> = report
+        .variables
+        .iter()
+        .map(|variable| variable.name.as_str())
+        .collect();
 
-    assert_eq!(report.parse.status, expected);
+    assert_eq!((report.parse.status, names), (expected, expected_names));
+    if expected == ParseStatus::Recovered && report.parse.diagnostics.is_empty() {
+        return Err("a recovered report must explain itself with a diagnostic".into());
+    }
     Ok(())
+}
+
+/// A definition the parser cannot name and that is not an `export` is a broken
+/// tree, not an unrepresentable construct, so it must still fail loudly rather
+/// than being quietly dropped along with the export forms.
+#[rstest]
+fn a_name_less_definition_that_is_not_an_export_still_fails() {
+    let outcome = parse_source(b"define\n", "define.mk", &MakefileLosslessParser);
+
+    assert_eq!(
+        outcome.err().map(|error| error.to_string()),
+        Some("required variable-name accessor was absent".to_owned())
+    );
 }
 
 /// A variable may legitimately be called `unexport`. Deciding directive names
@@ -106,7 +135,13 @@ fn exported_define_block_invents_no_fact() -> Result<(), Box<dyn std::error::Err
         .map(|variable| variable.name.as_str())
         .collect();
 
-    assert_eq!(names, Vec::<&str>::new());
+    assert_eq!(
+        (report.parse.status, names),
+        (ParseStatus::Recovered, Vec::new())
+    );
+    if report.parse.diagnostics.is_empty() {
+        return Err("dropping the block must be explained by a diagnostic".into());
+    }
     Ok(())
 }
 

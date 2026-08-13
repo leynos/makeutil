@@ -187,13 +187,22 @@ fn variable_observation(
     let definition_span = span(variable.syntax().text_range(), source_length)?;
 
     // An export line upstream could not name is unrepresentable rather than
-    // broken: a bare `export` exports everything, and `export define FOO` is
-    // modelled with no name at all. Upstream diagnoses both, so yielding no
-    // facts leaves the report honestly recovered instead of aborting the whole
-    // file. A name-less definition that is not an export is still a broken
-    // tree and keeps failing loudly below.
+    // broken: a bare `export` exports everything, `export define FOO` is
+    // modelled with no name at all, and upstream refuses any name whose text
+    // is one of its own directive keywords. Aborting the whole file over it
+    // would be disproportionate, but dropping it silently would let the report
+    // claim `complete` while a construct went missing. Emitting a diagnostic
+    // here rather than relying on upstream to emit one keeps the report
+    // `recovered` whatever upstream does — `override export override` is
+    // dropped by upstream without any error of its own. A name-less definition
+    // that is not an export is still a broken tree and keeps failing loudly
+    // below.
     if context.is_export && variable.name().is_none() {
-        return Ok(Vec::new());
+        return Ok(vec![SyntaxObservation::Diagnostic {
+            message: "export directive names could not be determined".to_owned(),
+            code: None,
+            span: definition_span,
+        }]);
     }
 
     if operator.is_none() && context.is_directive_only() {

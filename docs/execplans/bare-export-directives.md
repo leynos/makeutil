@@ -158,9 +158,12 @@ around it.
 - [x] Stage F: `unexport` behaviour pinned by regression test
       (`unexport_directive_degrades_honestly` in `tests/corpus.rs`) and
       documented as a known limitation in `docs/users-guide.md`.
-- [x] Stage G: consumer-facing note added as §6.6.2 of `docs/design.md`. It
-      records the behaviour change rather than a new parser revision to pin,
-      because Stage E did not run.
+- [x] Stage G: consumer-facing note added as §6.6.2 of `docs/design.md`. Two
+      deviations: it records the behaviour change rather than a new parser
+      revision to pin, because Stage E did not run; and it names the merge of
+      this branch rather than the merge commit SHA the plan asks for, which is
+      unknowable before the merge happens. Whoever merges should substitute the
+      SHA, or accept the branch reference as sufficient.
 
 ## Surprises & discoveries
 
@@ -227,6 +230,25 @@ Recorded during investigation, before implementation began.
   no name. Impact: gating the no-facts path on "export and not define" left
   this form aborting with exit code 2. The plan's Stage C wording did not
   anticipate the two modifiers co-occurring.
+- Observation (second stage review): upstream does not diagnose every export
+  line it fails to name. Evidence: `override export override` parses with no
+  errors at all and `name() = None`, because upstream's own `name()` accessor
+  refuses any identifier whose text is `export`, `override` or `define`.
+  Impact: the first fix for the name-less case returned no observations and
+  trusted upstream to supply the diagnostic, so this input produced a
+  `complete` report with the whole line silently missing — the same honesty
+  breach the previous review had found in a different shape. The adapter now
+  emits its own diagnostic, so the guarantee no longer depends on upstream's
+  behaviour. This is the second time trusting an upstream invariant produced a
+  false `complete`; prefer guarantees the adapter can enforce itself.
+- Observation (second stage review): `override define FOO ... endef` still
+  aborts with exit code 2 and the `variable-name` message, losing the whole
+  file exactly as bare exports used to. Evidence: reproduced against the built
+  binary. It is a documented GNU Make construct and is not an `export` form, so
+  it is outside this plan's scope and was left alone rather than fixed
+  opportunistically. Impact: undiscovered work. Like the target-specific export
+  defect below, it deserves its own plan, and the two would sensibly be planned
+  together as "definition forms that still abort".
 - Observation: a target-specific export is silently modelled wrongly and, unlike
   the cases above, reports `complete`. Evidence: `foo: export BAR := baz\n`
   parses with `"status": "complete"` and a single rule whose prerequisites are
@@ -332,6 +354,28 @@ Recorded during investigation, before implementation began.
   fails loudly, so genuinely broken trees are not masked. Date/Author:
   2026-08-13, implementer, after stage review.
 
+- Decision: an export line the parser cannot name yields a diagnostic of
+  `makeutil`'s own rather than relying on upstream to have emitted one.
+  Rationale: the second stage review showed upstream drops
+  `override export override` without any error, so trusting it produced a
+  `complete` report with the line missing. Emitting the diagnostic in the
+  adapter makes the honesty guarantee independent of upstream. The cost is a
+  second diagnostic on inputs upstream does diagnose, such as a bare `export`,
+  which is noise rather than inaccuracy: both diagnostics are true and the
+  status is `recovered` either way. Date/Author: 2026-08-13, implementer, after
+  second stage review.
+
+- Decision (review finding retained rather than fixed): the
+  `|| context.is_export` arm of `assignment_operator` stays, although review
+  showed it is unreachable by construction — reaching it with an absent
+  operator requires `is_define`, which the first disjunct already covers.
+  Rationale: the plan's `Interfaces and dependencies` section specifies this
+  arm, and it keeps the function correct in isolation rather than only correct
+  given its single caller. The doc comment previously claimed it was a live
+  guard against upstream change, which was untrue; it now states plainly that
+  it is unreachable as the caller is written. Date/Author: 2026-08-13,
+  implementer, after second stage review.
+
 - Decision (review nit declined): the extracted module keeps the name
   `makefile_export.rs` rather than being renamed to `makefile_variable.rs`.
   Rationale: review observed correctly that the module also owns the generic
@@ -397,21 +441,34 @@ byte-identical to their pre-change state, as is
 `schemas/makeutil.parse.v1.schema.json`.
 
 Did the `variables`-reuse representation cause confusion in review? Not the
-representation itself, which review accepted. What review did catch were two
-defects in how the directive was recognized, both recorded in the
-`Decision Log`: identifying directive keywords by token text silently discarded
-`export unexport`, and gating the no-facts path on "export and not define" left
-`export define FOO` aborting with exit code 2. Both breached the plan's own
-constraints while every gate passed, which is the lesson worth keeping: the
-fixture set was drawn from the plan's enumerated forms, and it took an
-adversarial reading of the *implementation* — not of the plan — to find inputs
-the plan had not imagined. The corrected implementation anchors on the name
-upstream reports rather than on a keyword list, and every export and unexport
-form is now pinned by a parameterized status test.
+representation itself, which review accepted twice. What review caught were
+three defects in how the directive was recognized, all recorded in the
+`Decision Log`. Identifying directive keywords by token text silently discarded
+`export unexport`. Gating the no-facts path on "export and not define" left
+`export define FOO` aborting with exit code 2. Trusting upstream to diagnose
+every line it could not name produced a `complete` report with
+`override export override` missing entirely.
 
-A further honesty defect was observed and deliberately left alone:
+Each breached the plan's own honesty or never-abort constraint while every gate
+passed, and each was found by an adversarial reading of the *implementation*
+rather than of the plan: the fixtures were drawn from the forms the plan
+enumerated, so they could not catch inputs the plan had not imagined. The
+recurring root cause is worth carrying forward — twice the implementation
+leaned on an assumption about upstream behaviour, and both times the assumption
+was false for some input. A guarantee the adapter enforces itself is worth more
+than one inherited from a dependency.
+
+The corrected implementation anchors on the name upstream reports rather than
+on a keyword list, and emits its own diagnostic whenever an export line yields
+no facts. Fourteen export and unexport forms are pinned by a parameterized test
+asserting status and variable names together, so a form that stopped producing
+its fact could not keep passing.
+
+Two further defects were observed and deliberately left alone, both outside
+this plan's scope and both deserving their own plan, ideally a shared one:
 `foo: export BAR := baz` reports `complete` with prerequisites
-`["export", "BAR", ":=", "baz"]`. It deserves its own plan.
+`["export", "BAR", ":=", "baz"]`, and `override define FOO ... endef` still
+aborts with exit code 2, losing the whole file.
 
 ## Context and orientation
 

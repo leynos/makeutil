@@ -83,8 +83,10 @@ assignment: it reports its real operator and its value, with `exported` set to
 
 A bare `export` with no names at all means "export every variable", which
 schema version 1 cannot express. Such a line produces no entry rather than an
-invented one, and the report is `recovered`. The same holds for
-`export define NAME`, which the pinned parser does not name.
+invented one, a diagnostic explains the omission, and the report is
+`recovered`. The same holds for `export define NAME`, and for a line exporting
+a variable whose name is itself `export`, `override` or `define`, none of which
+the pinned parser names.
 
 ### `unexport` is not yet supported
 

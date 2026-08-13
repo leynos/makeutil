@@ -331,14 +331,18 @@ A directive naming several variables is intended to yield one entry per name,
 but the pinned parser revision keeps only the first name inside the definition
 node and discards the rest, so such a line currently yields one entry and a
 `recovered` status. Completing it needs a parser change, not a `makeutil` one.
-A form the parser cannot name at all — a bare `export`, or
-`export define NAME` — yields no entry rather than an invented one, and the
-upstream diagnostic keeps the report `recovered` rather than falsely `complete`.
+A form the parser cannot name at all — a bare `export`, `export define NAME`,
+or a name whose text the parser treats as one of its own keywords — yields no
+entry rather than an invented one, together with a diagnostic that keeps the
+report `recovered` rather than falsely `complete`. That diagnostic is
+`makeutil`'s own rather than the parser's, because the parser does not always
+emit one: `override export override` is dropped upstream silently.
 
 The names on a directive line are read from the definition node's identifier
 tokens, anchored on the name the parser itself reports. Keyword text cannot be
 used to skip the directive prefix, because a variable may legitimately be called
-`export` or `unexport`.
+`unexport`. Names the parser itself treats as keywords — `export`, `override`
+and `define` — remain unrepresentable, because it reports no name for them.
 
 The alternative — a new top-level `exports` array — is more honest but the
 schema sets `"additionalProperties": false` at every level, so it would be a
