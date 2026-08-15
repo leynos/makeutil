@@ -1,18 +1,20 @@
 //! Report-shape regressions for GNU Make's `export` directive family.
 //!
-//! A bare `export NAME` names a variable assigned elsewhere, so it carries no
-//! assignment operator. Schema version 1 has no dedicated representation for
-//! such a directive, so these tests pin the chosen one — an entry in
-//! `variables` with the empty operator — and pin the never-abort guarantee for
-//! every form the parser cannot represent faithfully.
+//! A bare `export NAME` names a variable without assigning a value on that
+//! line, so it carries no assignment operator. Schema version 1 has no
+//! dedicated representation for such a directive, so these tests pin the
+//! chosen one — an entry in `variables` with the empty operator — and pin the
+//! never-abort guarantee for every form the parser cannot represent faithfully.
 
+use makefile_lossless::{Makefile, Parse};
 use makeutil::{
     ParseApplicationError,
     adapters::MakefileLosslessParser,
-    domain::{AssignmentOperator, ParseReport, ParseStatus, VariableFact},
+    domain::{AssignmentOperator, ParseReport, ParseStatus, SourceLocation, VariableFact},
     parse_source,
 };
 use pretty_assertions::assert_eq;
+use proptest::{prelude::*, test_runner::TestCaseError};
 use rstest::{fixture, rstest};
 
 #[fixture]
@@ -51,38 +53,49 @@ fn directive<'report>(report: &'report ParseReport, name: &str) -> Option<&'repo
 /// parser cannot name yields no fact, and the adapter's own diagnostic — not
 /// upstream's, which is not always present — keeps such a report `recovered`.
 #[rstest]
-#[case::single("export FOO\n", ParseStatus::Complete, vec!["FOO"])]
-#[case::multiple("export FOO BAR BAZ\n", ParseStatus::Complete, vec!["FOO", "BAR", "BAZ"])]
-#[case::continued("export FOO \\\n\tBAR\n", ParseStatus::Complete, vec!["FOO", "BAR"])]
-#[case::name_less("export\n", ParseStatus::Recovered, Vec::new())]
-#[case::keyword_named_variable("export unexport\n", ParseStatus::Complete, vec!["unexport"])]
-// GNU Make exports both names on these two lines. The parser's name accessor
-// refuses `export` and `override` as names, so only the ordinary one is
-// reported and the status stays `complete` — a known silent omission,
-// documented in ADR-0002 and pinned here so it stays visible.
-#[case::repeated_keyword_prefix("export export FOO\n", ParseStatus::Complete, vec!["FOO"])]
-#[case::override_named_variable("export override FOO\n", ParseStatus::Complete, vec!["FOO"])]
-#[case::unnameable("export export\n", ParseStatus::Recovered, Vec::new())]
+#[case::single("export FOO\n", ParseStatus::Complete, vec!["FOO"], None)]
+#[case::multiple("export FOO BAR BAZ\n", ParseStatus::Complete, vec!["FOO", "BAR", "BAZ"], None)]
+#[case::continued("export FOO \\\n\tBAR\n", ParseStatus::Complete, vec!["FOO", "BAR"], None)]
+#[case::name_less("export\n", ParseStatus::Recovered, Vec::new(), Some((0, 7)))]
+#[case::keyword_named_variable("export unexport\n", ParseStatus::Complete, vec!["unexport"], None)]
+// Upstream cannot represent the first exported name when it matches one of
+// its directive keywords. Retain every later name it can identify, but mark
+// the omitted name with a located recovery diagnostic.
+#[case::repeated_keyword_prefix("export export FOO\n", ParseStatus::Recovered, vec!["FOO"], Some((0, 18)))]
+#[case::override_named_variable("export override FOO\n", ParseStatus::Recovered, vec!["FOO"], Some((0, 20)))]
+#[case::unnameable("export export\n", ParseStatus::Recovered, Vec::new(), Some((0, 14)))]
 // GNU Make actually rejects `override export FOO` with "missing separator".
 // The parser accepts the single-name form, which predates this work and is
 // left alone; only the multi-name form was in scope. Pinned as it behaves.
-#[case::overridden("override export FOO\n", ParseStatus::Complete, vec!["FOO"])]
-#[case::overridden_list("override export FOO BAR\n", ParseStatus::Recovered, vec!["FOO"])]
-#[case::undiagnosed_upstream("override export override\n", ParseStatus::Recovered, Vec::new())]
-#[case::exported_define("export define FOO\nbody\nendef\n", ParseStatus::Recovered, Vec::new())]
+#[case::overridden("override export FOO\n", ParseStatus::Complete, vec!["FOO"], None)]
+#[case::overridden_list("override export FOO BAR\n", ParseStatus::Recovered, vec!["FOO"], None)]
+#[case::undiagnosed_upstream(
+    "override export override\n",
+    ParseStatus::Recovered,
+    Vec::new(),
+    None
+)]
+#[case::exported_define(
+    "export define FOO\nbody\nendef\n",
+    ParseStatus::Recovered,
+    Vec::new(),
+    None
+)]
 #[case::name_less_exported_define(
     "export define\nbody\nendef\n",
     ParseStatus::Recovered,
-    Vec::new()
+    Vec::new(),
+    None
 )]
-#[case::assignment("export FOO := bar\n", ParseStatus::Complete, vec!["FOO"])]
-#[case::unexport_single("unexport FOO\n", ParseStatus::Recovered, Vec::new())]
-#[case::unexport_multiple("unexport FOO BAR\n", ParseStatus::Recovered, Vec::new())]
-#[case::unexport_name_less("unexport\n", ParseStatus::Recovered, Vec::new())]
+#[case::assignment("export FOO := bar\n", ParseStatus::Complete, vec!["FOO"], None)]
+#[case::unexport_single("unexport FOO\n", ParseStatus::Recovered, Vec::new(), None)]
+#[case::unexport_multiple("unexport FOO BAR\n", ParseStatus::Recovered, Vec::new(), None)]
+#[case::unexport_name_less("unexport\n", ParseStatus::Recovered, Vec::new(), None)]
 fn no_export_form_aborts(
     #[case] source: &str,
     #[case] expected: ParseStatus,
     #[case] expected_names: Vec<&str>,
+    #[case] expected_diagnostic_span: Option<(usize, usize)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let report = parse_source(source.as_bytes(), "export.mk", &MakefileLosslessParser)?;
     let names: Vec<&str> = report
@@ -94,6 +107,24 @@ fn no_export_form_aborts(
     assert_eq!((report.parse.status, names), (expected, expected_names));
     if expected == ParseStatus::Recovered && report.parse.diagnostics.is_empty() {
         return Err("a recovered report must explain itself with a diagnostic".into());
+    }
+    if let Some((start_byte, end_byte)) = expected_diagnostic_span {
+        let expected_location = SourceLocation {
+            start_byte,
+            end_byte,
+            start_line: 1,
+            start_column: 1,
+            end_line: 2,
+            end_column: 1,
+        };
+        if !report
+            .parse
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.location == expected_location)
+        {
+            return Err("the recovered diagnostic must cover the complete directive line".into());
+        }
     }
     Ok(())
 }
@@ -233,7 +264,7 @@ fn multi_name_export_is_complete() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(report.parse.status, ParseStatus::Complete);
     assert_eq!(report.parse.diagnostics, Vec::new());
 
-    let mut spans = Vec::new();
+    let expected_span = (120, 186);
     for name in [
         "MOLD_VERSION_FILE",
         "MOLD_SHA256SUMS_FILE",
@@ -251,13 +282,57 @@ fn multi_name_export_is_complete() -> Result<(), Box<dyn std::error::Error>> {
             (true, false, false, ""),
             "{name} must be an exported, valueless directive",
         );
-        spans.push((fact.location.start_byte, fact.location.end_byte));
+        assert_eq!(
+            (fact.location.start_byte, fact.location.end_byte),
+            expected_span,
+            "{name} must use the directive line's full span",
+        );
     }
-
-    // Every name on one directive line shares that line's span, because the
-    // directive is the only source range any of them has.
-    assert_eq!(spans.first(), spans.last());
     Ok(())
+}
+
+proptest! {
+    /// Every valid name on a bare export becomes one ordered directive fact.
+    #[test]
+    fn multi_name_bare_export_preserves_facts_and_source(
+        names in proptest::collection::vec("[A-Z][A-Z0-9_]{0,12}", 1..12),
+    ) {
+        let source = format!("export {}\n", names.join(" "));
+        let parsed = Parse::<Makefile>::parse_makefile(&source);
+        prop_assert_eq!(parsed.tree().to_string(), source.as_str());
+
+        let report = parse_source(
+            source.as_bytes(),
+            "generated-export.mk",
+            &MakefileLosslessParser,
+        )
+        .map_err(|error| TestCaseError::fail(error.to_string()))?;
+        let facts = report
+            .variables
+            .iter()
+            .filter(|variable| variable.operator == AssignmentOperator::Define)
+            .collect::<Vec<_>>();
+        let observed_names = facts
+            .iter()
+            .map(|variable| variable.name.clone())
+            .collect::<Vec<_>>();
+        let expected_span = (0, source.len());
+
+        prop_assert_eq!(report.parse.status, ParseStatus::Complete);
+        prop_assert!(report.parse.diagnostics.is_empty());
+        prop_assert_eq!(facts.len(), names.len());
+        prop_assert_eq!(observed_names.as_slice(), names.as_slice());
+        for fact in facts {
+            prop_assert_eq!(fact.raw_value.as_str(), "");
+            prop_assert!(fact.exported);
+            prop_assert!(!fact.overridden);
+            prop_assert!(!fact.define_block);
+            prop_assert_eq!(
+                (fact.location.start_byte, fact.location.end_byte),
+                expected_span,
+            );
+        }
+    }
 }
 
 #[rstest]

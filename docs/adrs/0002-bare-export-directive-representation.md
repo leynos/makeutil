@@ -2,9 +2,13 @@
 
 ## Status
 
-Accepted on 2026-08-13
+Accepted
 
-## Context
+## Date
+
+2026-08-13
+
+## Context and Problem Statement
 
 GNU Make's `export` keyword serves two roles. It can modify a definition, as in
 `export FOO := bar`, or stand alone as a directive naming variables assigned
@@ -110,15 +114,9 @@ member is as breaking as a new key.
   confined to `makeutil` after all. The published `parser_version` is
   unaffected.
 - A variable whose name is `export`, `override` or `define` is unrepresentable,
-  because the parser's name accessor skips those texts. When such a name is the
-  only one on the line, as in `export export`, no fact is produced and the
-  report is `recovered`. When it is mixed with a nameable one, as in
-  `export export FOO` or `export override FOO`, GNU Make exports both but the
-  report names only `FOO` and still says `complete` — a silent omission, and a
-  known departure from the honesty rule above. Correcting it means changing
-  what the parser's `name()` accessor considers a name, which is a breaking
-  change for every consumer of that crate and is deliberately not attempted
-  here.
+  because the parser's name accessor skips those texts. The adapter preserves
+  every nameable fact and emits a recoverable diagnostic for the omitted name,
+  so a report never claims `complete` while silently omitting that form.
 
 ### Neutral
 

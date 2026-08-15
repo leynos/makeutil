@@ -74,7 +74,7 @@ pub(super) fn export_directive_observations(
     conditions: &[ConditionObservation],
     definition_span: SourceSpan,
 ) -> Vec<SyntaxObservation> {
-    directive_names(variable)
+    let mut observations = directive_names(variable)
         .into_iter()
         .map(|name| SyntaxObservation::Variable {
             name,
@@ -86,7 +86,43 @@ pub(super) fn export_directive_observations(
             conditions: conditions.to_vec(),
             span: definition_span,
         })
-        .collect()
+        .collect::<Vec<_>>();
+    if has_unrepresentable_name_before_anchor(variable) {
+        observations.push(SyntaxObservation::Diagnostic {
+            message: "some export directive names could not be represented".to_owned(),
+            code: None,
+            span: definition_span,
+        });
+    }
+    observations
+}
+
+/// Whether a bare export starts with a name that upstream omits before its
+/// first usable name.
+///
+/// Upstream treats `export`, `override`, and `define` as directive keywords
+/// when choosing `VariableDefinition::name()`. On `export export FOO` and
+/// `export override FOO`, the second identifier is actually an exported name
+/// but is omitted before the `FOO` anchor. The fact cannot be represented in
+/// schema version 1, so the caller must mark the otherwise usable facts as
+/// recovered rather than silently reporting a complete parse.
+fn has_unrepresentable_name_before_anchor(variable: &VariableDefinition) -> bool {
+    let Some(first_name) = variable.name() else {
+        return false;
+    };
+    let mut identifiers = variable
+        .syntax()
+        .children_with_tokens()
+        .filter_map(rowan::NodeOrToken::into_token)
+        .filter(|token| token.kind() == SyntaxKind::IDENTIFIER)
+        .map(|token| token.text().to_owned());
+    if identifiers.next().as_deref() != Some("export") {
+        return false;
+    }
+    identifiers
+        .take_while(|name| name != &first_name)
+        .next()
+        .is_some()
 }
 
 /// Collect every identifier a directive-only `export` line names.

@@ -62,6 +62,20 @@ apart by the `define_block` flag. Extend the enum only through a
 schema-versioned contract decision, and do not pass upstream operator strings
 beyond the adapter.
 
+The private `makefile_export` helpers own translation of operator-less export
+definitions into variable observations. Before extraction, a repository sweep
+found no equivalent directive-expansion helper: `variable_observation` was the
+sole variable translator and produced one observation. In production,
+`variable_observation` is the only permitted caller of `assignment_operator` and
+`export_directive_observations`; `export_directive_observations` alone may call
+`directive_names`. Focused unit tests may exercise each helper directly.
+Compose the helpers only while translating one upstream `VariableDefinition`:
+use `assignment_operator` for ordinary variable facts, and use
+`export_directive_observations` only for an operator-less export so it can emit
+zero or more directive facts with the shared directive span. They are
+adapter-private mechanics, not domain ports, general directive parsers, or
+reusable CST walkers.
+
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent
 and ignore-error accessors are sensitive to modifier order. It may be called

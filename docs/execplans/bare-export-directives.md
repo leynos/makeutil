@@ -45,7 +45,7 @@ exit=0
 ```
 
 The report must show `"status": "complete"` with an empty `diagnostics` array,
-and `variables` must contain five entries: the two assignments and the three
+and `variables` must contain four entries: the two assignments and the two
 directive facts described below.
 
 ## Constraints
@@ -81,7 +81,7 @@ around it.
   Re-pinning is their responsibility and is out of scope here.
 - `make provenance` is a commit gate that rejects certain operator-specific and
   owner-qualified strings appearing anywhere outside the `Makefile` itself. Do
-  not paste absolute filesystem paths from your working environment, nor
+  not paste absolute filesystem paths from the working environment, nor
   fully-qualified forge URLs for the parser fork, into any Markdown or Rust
   file. Use repository-relative paths and bare revision hashes. If the gate
   fails, read the `provenance` target in `Makefile` to see exactly what it
@@ -639,8 +639,8 @@ line makes `VariableDefinition::name()` return `None`, so
 ### Verified current behaviour of every export form
 
 The following were measured against the current default-branch build. Reproduce
-them yourself in Stage A. "Exit 2" means the fatal `parse-internal` path; exit
-1 means a `recovered` report was still printed; exit 0 means `complete`.
+them in Stage A. "Exit 2" means the fatal `parse-internal` path; exit 1 means a
+`recovered` report was still printed; exit 0 means `complete`.
 
 - `export FOO` — exit 2,
   `required variable-assignment-operator accessor was absent`. Upstream tree is
@@ -720,12 +720,12 @@ columns.
 
 ### Stage A: reproduce and orient (no code changes)
 
-Confirm the defect on your own working tree before changing anything, so you
-know the baseline is what this plan describes. Build the binary and run it over
-each form listed under "Verified current behaviour of every export form" above,
-checking the exit code and message of each. Record any divergence from the
-table in `Surprises & Discoveries` before proceeding — a divergence means the
-upstream pin has moved and the rest of this plan needs re-checking.
+Confirm the defect in the working tree before changing anything, so the
+baseline matches this plan. Build the binary and run it over each form listed
+under "Verified current behaviour of every export form" above, checking the
+exit code and message of each. Record any divergence from the table in
+`Surprises & Discoveries` before proceeding — a divergence means the upstream
+pin has moved and the rest of this plan needs re-checking.
 
 Go/no-go: proceed only if `export FOO` exits 2 with the
 `variable-assignment-operator` message.
@@ -953,7 +953,7 @@ numbering and style of `docs/adrs/0001-single-file-gnu-make-parse.md` and
 reference it from the design document, as `AGENTS.md` requires.
 
 Refresh the `insta` snapshots if and only if a snapshot legitimately changed.
-Do not accept a snapshot change you cannot explain — an unexplained diff in
+Do not accept a snapshot change without an explanation — an unexplained diff in
 `tests/snapshots/report_schema__all_fact_variants_have_stable_json.snap` means
 Stage C altered behaviour for inputs it should not have touched.
 
@@ -1268,11 +1268,9 @@ exit=0
 ```
 
 `variables` holds four entries for that input: the two assignments and one
-directive fact per exported name. The plan's prose asks for five entries and
-three directive facts, which belongs to the three-name example in
-`Purpose / big picture` rather than to this two-name command. The three-name
-fixture does produce six entries — three assignments and three directives — with
-`complete` status and no diagnostics.
+directive fact per exported name. The three-name fixture produces six entries —
+three assignments and three directives — with `complete` status and no
+diagnostics.
 
 Final gate run, all sequential and all passing: `make check-fmt`, `make lint`
 (including the `whitaker` driver), `make typecheck`, `make test`, and
@@ -1358,7 +1356,14 @@ Expected JSON shape for a bare export fact after Stage C, abbreviated:
   "overridden": false,
   "define_block": false,
   "conditions": [],
-  "location": { "start_byte": 0, "end_byte": 0, "start_line": 1, "start_column": 1, "end_line": 1, "end_column": 1 }
+  "location": {
+    "start_byte": 0,
+    "end_byte": 0,
+    "start_line": 1,
+    "start_column": 1,
+    "end_line": 1,
+    "end_column": 1
+  }
 }
 ```
 

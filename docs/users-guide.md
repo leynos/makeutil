@@ -59,15 +59,15 @@ Recovered reports are insufficient proof that a Makefile is compliant.
 
 ### Bare `export` directives
 
-A bare `export NAME` directive names a variable assigned elsewhere, so it
-carries no assignment operator and no value. Such a directive appears in the
-`variables` array with `operator` set to the empty string, `raw_value` set to
-the empty string, `exported` set to `true`, and `define_block` set to `false`.
-A consumer that wants only genuine assignments should therefore filter on a
-non-empty `operator`; the predicate `operator == "" && define_block == false`
-identifies a bare export directive rather than an assignment. A name may appear
-twice, once for its assignment and once for the directive that exports it, so
-the operator rather than the name distinguishes the two.
+A bare `export NAME` directive names a variable without assigning a value on
+that line. Such a directive appears in the `variables` array with `operator`
+set to the empty string, `raw_value` set to the empty string, `exported` set to
+`true`, and `define_block` set to `false`. A consumer that wants only genuine
+assignments should therefore filter on a non-empty `operator`; the predicate
+`operator == "" && define_block == false` identifies a bare export directive
+rather than an assignment. A name may appear twice, once for its assignment and
+once for the directive that exports it, so the operator rather than the name
+distinguishes the two.
 
 A directive naming several variables, such as `export A B C`, yields one entry
 per name and reports `complete`. The names may be spread across a line
@@ -88,10 +88,10 @@ the parser names.
 `override export NAME` is reported as an ordinary export directive, although
 GNU Make itself rejects that combination. Its multi-name form is `recovered`.
 
-A directive that exports a variable named `export`, `override` or `define`
-alongside an ordinary one, such as `export export FOO`, reports only the
-ordinary name and still says `complete`. GNU Make exports both. Treat such a
-line as under-reported; it is a known gap.
+A directive whose exported names include `export`, `override` or `define`, such
+as `export export FOO`, retains every nameable fact and reports `recovered`
+with a diagnostic. This prevents the report from claiming `complete` while
+omitting a name the parser cannot represent.
 
 ### `unexport` is not yet supported
 
