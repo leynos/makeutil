@@ -67,8 +67,8 @@ pub(super) fn assignment_operator(
 /// Expand a directive-only `export` line into one valueless fact per name.
 ///
 /// A name-less `export` exports every variable, which schema version 1 cannot
-/// express, so it yields no facts and upstream's own diagnostic drives the
-/// recovered status.
+/// express. `variable_observation` emits the recovery diagnostic before this
+/// helper runs, so this helper only expands directives with a nameable fact.
 pub(super) fn export_directive_observations(
     variable: &VariableDefinition,
     conditions: &[ConditionObservation],

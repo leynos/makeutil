@@ -67,6 +67,10 @@ fn bare_export_path_emits_export_facts(mut makeutil_command: Command) {
             variable.get("operator") == Some(&serde_json::Value::String(String::new()))
                 && variable.get("exported") == Some(&serde_json::Value::Bool(true))
                 && variable.get("define_block") == Some(&serde_json::Value::Bool(false))
+                && variable
+                    .get("raw_value")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("")
         })
         .filter_map(|variable| variable.get("name").and_then(serde_json::Value::as_str))
         .collect::<Vec<_>>();

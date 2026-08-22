@@ -379,8 +379,9 @@ the merge of the `bare-export-directives` work should know that:
   fact in the file; it now appears in `variables` with an empty `operator`.
 - Reports may therefore contain more `variables` entries than before, and a
   name may appear twice — once for its assignment and once for the directive
-  that exports it. Filter on a non-empty `operator` to recover the previous
-  "assignments only" view.
+  that exports it. Identify bare-export facts with
+  `operator == "" && define_block == false`; do not use a non-empty `operator`
+  filter, because `define` blocks also serialize with an empty operator.
 - `unexport` remains unsupported and still reports a misleading rule with a
   `recovered` status.
 - A multi-name `export A B C` reports `complete` with one entry per name. This

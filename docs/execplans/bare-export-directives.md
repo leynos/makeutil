@@ -535,15 +535,21 @@ with exit code 2, losing the whole file; `override export FOO` in its
 single-name form parses `complete` although GNU Make rejects it;
 `export define FOO ... endef` is valid GNU Make that the parser still does not
 model, though it now degrades honestly rather than aborting; and
-`export export FOO` or `export override FOO` reports only `FOO` with a
-`complete` status where GNU Make exports both names.
+`export export FOO` or `export override FOO` retains `FOO` but reports
+`recovered` with a diagnostic, while GNU Make exports both names.
 
-That last one is the only known surviving breach of the honesty rule, and it is
-worth stating plainly rather than burying: the omission is silent. It is
-pre-existing, unchanged by this work, and pinned by `no_export_form_aborts` so
-it stays visible. Closing it means redefining what the parser's `name()`
+Those are the two honesty-rule breaches identified during this work, and they
+are worth stating plainly rather than burying. The target-specific form remains
+a surviving breach: it is reported as `complete` while being modelled as a
+misleading rule. The keyword-prefixed forms were the second breach: the
+baseline implementation silently omitted the keyword-named export while
+reporting `complete`. The current adapter retains the later `FOO` fact and
+reports `recovered` with a diagnostic, but the keyword-named fact remains
+unrepresentable; this recovery path is pinned by `no_export_form_aborts`.
+Closing that remaining omission means redefining what the parser's `name()`
 accessor treats as a name, which is a breaking change for every consumer of
 that crate and needs its own decision, not a quiet fix appended to this plan.
+The target-specific form likewise requires a separate plan.
 
 ## Context and orientation
 

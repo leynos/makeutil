@@ -131,8 +131,8 @@ member is as breaking as a new key.
    file is present.
 2. No form of `export` or `unexport` produces a `parse-internal` message or
    exit code 2.
-3. Bare export directives are distinguishable from assignments by the
-   `operator` field alone.
+3. Bare export directives are distinguishable from assignments by
+   `operator == "" && define_block == false`.
 4. `schemas/makeutil.parse.v1.schema.json` is unchanged and every new fixture's
    report validates against it.
 5. An operator-less definition that is neither a `define` nor an `export` still
