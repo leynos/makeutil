@@ -1229,7 +1229,7 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 [[package]]
 name = "makefile-lossless"
 version = "0.3.40"
-source = "git+https://github.com/leynos/makefile-lossless.git?rev=8dd35801b75b332c2ac2f995ae398ef8238559fa#8dd35801b75b332c2ac2f995ae398ef8238559fa"
+source = "git+https://github.com/leynos/makefile-lossless.git?rev=2ae7134beb04416851ab18c8a5d5893348fbe26c#2ae7134beb04416851ab18c8a5d5893348fbe26c"
 dependencies = [
  "log",
  "rowan",

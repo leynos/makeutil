@@ -77,10 +77,13 @@ rewriting, and bindings remain later decisions.
 The implementation uses
 [`makefile-lossless`](https://github.com/jelmer/makefile-lossless), initially
 pinned to `=0.3.40`. A temporary `[patch.crates-io]` override selects commit
-`8dd35801b75b332c2ac2f995ae398ef8238559fa` from a project-maintained fork
-because release 0.3.40 does not lex the documented GNU Make `!=` assignment
-operator. Remove the override when an upstream release containing the fix is
-adopted; do not replace the immutable commit with a branch name.
+`2ae7134beb04416851ab18c8a5d5893348fbe26c` from a project-maintained fork,
+which carries two fixes absent from release 0.3.40: lexing the documented GNU
+Make `!=` assignment operator, and retaining every name of a multi-name
+`export A B C` directive within the definition node. Remove the override when
+an upstream release containing both is adopted; do not replace the immutable
+commit with a branch name. The published version string stays `0.3.40`, so
+`parser_version` is unaffected by a revision bump.
 
 The crate supplies:
 
@@ -314,9 +317,79 @@ for the first bounded rules.
 ```
 
 The schema-v1 operator set is closed: `""`, `"="`, `":="`, `"::="`, `":::="`,
-`"+="`, `"?="`, and `"!="`. The empty string means a `define` block without an
-assignment token. The operator remains source-faithful; the first slice does
-not calculate the effective value or precedence.
+`"+="`, `"?="`, and `"!="`. The empty string means a definition without an
+assignment token: either a `define` block or a bare `export` directive. The
+operator remains source-faithful; the first slice does not calculate the
+effective value or precedence.
+
+#### 6.6.1. Bare `export` directives
+
+A bare `export NAME` names a variable assigned elsewhere and carries no
+operator and no value. It is represented as an entry in `variables` with the
+empty operator, an empty `raw_value`, `exported` true, and `define_block`
+false. The discriminating predicate for consumers is
+`operator == "" && define_block == false`.
+
+A directive naming several variables yields one entry per name, sharing the
+span of the whole directive. This needed a parser change: the previously pinned
+revision trapped the second name in an error node and pushed the rest out of
+the definition node entirely, so `makeutil` could not recover them. A form the
+parser cannot name at all — a bare `export`, `export define NAME`, or a name
+whose text the parser treats as one of its own keywords — yields no entry
+rather than an invented one, together with a diagnostic that keeps the report
+`recovered` rather than falsely `complete`. That diagnostic is `makeutil`'s own
+rather than the parser's, because the parser does not always emit one:
+`override export override` is dropped upstream silently.
+
+The names on a directive line are read from the definition node's identifier
+tokens, anchored on the name the parser itself reports. Keyword text cannot be
+used to skip the directive prefix, because a variable may legitimately be called
+`unexport`. Names the parser itself treats as keywords — `export`, `override`
+and `define` — remain unrepresentable, because it reports no name for them. For
+a line such as `export export FOO`, the adapter retains the nameable `FOO` fact
+and reports `recovered` with a diagnostic for the omitted name. That keeps the
+report honest without redefining what the parser considers a name.
+
+The alternative — a new top-level `exports` array — is more honest but the
+schema sets `"additionalProperties": false` at every level, so it would be a
+breaking change requiring schema version 2 and a coordinated re-pin by every
+consumer. Recording the directive only as a diagnostic was also rejected,
+because consumers fail closed on any status other than `complete` and every
+Makefile with a bare export would remain effectively unparsable. The accepted
+cost is conflation: a consumer treating every entry in `variables` as an
+assignment sees extra entries for export directives. See
+[ADR-0002](adrs/0002-bare-export-directive-representation.md) for the full
+decision and
+[the bare export execution plan](execplans/bare-export-directives.md) for the
+delivery record.
+
+An `unexport` directive remains unrepresented: it parses as a rule whose first
+target is `unexport` and forces a `recovered` status. Expressing an explicit
+un-export needs a field that schema version 1 does not have, so support is
+deferred to a future schema version.
+
+#### 6.6.2. Note for consumers pinning `makeutil`
+
+Downstream repositories pin `makeutil` by commit SHA, so this change reaches
+them only when they move their pin. Consumers moving to a commit on or after
+the merge of the `bare-export-directives` work should know that:
+
+- A bare `export NAME` directive no longer aborts the parse. Before the change
+  a single such line produced no JSON at all and exit code 2, discarding every
+  fact in the file; it now appears in `variables` with an empty `operator`.
+- Reports may therefore contain more `variables` entries than before, and a
+  name may appear twice — once for its assignment and once for the directive
+  that exports it. Identify bare-export facts with
+  `operator == "" && define_block == false`; do not use a non-empty `operator`
+  filter, because `define` blocks also serialize with an empty operator.
+- `unexport` remains unsupported and still reports a misleading rule with a
+  `recovered` status.
+- A multi-name `export A B C` reports `complete` with one entry per name. This
+  required a parser revision bump, so the `[patch.crates-io]` commit differs
+  from earlier builds; the published `parser_version` is unchanged at `0.3.40`.
+- `schema_version` is unchanged at `1`, and
+  `schemas/makeutil.parse.v1.schema.json` is byte-identical, so no schema
+  re-validation work is required.
 
 ### 6.7. Include facts
 

@@ -56,9 +56,25 @@ not pass upstream strings beyond the adapter.
 `AssignmentOperator` is the shared, closed domain and parser-port
 representation for schema-v1 variable operators. The parser adapter is its only
 producer; `SyntaxObservation` and report types are its permitted consumers. Its
-`Define` variant serializes as an empty string and means a `define` block
-without an assignment token. Extend the enum only through a schema-versioned
-contract decision, and do not pass upstream operator strings beyond the adapter.
+`Define` variant serializes as an empty string and means a definition without
+an assignment token: either a `define` block or a bare `export` directive, told
+apart by the `define_block` flag. Extend the enum only through a
+schema-versioned contract decision, and do not pass upstream operator strings
+beyond the adapter.
+
+The private `makefile_export` helpers own translation of operator-less export
+definitions into variable observations. Before extraction, a repository sweep
+found no equivalent directive-expansion helper: `variable_observation` was the
+sole variable translator and produced one observation. In production,
+`variable_observation` is the only permitted caller of `assignment_operator` and
+`export_directive_observations`; `export_directive_observations` alone may call
+`directive_names`. Focused unit tests may exercise each helper directly.
+Compose the helpers only while translating one upstream `VariableDefinition`:
+use `assignment_operator` for ordinary variable facts, and use
+`export_directive_observations` only for an operator-less export so it can emit
+zero or more directive facts with the shared directive span. They are
+adapter-private mechanics, not domain ports, general directive parsers, or
+reusable CST walkers.
 
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent
@@ -90,10 +106,12 @@ cannot forge another physical line; it is not a general path normalizer or JSON
 encoder.
 
 The exact 0.3.40 parser requirement is temporarily patched to immutable fork
-commit `8dd35801b75b332c2ac2f995ae398ef8238559fa`, which adds `!=` lexer
-support. Keep the commit pin reproducible. When upgrading to an upstream
-release that contains the fix, remove the `[patch.crates-io]` entry and rerun
-the complete assignment-operator contract matrix before updating the lockfile.
+commit `2ae7134beb04416851ab18c8a5d5893348fbe26c`, which adds `!=` lexer
+support and retains every name of a multi-name `export A B C` directive inside
+the definition node. Keep the commit pin reproducible. When upgrading to an
+upstream release that contains both fixes, remove the `[patch.crates-io]` entry
+and rerun the complete assignment-operator contract matrix and the
+export-directive suite before updating the lockfile.
 
 Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and
 property tests exercise the domain, `rstest-bdd` scenarios exercise observable

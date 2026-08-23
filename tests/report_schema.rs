@@ -46,6 +46,15 @@ fn all_facts_report() -> Result<ParseReport, ParseApplicationError> {
     include_bytes!("fixtures/makefiles/conditional-error-directive.mk"),
     "conditional-error-directive.mk"
 )]
+#[case(include_bytes!("fixtures/makefiles/bare-export.mk"), "bare-export.mk")]
+#[case(
+    include_bytes!("fixtures/makefiles/export-directive-list.mk"),
+    "export-directive-list.mk"
+)]
+#[case(
+    include_bytes!("fixtures/makefiles/export-directive-limits.mk"),
+    "export-directive-limits.mk"
+)]
 fn reports_validate_against_schema(
     #[case] source: &[u8],
     #[case] path: &str,

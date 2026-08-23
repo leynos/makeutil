@@ -39,6 +39,15 @@ fn complete_fixture(world: &mut World) {
     ];
 }
 
+#[given("a Makefile fixture that exports already-defined variables")]
+fn bare_export_fixture(world: &mut World) {
+    world.arguments = vec![
+        "makeutil".to_owned(),
+        "parse".to_owned(),
+        "tests/fixtures/makefiles/bare-export.mk".to_owned(),
+    ];
+}
+
 #[given("complete GNU Makefile source on standard input")]
 fn complete_stdin(world: &mut World) { world.stdin = b"all:\n\techo ok\n".to_vec(); }
 
@@ -150,6 +159,11 @@ fn run_world(world: &mut World) {
                 "fixtures/makefiles/all-facts.mk"
             ))));
         }
+        if path == Utf8Path::new("tests/fixtures/makefiles/bare-export.mk") {
+            return Ok(Box::new(Cursor::new(include_bytes!(
+                "fixtures/makefiles/bare-export.mk"
+            ))));
+        }
         Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "fixture is absent",
@@ -171,6 +185,12 @@ fn run_world(world: &mut World) {
     name = "Parse a complete Makefile by path"
 )]
 fn parse_path(_world: World) {}
+
+#[scenario(
+    path = "tests/features/parse.feature",
+    name = "Parse a Makefile that exports already-defined variables"
+)]
+fn parse_bare_export(_world: World) {}
 
 #[scenario(
     path = "tests/features/parse.feature",

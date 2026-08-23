@@ -40,6 +40,44 @@ fn complete_path_emits_one_json_document(mut makeutil_command: Command) {
 }
 
 #[rstest]
+fn bare_export_path_emits_export_facts(mut makeutil_command: Command) {
+    let output = makeutil_command
+        .args(["parse", "tests/fixtures/makefiles/bare-export-cli.mk"])
+        .output()
+        .expect("binary should run");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty());
+    let document: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(
+        document
+            .get("schema_version")
+            .and_then(serde_json::Value::as_u64),
+        Some(1),
+    );
+    let variables = document
+        .get("variables")
+        .and_then(serde_json::Value::as_array)
+        .expect("report should contain a variables array");
+    assert_eq!(variables.len(), 4);
+    let export_names = variables
+        .iter()
+        .filter(|variable| {
+            variable.get("operator") == Some(&serde_json::Value::String(String::new()))
+                && variable.get("exported") == Some(&serde_json::Value::Bool(true))
+                && variable.get("define_block") == Some(&serde_json::Value::Bool(false))
+                && variable
+                    .get("raw_value")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("")
+        })
+        .filter_map(|variable| variable.get("name").and_then(serde_json::Value::as_str))
+        .collect::<Vec<_>>();
+    assert_eq!(export_names, ["FOO", "BAR"]);
+}
+
+#[rstest]
 fn recovered_path_exits_one_with_json(mut makeutil_command: Command) {
     let output = makeutil_command
         .args(["parse", "tests/fixtures/makefiles/recovered.mk"])

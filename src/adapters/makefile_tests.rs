@@ -6,13 +6,7 @@ use makefile_lossless::{Makefile, Parse};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 
-use super::{
-    MakefileLosslessParser,
-    assignment_operator,
-    collect_diagnostics,
-    condition_kind,
-    ensure_round_trip,
-};
+use super::{MakefileLosslessParser, collect_diagnostics, condition_kind, ensure_round_trip};
 use crate::{
     domain::{AssignmentOperator, ConditionBranch, ConditionKind, SourceSpan},
     ports::{ConditionObservation, MakefileParser as _, ParserPortError, SyntaxObservation},
@@ -35,34 +29,6 @@ fn round_trip_mismatch_is_rejected() {
     assert_eq!(
         ensure_round_trip(&parsed.tree(), "different:\n"),
         Err(ParserPortError::RoundTripMismatch)
-    );
-}
-
-#[rstest]
-fn define_without_operator_uses_empty_schema_variant() {
-    assert_eq!(
-        assignment_operator(None, true),
-        Ok(AssignmentOperator::Define)
-    );
-}
-
-#[rstest]
-fn ordinary_variable_requires_an_operator() {
-    assert_eq!(
-        assignment_operator(None, false),
-        Err(ParserPortError::MissingField {
-            field: "variable-assignment-operator",
-        })
-    );
-}
-
-#[rstest]
-fn unsupported_assignment_operator_is_rejected() {
-    assert_eq!(
-        assignment_operator(Some("unknown"), false),
-        Err(ParserPortError::UnsupportedAssignmentOperator {
-            operator: "unknown".to_owned(),
-        })
     );
 }
 

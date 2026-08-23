@@ -38,3 +38,33 @@ not intentionally emit JSON.
 
 See the [user guide](users-guide.md) for the complete command, stream, and
 source-location contracts.
+
+## Handle export directives
+
+Bare `export NAME` directives now appear as valueless entries in `variables`.
+They use an empty `operator` and `raw_value`, with `exported` set to `true` and
+`define_block` set to `false`. Consumers should identify bare-export facts with
+`operator == "" && define_block == false` and preserve those entries when
+directive facts matter.
+
+A multi-name directive such as `export A B C` produces one valueless entry per
+name and returns `complete` when every name is representable. For example, the
+`variables` entries for that directive include separate facts like these:
+
+```json
+[
+  {"name": "A", "operator": "", "raw_value": "", "exported": true,
+   "define_block": false},
+  {"name": "B", "operator": "", "raw_value": "", "exported": true,
+   "define_block": false},
+  {"name": "C", "operator": "", "raw_value": "", "exported": true,
+   "define_block": false}
+]
+```
+
+Consumers must not assume that one `variables` entry corresponds to one
+directive.
+
+`unexport` remains unrepresented in schema version 1. It produces a recovered
+report with diagnostics and must not be treated as a rule. Consumers that
+previously rejected fatal parses should also handle this recovered outcome.
