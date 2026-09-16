@@ -166,12 +166,16 @@ uv tool install mbake
 
 ## Spelling policy
 
-Markdown uses en-GB-oxendict spelling enforced by the pinned `typos` release.
-The tracked `typos.toml` is generated from the project-owned dictionary in
-`data/typos-oxendict-base.toml` and the narrow repository overlay in
-`typos.local.toml`. Run `make spelling` to refresh the ignored local base cache
-when the tracked source is newer, regenerate the configuration, and check
-maintained prose.
+Markdown uses en-GB-oxendict spelling. Run `make spelling` to enforce it;
+`make markdownlint` runs the same gate. The gate regenerates the tracked
+`typos.toml` from the live shared dictionary and the narrow repository overlay
+in `typos.local.toml` on every run, so a word added to the shared dictionary
+needs no change here.
+
+Because the dictionary is live, `typos.toml` must never be drift checked in
+continuous integration; it is generated output and hand edits are overwritten
+on the next run. Add narrow repository-specific identifier, API, proper-name,
+or fixture exceptions to `typos.local.toml`.
 
 `make provenance` rejects personal repository references, local paths, named
 operational projects, and claims of validation that cannot be reproduced from
