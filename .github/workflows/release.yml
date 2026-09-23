@@ -1,102 +1,95 @@
-
 name: Release Binary
 
-on:
+'on':
   push:
     tags:
       - 'v*.*.*'
+  # A pull request that edits this workflow builds and smoke-tests both
+  # binaries without publishing, so a broken release is found before a tag
+  # is pushed rather than after.
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # bash -eo pipefail, so a failure anywhere in a pipeline fails the step.
+    shell: bash
 
 env:
   BIN_NAME: makeutil
-  CROSS_REVISION: 88f49ff79e777bef6d3564531636ee4d3cc2f8d2
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: linux
-            arch: x86_64
-            target: x86_64-unknown-linux-gnu
-            ext: ""
-          - os: linux
-            arch: aarch64
-            target: aarch64-unknown-linux-gnu
-            ext: ""
-          - os: windows
-            arch: x86_64
-            target: x86_64-pc-windows-gnu
-            ext: ".exe"
-          - os: macos
-            arch: x86_64
-            target: x86_64-apple-darwin
-            ext: ""
-          - os: macos
-            arch: aarch64
-            target: aarch64-apple-darwin
-            ext: ""
-          - os: freebsd
-            arch: x86_64
-            target: x86_64-unknown-freebsd
-            ext: ""
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
     steps:
       - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
         with:
           persist-credentials: false
-      - uses: leynos/shared-actions/.github/actions/setup-rust@dbe2e22ceaf498d85512679ccded38be9dbe7777
-        with:
-          toolchain: stable
-      - name: Cache cross binary
-        id: cache-cross
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.cargo/bin/cross
-          key: cross-${{ env.CROSS_REVISION }}
-      - name: Install cross
-        env:
-          # Clear repository build flags from .cargo/config.toml (mold linker
-          # and Cranelift codegen-backend) before installing cross from CROSS_REVISION.
-          RUSTFLAGS: ""
+      - name: Install the pinned toolchain
+        # The crate compiles only under Polonius, so the release uses the same
+        # dated nightly as development rather than stable. The minimal profile
+        # skips the development components rust-toolchain.toml lists, which a
+        # release build does not need.
         run: |
-          if [ -x "$HOME/.cargo/bin/cross" ]; then
-            exit 0
-          fi
-          cargo install cross --git https://github.com/cross-rs/cross --rev "${CROSS_REVISION}"
-      - name: Cache cargo registry
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.target }}-
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)"
+          rustup toolchain install "${channel}" --profile minimal \
+            --target "${{ matrix.target }}"
+          echo "RUSTUP_TOOLCHAIN=${channel}" >> "${GITHUB_ENV}"
+      - name: Check the tag matches the crate version
+        # A tag that disagrees with Cargo.toml would publish binaries whose
+        # `--version` contradicts the release they are attached to.
+        if: startsWith(github.ref, 'refs/tags/')
+        run: >-
+          cargo metadata --no-deps --format-version 1
+          | jq --exit-status --arg tag "${GITHUB_REF_NAME}"
+          '.packages[] | select(.name == env.BIN_NAME) | "v" + .version == $tag'
       - name: Build release binary
-        # Use +stable to override rust-toolchain.toml (which specifies nightly
-        # with Cranelift for development) and ensure release builds use stable.
         env:
-          # Build release artifacts without repository-local linker flags,
-          # including mold rustflags from .cargo/config.toml.
-          RUSTFLAGS: ""
-        run: cross +stable build --release --target ${{ matrix.target }}
-      - name: Prepare artifact
+          # Replace the repository rustflags, whose x86_64 entry links with
+          # mold, with Polonius alone; a static musl binary needs no linker
+          # beyond the runner's default.
+          RUSTFLAGS: -Zpolonius=next
+        run: cargo build --release --locked --target "${{ matrix.target }}"
+      - name: Prepare artefact
         run: |
-          mkdir -p artifacts/${{ matrix.os }}-${{ matrix.arch }}
-          cp target/${{ matrix.target }}/release/${{ env.BIN_NAME }}${{ matrix.ext }} \
-            artifacts/${{ matrix.os }}-${{ matrix.arch }}/${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }}
-          cd artifacts/${{ matrix.os }}-${{ matrix.arch }}
-          sha256sum ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }} > \
-            ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }}.sha256
-      - name: Upload release artifact
+          set -euo pipefail
+          asset="${BIN_NAME}-${{ matrix.target }}"
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/${BIN_NAME}" "dist/${asset}"
+          cd dist
+          sha256sum "${asset}" > "${asset}.sha256"
+          sha256sum --check "${asset}.sha256"
+      - name: Smoke-test the binary
+        run: |
+          set -euo pipefail
+          binary="dist/${BIN_NAME}-${{ matrix.target }}"
+          file "${binary}" | grep -Eq 'static-pie linked|statically linked'
+          "${binary}" parse tests/fixtures/makefiles/bare-export.mk > /dev/null
+      - name: Upload release artefact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ${{ env.BIN_NAME }}-${{ matrix.os }}-${{ matrix.arch }}
-          path: artifacts/${{ matrix.os }}-${{ matrix.arch }}
+          name: ${{ env.BIN_NAME }}-${{ matrix.target }}
+          path: dist
+          if-no-files-found: error
 
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -104,12 +97,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
         with:
-          path: artifacts
+          path: artefacts
       - uses: softprops/action-gh-release@a4f117a9dd5572319a486154ec1147aebabd285c
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
-            artifacts/*/*
-
+            artefacts/*/*

@@ -164,6 +164,26 @@ running the full generated workflow locally on Linux. Install `mbake` with:
 uv tool install mbake
 ```
 
+## Releases
+
+`.github/workflows/release.yml` publishes a release when a tag of the form
+`v<major>.<minor>.<patch>` is pushed. The tag must equal `v` followed by the
+`version` in `Cargo.toml`; the build job checks this and stops otherwise. The
+workflow builds two statically linked musl binaries, each natively on a
+runner of its own architecture:
+
+- `x86_64-unknown-linux-musl`, on `ubuntu-latest`;
+- `aarch64-unknown-linux-musl`, on `ubuntu-24.04-arm`.
+
+It builds with the nightly channel pinned in `rust-toolchain.toml` and
+`RUSTFLAGS=-Zpolonius=next`, because the crate does not compile on stable. It
+smoke-tests each binary by parsing a fixture. The release job then attaches
+each binary and its `.sha256` file to a GitHub release with generated notes.
+
+A pull request that edits `release.yml` runs the build and smoke-test jobs
+without publishing. Read that run before tagging: a broken release workflow
+shows there rather than on the tag.
+
 ## Spelling policy
 
 Markdown uses en-GB-oxendict spelling. Run `make spelling` to enforce it;

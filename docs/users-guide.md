@@ -6,6 +6,21 @@ facts with `makeutil`.
 Integrations upgrading from the greeting scaffold should follow the
 [version 0.1.0 migration guide](v0-1-0-migration-guide.md).
 
+## Install a prebuilt binary
+
+Each release publishes statically linked Linux binaries for two targets,
+`x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl`. Each binary is
+named `makeutil-<target>` and sits beside a `makeutil-<target>.sha256`
+checksum file. Download both from the release, then verify the binary before
+installing it:
+
+```shell
+sha256sum --check makeutil-x86_64-unknown-linux-musl.sha256
+install -m 0755 makeutil-x86_64-unknown-linux-musl ~/.local/bin/makeutil
+```
+
+On any other platform, build from source with the pinned nightly toolchain.
+
 ## Parse a file
 
 Pass exactly one UTF-8 path to the `parse` subcommand:
