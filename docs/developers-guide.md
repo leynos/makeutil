@@ -169,20 +169,25 @@ uv tool install mbake
 `.github/workflows/release.yml` publishes a release when a tag of the form
 `v<major>.<minor>.<patch>` is pushed. The tag must equal `v` followed by the
 `version` in `Cargo.toml`; the build job checks this and stops otherwise. The
-workflow builds two statically linked musl binaries, each natively on a
-runner of its own architecture:
+workflow builds two statically linked musl binaries, each natively on a runner
+of its own architecture:
 
 - `x86_64-unknown-linux-musl`, on `ubuntu-latest`;
 - `aarch64-unknown-linux-musl`, on `ubuntu-24.04-arm`.
 
 It builds with the nightly channel pinned in `rust-toolchain.toml` and
 `RUSTFLAGS=-Zpolonius=next`, because the crate does not compile on stable. It
-smoke-tests each binary by parsing a fixture. The release job then attaches
-each binary and its `.sha256` file to a GitHub release with generated notes.
+smoke-tests each binary by parsing a fixture and checking the report's schema
+version, status, exported variables and rules. The release job then attaches
+each binary and its `.sha256` file to a GitHub release with generated notes,
+and `verify-binstall` installs the published release through cargo-binstall on
+both glibc triples.
 
 A pull request that edits `release.yml` runs the build and smoke-test jobs
-without publishing. Read that run before tagging: a broken release workflow
-shows there rather than on the tag.
+without publishing. It also exercises the tag check against the crate's own tag
+and a mismatching one, and the `release-dry-run` job downloads the artefacts as
+the release job does and requires exactly the four expected files. Read that run
+before tagging: a broken release workflow shows there rather than on the tag.
 
 ## Spelling policy
 

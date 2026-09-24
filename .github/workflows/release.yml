@@ -21,6 +21,18 @@ defaults:
 
 env:
   BIN_NAME: makeutil
+  # True when the tag names the crate version. Tag builds enforce it and pull
+  # requests exercise it against a matching and a mismatching tag.
+  TAG_MATCHES_VERSION: >-
+    .packages[] | select(.name == env.BIN_NAME) | "v" + .version == $tag
+  # What the smoke test requires of a real parse of bare-export.mk, so a
+  # binary that merely exits 0 cannot pass.
+  SMOKE_ORACLE: >-
+    .schema_version == 1
+    and .parse.status == "complete"
+    and ([.variables[] | select(.exported) | .name]
+      == ["MOLD_VERSION_FILE", "RUST_TOOLCHAIN_FILE", "CARGO_TERM_COLOR"])
+    and ([.rules[].targets] == [["build"]])
 
 jobs:
   build:
@@ -57,7 +69,22 @@ jobs:
         run: >-
           cargo metadata --no-deps --format-version 1
           | jq --exit-status --arg tag "${GITHUB_REF_NAME}"
-          '.packages[] | select(.name == env.BIN_NAME) | "v" + .version == $tag'
+          "${TAG_MATCHES_VERSION}"
+      - name: Exercise the tag check
+        # The tag check above runs only on tags, so a pull request proves the
+        # same filter accepts the crate's own tag and refuses any other.
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          cargo metadata --no-deps --format-version 1 \
+            > "${RUNNER_TEMP}/metadata.json"
+          version="$(jq --raw-output \
+            '.packages[] | select(.name == env.BIN_NAME) | .version' \
+            "${RUNNER_TEMP}/metadata.json")"
+          jq --exit-status --arg tag "v${version}" "${TAG_MATCHES_VERSION}" \
+            "${RUNNER_TEMP}/metadata.json"
+          jq --exit-status --arg tag "v${version}-mismatch" \
+            "(${TAG_MATCHES_VERSION}) | not" "${RUNNER_TEMP}/metadata.json"
       - name: Build release binary
         env:
           # Replace the repository rustflags, whose x86_64 entry links with
@@ -79,13 +106,38 @@ jobs:
           set -euo pipefail
           binary="dist/${BIN_NAME}-${{ matrix.target }}"
           file "${binary}" | grep -Eq 'static-pie linked|statically linked'
-          "${binary}" parse tests/fixtures/makefiles/bare-export.mk > /dev/null
+          "${binary}" parse tests/fixtures/makefiles/bare-export.mk \
+            | jq --exit-status "${SMOKE_ORACLE}"
       - name: Upload release artefact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.BIN_NAME }}-${{ matrix.target }}
           path: dist
           if-no-files-found: error
+
+  release-dry-run:
+    # Runs the publishing job's download and file glob on a pull request,
+    # without publishing, and requires exactly the four expected assets.
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        with:
+          path: artefacts
+      - name: Check the release file glob
+        run: |
+          set -euo pipefail
+          find artefacts -mindepth 2 -maxdepth 2 -type f -printf '%f\n' \
+            | sort > "${RUNNER_TEMP}/found"
+          printf '%s\n' \
+            "${BIN_NAME}-aarch64-unknown-linux-musl" \
+            "${BIN_NAME}-aarch64-unknown-linux-musl.sha256" \
+            "${BIN_NAME}-x86_64-unknown-linux-musl" \
+            "${BIN_NAME}-x86_64-unknown-linux-musl.sha256" \
+            > "${RUNNER_TEMP}/expected"
+          diff "${RUNNER_TEMP}/expected" "${RUNNER_TEMP}/found"
 
   release:
     needs: build

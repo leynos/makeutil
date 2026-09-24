@@ -10,9 +10,9 @@ Integrations upgrading from the greeting scaffold should follow the
 
 Each release publishes statically linked Linux binaries for two targets,
 `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl`. Each binary is
-named `makeutil-<target>` and sits beside a `makeutil-<target>.sha256`
-checksum file. Download both from the release, then verify the binary before
-installing it:
+named `makeutil-<target>` and sits beside a `makeutil-<target>.sha256` checksum
+file. Download both from the release, then verify the binary before installing
+it:
 
 ```shell
 case "$(uname -m)" in
@@ -25,8 +25,9 @@ mkdir -p ~/.local/bin
 install -m 0755 "makeutil-${target}" ~/.local/bin/makeutil
 ```
 
-cargo-binstall reads the same release assets from the crate metadata. On a glibc
-host it maps the `-gnu` target to the `-musl` binary for the same architecture.
+cargo-binstall reads the same release assets from the crate metadata. On a
+glibc host it maps the `-gnu` target to the `-musl` binary for the same
+architecture.
 
 On any other platform, build from source with the pinned nightly toolchain.
 
