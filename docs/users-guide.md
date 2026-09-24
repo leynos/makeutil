@@ -15,9 +15,18 @@ checksum file. Download both from the release, then verify the binary before
 installing it:
 
 ```shell
-sha256sum --check makeutil-x86_64-unknown-linux-musl.sha256
-install -m 0755 makeutil-x86_64-unknown-linux-musl ~/.local/bin/makeutil
+case "$(uname -m)" in
+  x86_64) target=x86_64-unknown-linux-musl ;;
+  aarch64) target=aarch64-unknown-linux-musl ;;
+  *) echo "Unsupported architecture" >&2; exit 1 ;;
+esac
+sha256sum --check "makeutil-${target}.sha256"
+mkdir -p ~/.local/bin
+install -m 0755 "makeutil-${target}" ~/.local/bin/makeutil
 ```
+
+cargo-binstall reads the same release assets from the crate metadata. On a glibc
+host it maps the `-gnu` target to the `-musl` binary for the same architecture.
 
 On any other platform, build from source with the pinned nightly toolchain.
 

@@ -106,3 +106,38 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             artefacts/*/*
+
+  verify-binstall:
+    # Installs the just-published release the way a glibc host would, naming
+    # the `-gnu` triple explicitly so only the binstall override for it can
+    # resolve an asset. A missing or wrong override fails here, on the tag,
+    # rather than on a user's machine.
+    name: verify-binstall (${{ matrix.host }})
+    needs: release
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            host: x86_64-unknown-linux-gnu
+          - runner: ubuntu-24.04-arm
+            host: aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
+        with:
+          persist-credentials: false
+      - name: Setup Rust
+        uses: leynos/shared-actions/.github/actions/setup-rust@dbe2e22ceaf498d85512679ccded38be9dbe7777
+      - name: Install the release with cargo-binstall
+        # --manifest-path reads the binstall metadata from the tagged
+        # checkout, since makeutil is not published to crates.io.
+        run: >-
+          cargo binstall --no-confirm --manifest-path .
+          --targets "${{ matrix.host }}"
+          --root "${RUNNER_TEMP}/binstall" "${BIN_NAME}"
+      - name: Smoke-test the installed binary
+        run: >-
+          "${RUNNER_TEMP}/binstall/bin/${BIN_NAME}" parse
+          tests/fixtures/makefiles/bare-export.mk
