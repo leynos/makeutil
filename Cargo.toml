@@ -39,8 +39,8 @@ mockall = "0.15.0"
 pretty_assertions = "1.4.1"
 proptest = "1.11.0"
 rstest = "0.26.1"
-rstest-bdd = "0.6.0-beta3"
-rstest-bdd-macros = "0.6.0-beta3"
+rstest-bdd = "0.6.0"
+rstest-bdd-macros = "0.6.0"
 tempfile = "3.27.0"
 
 # The package.metadata.binstall pkg-url intentionally mixes Jinja2 values
