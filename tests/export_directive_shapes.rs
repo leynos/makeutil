@@ -15,12 +15,27 @@ use makeutil::{
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 
-/// Name, operator and export flag of every variable fact, in report order.
-fn variable_summary(report: &ParseReport) -> Vec<(&str, AssignmentOperator, bool)> {
+/// Identifying fields of one variable fact: name, operator, raw value,
+/// export flag and `define_block`.
+type VariableSummary<'a> = (&'a str, AssignmentOperator, &'a str, bool, bool);
+
+/// Summarize every variable fact, in report order.
+///
+/// The raw value and `define_block` are kept because together with the
+/// operator they are what tells an export-directive fact from an assignment.
+fn variable_summary(report: &ParseReport) -> Vec<VariableSummary<'_>> {
     report
         .variables
         .iter()
-        .map(|variable| (variable.name.as_str(), variable.operator, variable.exported))
+        .map(|variable| {
+            (
+                variable.name.as_str(),
+                variable.operator,
+                variable.raw_value.as_str(),
+                variable.exported,
+                variable.define_block,
+            )
+        })
         .collect()
 }
 
@@ -41,10 +56,16 @@ fn rule_targets(report: &ParseReport) -> Vec<&str> {
     include_bytes!("fixtures/makefiles/export-after-empty-conditional.mk").as_slice(),
     "export-after-empty-conditional.mk",
     vec![
-        ("CRATE", AssignmentOperator::Conditional, false),
-        ("FORMAL_STUB", AssignmentOperator::Conditional, false),
-        ("FORMAL_STRICT", AssignmentOperator::Conditional, false),
-        ("FORMAL_STRICT", AssignmentOperator::Define, true),
+        ("CRATE", AssignmentOperator::Conditional, "example", false, false),
+        (
+            "FORMAL_STUB",
+            AssignmentOperator::Conditional,
+            "./scripts/formal-stub.sh",
+            false,
+            false,
+        ),
+        ("FORMAL_STRICT", AssignmentOperator::Conditional, "", false, false),
+        ("FORMAL_STRICT", AssignmentOperator::Define, "", true, false),
     ],
     vec!["build", "release", "all"],
 )]
@@ -52,17 +73,23 @@ fn rule_targets(report: &ParseReport) -> Vec<&str> {
     include_bytes!("fixtures/makefiles/consecutive-bare-exports.mk").as_slice(),
     "consecutive-bare-exports.mk",
     vec![
-        ("PG_PASSWORD", AssignmentOperator::Conditional, false),
-        ("POSTGRESQL_RELEASES_URL", AssignmentOperator::Conditional, false),
-        ("PG_PASSWORD", AssignmentOperator::Define, true),
-        ("POSTGRESQL_RELEASES_URL", AssignmentOperator::Define, true),
+        ("PG_PASSWORD", AssignmentOperator::Conditional, "embedded_test", false, false),
+        (
+            "POSTGRESQL_RELEASES_URL",
+            AssignmentOperator::Conditional,
+            "https://github.com/theseus-rs/postgresql-binaries",
+            false,
+            false,
+        ),
+        ("PG_PASSWORD", AssignmentOperator::Define, "", true, false),
+        ("POSTGRESQL_RELEASES_URL", AssignmentOperator::Define, "", true, false),
     ],
     vec!["docs-check"],
 )]
 fn bare_export_shape_parses_complete(
     #[case] source: &[u8],
     #[case] path: &str,
-    #[case] expected_variables: Vec<(&str, AssignmentOperator, bool)>,
+    #[case] expected_variables: Vec<VariableSummary<'_>>,
     #[case] expected_rules: Vec<&str>,
 ) {
     let report = parse_source(source, path, &MakefileLosslessParser)
