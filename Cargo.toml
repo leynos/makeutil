@@ -51,6 +51,15 @@ pkg-url = "https://github.com/leynos/makeutil/releases/download/v{ version }/mak
 pkg-fmt = "bin"
 disabled-strategies = ["quick-install", "compile"]
 
+# Releases publish static musl binaries only. On a glibc host cargo-binstall
+# expands `{ target }` to the `-gnu` triple, so each one is pointed at the
+# musl asset for the same architecture, which runs there unchanged.
+[package.metadata.binstall.overrides.x86_64-unknown-linux-gnu]
+pkg-url = "https://github.com/leynos/makeutil/releases/download/v{ version }/makeutil-x86_64-unknown-linux-musl"
+
+[package.metadata.binstall.overrides.aarch64-unknown-linux-gnu]
+pkg-url = "https://github.com/leynos/makeutil/releases/download/v{ version }/makeutil-aarch64-unknown-linux-musl"
+
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 

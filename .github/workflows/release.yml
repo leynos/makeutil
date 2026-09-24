@@ -1,102 +1,147 @@
-
 name: Release Binary
 
-on:
+'on':
   push:
     tags:
       - 'v*.*.*'
+  # A pull request that edits this workflow builds and smoke-tests both
+  # binaries without publishing, so a broken release is found before a tag
+  # is pushed rather than after.
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # bash -eo pipefail, so a failure anywhere in a pipeline fails the step.
+    shell: bash
 
 env:
   BIN_NAME: makeutil
-  CROSS_REVISION: 88f49ff79e777bef6d3564531636ee4d3cc2f8d2
+  # True when the tag names the crate version. Tag builds enforce it and pull
+  # requests exercise it against a matching and a mismatching tag.
+  TAG_MATCHES_VERSION: >-
+    .packages[] | select(.name == env.BIN_NAME) | "v" + .version == $tag
+  # What the smoke test requires of a real parse of bare-export.mk, so a
+  # binary that merely exits 0 cannot pass.
+  SMOKE_ORACLE: >-
+    .schema_version == 1
+    and .parse.status == "complete"
+    and ([.variables[] | select(.exported) | .name]
+      == ["MOLD_VERSION_FILE", "RUST_TOOLCHAIN_FILE", "CARGO_TERM_COLOR"])
+    and ([.rules[].targets] == [["build"]])
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: linux
-            arch: x86_64
-            target: x86_64-unknown-linux-gnu
-            ext: ""
-          - os: linux
-            arch: aarch64
-            target: aarch64-unknown-linux-gnu
-            ext: ""
-          - os: windows
-            arch: x86_64
-            target: x86_64-pc-windows-gnu
-            ext: ".exe"
-          - os: macos
-            arch: x86_64
-            target: x86_64-apple-darwin
-            ext: ""
-          - os: macos
-            arch: aarch64
-            target: aarch64-apple-darwin
-            ext: ""
-          - os: freebsd
-            arch: x86_64
-            target: x86_64-unknown-freebsd
-            ext: ""
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
     steps:
       - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
         with:
           persist-credentials: false
-      - uses: leynos/shared-actions/.github/actions/setup-rust@dbe2e22ceaf498d85512679ccded38be9dbe7777
-        with:
-          toolchain: stable
-      - name: Cache cross binary
-        id: cache-cross
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ~/.cargo/bin/cross
-          key: cross-${{ env.CROSS_REVISION }}
-      - name: Install cross
-        env:
-          # Clear repository build flags from .cargo/config.toml (mold linker
-          # and Cranelift codegen-backend) before installing cross from CROSS_REVISION.
-          RUSTFLAGS: ""
+      - name: Install the pinned toolchain
+        # The crate compiles only under Polonius, so the release uses the same
+        # dated nightly as development rather than stable. The minimal profile
+        # skips the development components rust-toolchain.toml lists, which a
+        # release build does not need.
         run: |
-          if [ -x "$HOME/.cargo/bin/cross" ]; then
-            exit 0
-          fi
-          cargo install cross --git https://github.com/cross-rs/cross --rev "${CROSS_REVISION}"
-      - name: Cache cargo registry
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.target }}-
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)"
+          rustup toolchain install "${channel}" --profile minimal \
+            --target "${{ matrix.target }}"
+          echo "RUSTUP_TOOLCHAIN=${channel}" >> "${GITHUB_ENV}"
+      - name: Check the tag matches the crate version
+        # A tag that disagrees with Cargo.toml would publish binaries whose
+        # `--version` contradicts the release they are attached to.
+        if: startsWith(github.ref, 'refs/tags/')
+        run: >-
+          cargo metadata --no-deps --format-version 1
+          | jq --exit-status --arg tag "${GITHUB_REF_NAME}"
+          "${TAG_MATCHES_VERSION}"
+      - name: Exercise the tag check
+        # The tag check above runs only on tags, so a pull request proves the
+        # same filter accepts the crate's own tag and refuses any other.
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          cargo metadata --no-deps --format-version 1 \
+            > "${RUNNER_TEMP}/metadata.json"
+          version="$(jq --raw-output \
+            '.packages[] | select(.name == env.BIN_NAME) | .version' \
+            "${RUNNER_TEMP}/metadata.json")"
+          jq --exit-status --arg tag "v${version}" "${TAG_MATCHES_VERSION}" \
+            "${RUNNER_TEMP}/metadata.json"
+          jq --exit-status --arg tag "v${version}-mismatch" \
+            "(${TAG_MATCHES_VERSION}) | not" "${RUNNER_TEMP}/metadata.json"
       - name: Build release binary
-        # Use +stable to override rust-toolchain.toml (which specifies nightly
-        # with Cranelift for development) and ensure release builds use stable.
         env:
-          # Build release artifacts without repository-local linker flags,
-          # including mold rustflags from .cargo/config.toml.
-          RUSTFLAGS: ""
-        run: cross +stable build --release --target ${{ matrix.target }}
-      - name: Prepare artifact
+          # Replace the repository rustflags, whose x86_64 entry links with
+          # mold, with Polonius alone; a static musl binary needs no linker
+          # beyond the runner's default.
+          RUSTFLAGS: -Zpolonius=next
+        run: cargo build --release --locked --target "${{ matrix.target }}"
+      - name: Prepare artefact
         run: |
-          mkdir -p artifacts/${{ matrix.os }}-${{ matrix.arch }}
-          cp target/${{ matrix.target }}/release/${{ env.BIN_NAME }}${{ matrix.ext }} \
-            artifacts/${{ matrix.os }}-${{ matrix.arch }}/${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }}
-          cd artifacts/${{ matrix.os }}-${{ matrix.arch }}
-          sha256sum ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }} > \
-            ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }}.sha256
-      - name: Upload release artifact
+          set -euo pipefail
+          asset="${BIN_NAME}-${{ matrix.target }}"
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/${BIN_NAME}" "dist/${asset}"
+          cd dist
+          sha256sum "${asset}" > "${asset}.sha256"
+          sha256sum --check "${asset}.sha256"
+      - name: Smoke-test the binary
+        run: |
+          set -euo pipefail
+          binary="dist/${BIN_NAME}-${{ matrix.target }}"
+          file "${binary}" | grep -Eq 'static-pie linked|statically linked'
+          "${binary}" parse tests/fixtures/makefiles/bare-export.mk \
+            | jq --exit-status "${SMOKE_ORACLE}"
+      - name: Upload release artefact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ${{ env.BIN_NAME }}-${{ matrix.os }}-${{ matrix.arch }}
-          path: artifacts/${{ matrix.os }}-${{ matrix.arch }}
+          name: ${{ env.BIN_NAME }}-${{ matrix.target }}
+          path: dist
+          if-no-files-found: error
+
+  release-dry-run:
+    # Runs the publishing job's download and file glob on a pull request,
+    # without publishing, and requires exactly the four expected assets.
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        with:
+          path: artefacts
+      - name: Check the release file glob
+        run: |
+          set -euo pipefail
+          find artefacts -mindepth 2 -maxdepth 2 -type f -printf '%f\n' \
+            | sort > "${RUNNER_TEMP}/found"
+          printf '%s\n' \
+            "${BIN_NAME}-aarch64-unknown-linux-musl" \
+            "${BIN_NAME}-aarch64-unknown-linux-musl.sha256" \
+            "${BIN_NAME}-x86_64-unknown-linux-musl" \
+            "${BIN_NAME}-x86_64-unknown-linux-musl.sha256" \
+            > "${RUNNER_TEMP}/expected"
+          diff "${RUNNER_TEMP}/expected" "${RUNNER_TEMP}/found"
 
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -104,12 +149,47 @@ jobs:
     steps:
       - uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
         with:
-          path: artifacts
+          path: artefacts
       - uses: softprops/action-gh-release@a4f117a9dd5572319a486154ec1147aebabd285c
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
-            artifacts/*/*
+            artefacts/*/*
 
+  verify-binstall:
+    # Installs the just-published release the way a glibc host would, naming
+    # the `-gnu` triple explicitly so only the binstall override for it can
+    # resolve an asset. A missing or wrong override fails here, on the tag,
+    # rather than on a user's machine.
+    name: verify-binstall (${{ matrix.host }})
+    needs: release
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            host: x86_64-unknown-linux-gnu
+          - runner: ubuntu-24.04-arm
+            host: aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
+        with:
+          persist-credentials: false
+      - name: Setup Rust
+        uses: leynos/shared-actions/.github/actions/setup-rust@dbe2e22ceaf498d85512679ccded38be9dbe7777
+      - name: Install the release with cargo-binstall
+        # --manifest-path reads the binstall metadata from the tagged
+        # checkout, since makeutil is not published to crates.io.
+        run: >-
+          cargo binstall --no-confirm --manifest-path .
+          --targets "${{ matrix.host }}"
+          --root "${RUNNER_TEMP}/binstall" "${BIN_NAME}"
+      - name: Smoke-test the installed binary
+        run: >-
+          "${RUNNER_TEMP}/binstall/bin/${BIN_NAME}" parse
+          tests/fixtures/makefiles/bare-export.mk

@@ -9,6 +9,17 @@ Remove imports and calls to `makeutil::greet`. Version 0.1.0 does not provide a
 replacement library function. Integrations should invoke the `makeutil`
 executable and consume its versioned JSON output instead.
 
+## Install a prebuilt binary
+
+Version 0.1.0 is the first release with prebuilt binaries. Each release
+publishes a statically linked Linux binary for `x86_64-unknown-linux-musl` and
+`aarch64-unknown-linux-musl`, each beside a SHA-256 checksum file. Select the
+binary for the host architecture, verify it against its checksum, and install
+it, as [Install a prebuilt binary](users-guide.md#install-a-prebuilt-binary) in
+the users' guide shows. cargo-binstall installs the same binaries, including on
+glibc hosts. Other platforms build from source with the pinned nightly
+toolchain.
+
 ## Invoke the parser
 
 Replace greeting invocations with the path form when the Makefile is stored on
