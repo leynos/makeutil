@@ -13,6 +13,8 @@ set.
   top-level files, directories, and ownership boundaries.
 - [Version 0.1.0 migration guide](v0-1-0-migration-guide.md) explains how to
   replace the removed greeting API with the parse command and JSON contract.
+- [Version 0.1.1 migration guide](v0-1-1-migration-guide.md) explains the
+  `unexport` directive facts and why consumers must now read `exported`.
 - [Polonius migration](polonius.md) records the compiler requirement,
   borrow-centric design rules, and audit inventory.
 - [Documentation style guide](documentation-style-guide.md) defines the
@@ -27,8 +29,9 @@ set.
   architecture, security boundaries, and verification strategy.
 - [ADR-0001: Parse one GNU Makefile into versioned JSON facts](adrs/0001-single-file-gnu-make-parse.md)
   records the first-slice boundary, accepted on 2026-07-13.
-- [ADR-0002: Represent bare `export` directives as valueless variable facts](adrs/0002-bare-export-directive-representation.md)
-  records the schema-preserving representation, accepted on 2026-08-13.
+- [ADR-0002: Represent bare `export` and `unexport` directives as valueless variable facts](adrs/0002-bare-export-directive-representation.md)
+  records the schema-preserving representation, accepted on 2026-08-13 and
+  amended for `unexport` on 2026-09-25.
 - [Execution plans](execplans/) describe approved, milestone-oriented delivery
   work:
   - [Implement ADR-0001](execplans/adr-0001-single-file-gnu-make-parse.md)

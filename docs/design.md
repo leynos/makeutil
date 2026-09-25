@@ -338,8 +338,10 @@ parser cannot name at all — a bare `export`, `export define NAME`, or a name
 whose text the parser treats as one of its own keywords — yields no entry
 rather than an invented one, together with a diagnostic that keeps the report
 `recovered` rather than falsely `complete`. That diagnostic is `makeutil`'s own
-rather than the parser's, because the parser does not always emit one:
-`override export override` is dropped upstream silently.
+rather than the parser's, because the parser does not always emit one: parser
+revisions before the `unexport` work dropped `override export override`
+silently. The current revision names the third keyword, as GNU Make's grammar
+does.
 
 The names on a directive line are read from the definition node's identifier
 tokens, anchored on the name the parser itself reports. Keyword text cannot be
@@ -363,10 +365,15 @@ decision and
 [the bare export execution plan](execplans/bare-export-directives.md) for the
 delivery record.
 
-An `unexport` directive remains unrepresented: it parses as a rule whose first
-target is `unexport` and forces a `recovered` status. Expressing an explicit
-un-export needs a field that schema version 1 does not have, so support is
-deferred to a future schema version.
+An `unexport` directive is represented as an `export` directive is, with
+`exported` false (amended on 2026-09-25 by user ruling; see
+[ADR-0002](adrs/0002-bare-export-directive-representation.md#amendment-unexport-directives)).
+The parser fork recognizes `unexport` as a directive keyword in the leading
+position only, as GNU Make does. The adapter's `OperatorContext` records it
+beside `is_export`, and `OperatorContext::is_exported` lets a leading
+`unexport` decide the flag even when `export` appears later on the line as a
+name. Before this, an `unexport` line parsed as a rule missing its colon, forced
+`recovered`, and placed both of its diagnostics on the wrong lines.
 
 #### 6.6.2. Note for consumers pinning `makeutil`
 
@@ -382,8 +389,9 @@ the merge of the `bare-export-directives` work should know that:
   that exports it. Identify bare-export facts with
   `operator == "" && define_block == false`; do not use a non-empty `operator`
   filter, because `define` blocks also serialize with an empty operator.
-- `unexport` remains unsupported and still reports a misleading rule with a
-  `recovered` status.
+- `unexport NAME` reports `complete` with a directive entry whose `exported`
+  is `false`. Read `exported` on directive entries to tell `export` from
+  `unexport`.
 - A multi-name `export A B C` reports `complete` with one entry per name. This
   required a parser revision bump, so the `[patch.crates-io]` commit differs
   from earlier builds; the published `parser_version` is unchanged at `0.3.40`.

@@ -63,6 +63,10 @@ fn all_facts_report() -> Result<ParseReport, ParseApplicationError> {
     include_bytes!("fixtures/makefiles/consecutive-bare-exports.mk"),
     "consecutive-bare-exports.mk"
 )]
+#[case(
+    include_bytes!("fixtures/makefiles/unexport-after-conditional.mk"),
+    "unexport-after-conditional.mk"
+)]
 fn reports_validate_against_schema(
     #[case] source: &[u8],
     #[case] path: &str,
