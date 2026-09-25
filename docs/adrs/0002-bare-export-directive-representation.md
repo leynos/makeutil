@@ -1,12 +1,15 @@
-# ADR-0002: Represent bare `export` directives as valueless variable facts
+# ADR-0002: Represent bare `export` and `unexport` directives as valueless variable facts
 
 ## Status
 
-Accepted
+Accepted on 2026-08-13 for `export`. Amended on 2026-09-25 by user ruling:
+`unexport` directives are represented the same way, and consumers read
+`exported` to tell the two directives apart (see
+[Amendment: `unexport` directives](#amendment-unexport-directives)).
 
 ## Date
 
-2026-08-13
+2026-09-25
 
 ## Context and Problem Statement
 
@@ -42,9 +45,11 @@ directive naming several variables yields one entry per name, each carrying the
 span of the whole directive.
 
 The discriminating predicate for consumers is
-`operator == "" && define_block == false`, which identifies an export directive
-rather than an assignment. The empty operator is shared with `define` blocks,
-which is why `define_block` is part of the predicate.
+`operator == "" && define_block == false`, which identifies a directive rather
+than an assignment. The empty operator is shared with `define` blocks, which is
+why `define_block` is part of the predicate. Among directives, `exported`
+distinguishes `export NAME` (`true`) from `unexport NAME` (`false`); see the
+amendment below.
 
 Neither `schema_version` nor `schemas/makeutil.parse.v1.schema.json` changes,
 because the empty operator was already in the enum for `define` blocks and no
@@ -55,7 +60,8 @@ means "export every variable", `export define NAME`, or a line whose only name
 is one the parser treats as a keyword — yields no entry rather than an invented
 one, together with a diagnostic of `makeutil`'s own. The diagnostic is emitted
 rather than relying on the parser to emit one, because the parser does not
-always do so: `override export override` is dropped upstream without any error.
+always do so: revisions before the `unexport` amendment dropped
+`override export override` without any error.
 Without it such a line would leave a report claiming `complete` with the
 construct silently missing, which the honesty rule forbids.
 
@@ -64,7 +70,50 @@ tokens, anchored on the name the parser itself reports rather than by skipping
 identifiers whose text matches a directive keyword. A variable may legitimately
 be called `unexport`, and keyword-text filtering would silently discard it.
 
-`unexport` remains unrepresented and is documented as a known gap.
+`unexport` was at first left unrepresented as a known gap. The amendment below
+records how it is now represented.
+
+## Amendment: `unexport` directives
+
+Decided on 2026-09-25 by user ruling (Option A).
+
+`unexport NAME` keeps a variable out of the environment of recipe commands. The
+parser did not know the keyword, so it read such a line as a rule missing its
+colon. The report was forced to `recovered` with a rule named `unexport` that
+does not exist. Neither of the two `expected ':'` diagnostics landed on the
+`unexport` line: one fell on an unrelated earlier line and the other one line
+past the end of the file. Consumers failing closed on `recovered` could not
+read any Makefile that used it.
+
+The parser fork now treats `unexport` as a directive keyword beside `export`,
+as GNU Make 4.4.1 does: it applies only in the leading position, and it takes a
+name, a name list, a continued list, or an assignment. `makeutil` represents it
+exactly as the `export` directive is represented, with one change:
+
+- `unexport NAME` yields one entry per name in `variables`, with the empty
+  operator, an empty `raw_value`, `define_block` false, and `exported` false.
+- `unexport NAME = value` is an ordinary assignment reporting its real operator
+  and value, with `exported` false.
+- A bare `unexport` with no names reverses a bare `export`. Schema version 1
+  cannot express either, so it yields no entry, a diagnostic, and `recovered`,
+  as a bare `export` does.
+
+The consumer predicate therefore becomes two readings of the same facts:
+
+- `operator == "" && define_block == false` identifies a directive.
+- On a directive, `exported == true` means `export NAME` and
+  `exported == false` means `unexport NAME`.
+
+A consumer that used the original predicate to mean "this name is exported"
+must now also read `exported`. Before this amendment every directive fact had
+`exported` true, so reading it was redundant; it is now required. No key, enum
+member or schema file changes, so `schema_version` stays at 1.
+
+A dedicated field recording an explicit un-export was rejected for the same
+reason a new `exports` array was: `additionalProperties` is `false`, so any new
+key is a schema version 2 change. Leaving `unexport` as a recovered rule was
+rejected because it kept real Makefiles unparsable downstream and misplaced
+their diagnostics.
 
 ## Alternatives considered
 
@@ -120,9 +169,9 @@ member is as breaking as a new key.
 
 ### Neutral
 
-- A future schema version 2 could introduce a dedicated `exports` array and an
-  explicit un-export representation. This decision does not preclude it; it
-  defers it until a schema break is warranted on its own merits.
+- A future schema version 2 could introduce a dedicated `exports` array. This
+  decision does not preclude it; it defers it until a schema break is warranted
+  on its own merits.
 
 ## Acceptance criteria
 
@@ -131,9 +180,13 @@ member is as breaking as a new key.
    file is present.
 2. No form of `export` or `unexport` produces a `parse-internal` message or
    exit code 2.
-3. Bare export directives are distinguishable from assignments by
-   `operator == "" && define_block == false`.
+3. Bare export and unexport directives are distinguishable from assignments
+   by `operator == "" && define_block == false`, and from each other by
+   `exported`.
 4. `schemas/makeutil.parse.v1.schema.json` is unchanged and every new fixture's
    report validates against it.
-5. An operator-less definition that is neither a `define` nor an `export` still
-   fails loudly, so genuinely broken trees are not masked.
+5. An operator-less definition that is neither a `define` nor an `export` or
+   `unexport` directive still fails loudly, so genuinely broken trees are not
+   masked.
+6. A Makefile that assigns a variable and then unexports it by name reports
+   `complete` with exit code 0, and its unexport fact has `exported` false.

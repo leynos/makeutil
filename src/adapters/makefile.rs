@@ -172,8 +172,9 @@ fn rule_observation(
     })
 }
 
-/// One `export A B C` line names several variables, and a name-less `export`
-/// names none, so a single definition node can yield any number of facts.
+/// One `export A B C` or `unexport A B C` line names several variables, and a
+/// name-less directive names none, so a single definition node can yield any
+/// number of facts.
 fn variable_observation(
     variable: &VariableDefinition,
     conditions: &[ConditionObservation],
@@ -183,23 +184,29 @@ fn variable_observation(
     let context = OperatorContext {
         is_define: variable.is_define(),
         is_export: variable.is_export(),
+        is_unexport: variable.is_unexport(),
     };
     let definition_span = span(variable.syntax().text_range(), source_length)?;
 
-    // An export line upstream could not name is unrepresentable rather than
-    // broken: a bare `export` exports everything, `export define FOO` is
+    // An export or unexport line upstream could not name is unrepresentable
+    // rather than broken: a bare `export` exports everything, a bare
+    // `unexport` undoes that, `export define FOO` is
     // modelled with no name at all, and upstream refuses any name whose text
     // is one of its own directive keywords. Aborting the whole file over it
     // would be disproportionate, but dropping it silently would let the report
     // claim `complete` while a construct went missing. Emitting a diagnostic
     // here rather than relying on upstream to emit one keeps the report
-    // `recovered` whatever upstream does — `override export override` is
-    // dropped by upstream without any error of its own. A name-less definition
+    // `recovered` whatever upstream does: earlier parser revisions dropped
+    // `override export override` without any error of their own. A name-less
+    // definition
     // that is not an export is still a broken tree and keeps failing loudly
     // below.
-    if context.is_export && variable.name().is_none() {
+    if context.names_a_directive() && variable.name().is_none() {
         return Ok(vec![SyntaxObservation::Diagnostic {
-            message: "export directive names could not be determined".to_owned(),
+            message: format!(
+                "{} directive names could not be determined",
+                context.directive_keyword()
+            ),
             code: None,
             span: definition_span,
         }]);
@@ -208,6 +215,7 @@ fn variable_observation(
     if operator.is_none() && context.is_directive_only() {
         return Ok(export_directive_observations(
             variable,
+            context,
             conditions,
             definition_span,
         ));
@@ -219,6 +227,8 @@ fn variable_observation(
         })?,
         operator: assignment_operator(operator.as_deref(), context)?,
         raw_value: variable.raw_value().unwrap_or_default(),
+        // Here `export` is a modifier wherever it appears, as in GNU Make:
+        // `unexport export FOO = 3` assigns and exports.
         exported: context.is_export,
         overridden: variable.is_override(),
         define_block: context.is_define,

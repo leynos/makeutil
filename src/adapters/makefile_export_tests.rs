@@ -1,4 +1,5 @@
-//! Unit tests for operator mapping and `export` directive name collection.
+//! Unit tests for operator mapping and `export`/`unexport` directive name
+//! collection.
 
 use makefile_lossless::{Makefile, MakefileItem, Parse, VariableDefinition};
 use pretty_assertions::assert_eq;
@@ -19,6 +20,16 @@ fn context(is_define: bool, is_export: bool) -> OperatorContext {
     OperatorContext {
         is_define,
         is_export,
+        is_unexport: false,
+    }
+}
+
+/// Build the context a real definition line produces, as the adapter does.
+fn context_of(variable: &VariableDefinition) -> OperatorContext {
+    OperatorContext {
+        is_define: variable.is_define(),
+        is_export: variable.is_export(),
+        is_unexport: variable.is_unexport(),
     }
 }
 
@@ -49,7 +60,7 @@ fn define_without_operator_uses_empty_schema_variant() {
 fn bare_export_directive_uses_empty_schema_variant() {
     let variable = first_variable("export MOLD_VERSION_FILE\n")
         .expect("a bare export should be modelled as a variable definition");
-    let observations = export_directive_observations(&variable, &[], SPAN);
+    let observations = export_directive_observations(&variable, context_of(&variable), &[], SPAN);
 
     assert_eq!(
         observations,
@@ -66,13 +77,36 @@ fn bare_export_directive_uses_empty_schema_variant() {
     );
 }
 
+/// An `unexport` directive yields the same valueless fact, marked as not
+/// exported, which is what tells it from an `export` directive.
+#[rstest]
+fn bare_unexport_directive_is_not_exported() {
+    let variable = first_variable("unexport RUSTDOC_FLAGS\n")
+        .expect("a bare unexport should be modelled as a variable definition");
+    let observations = export_directive_observations(&variable, context_of(&variable), &[], SPAN);
+
+    assert_eq!(
+        observations,
+        vec![SyntaxObservation::Variable {
+            name: "RUSTDOC_FLAGS".to_owned(),
+            operator: AssignmentOperator::Define,
+            raw_value: String::new(),
+            exported: false,
+            overridden: false,
+            define_block: false,
+            conditions: Vec::new(),
+            span: SPAN,
+        }]
+    );
+}
+
 /// `override export FOO` is a directive too, and the override modifier must
 /// survive the expansion into per-name facts.
 #[rstest]
 fn overridden_export_directive_retains_its_modifier() {
     let variable = first_variable("override export FOO\n")
         .expect("an overridden export should be modelled as a variable definition");
-    let observations = export_directive_observations(&variable, &[], SPAN);
+    let observations = export_directive_observations(&variable, context_of(&variable), &[], SPAN);
     let overridden = observations.iter().map(|observation| match observation {
         SyntaxObservation::Variable {
             name, overridden, ..
@@ -95,7 +129,8 @@ fn export_directive_facts_carry_their_conditions() {
         branch: ConditionBranch::If,
         span: SPAN,
     }];
-    let observations = export_directive_observations(&variable, &ancestry, SPAN);
+    let observations =
+        export_directive_observations(&variable, context_of(&variable), &ancestry, SPAN);
 
     assert_eq!(
         observations
@@ -141,6 +176,30 @@ fn directive_only_lines_are_recognized(
     assert_eq!(context(is_define, is_export).is_directive_only(), expected);
 }
 
+/// A leading `unexport` makes a line a directive and decides that its facts
+/// are not exported, even when `export` also appears on the line as a name.
+///
+/// Each expectation is `(is_directive_only, is_exported)`.
+#[rstest]
+#[case::unexport(unexport_line(false, false), (true, false))]
+#[case::unexport_define(unexport_line(true, false), (false, false))]
+#[case::unexport_naming_export(unexport_line(false, true), (true, false))]
+#[case::export(context(false, true), (true, true))]
+fn unexport_lines_are_directives_that_do_not_export(
+    #[case] line: OperatorContext,
+    #[case] expected: (bool, bool),
+) {
+    assert_eq!((line.is_directive_only(), line.is_exported()), expected);
+}
+
+/// Build the context of a line leading with `unexport`.
+fn unexport_line(is_define: bool, is_export: bool) -> OperatorContext {
+    OperatorContext {
+        is_unexport: true,
+        ..context(is_define, is_export)
+    }
+}
+
 /// Every name a directive line carries is collected, now that the pinned
 /// parser revision keeps the whole list inside the variable node.
 ///
@@ -156,6 +215,10 @@ fn directive_only_lines_are_recognized(
 #[case::repeated_keyword_prefix("export export FOO\n", vec!["FOO"])]
 #[case::overridden("override export FOO\n", vec!["FOO"])]
 #[case::unnameable("export export\n", Vec::new())]
+#[case::unexport_single("unexport FOO\n", vec!["FOO"])]
+#[case::unexport_multiple("unexport FOO BAR\n", vec!["FOO", "BAR"])]
+#[case::unexport_name_less("unexport\n", Vec::new())]
+#[case::unexport_keyword_named_variable("unexport unexport\n", vec!["unexport"])]
 fn bare_export_names_are_all_collected(#[case] source: &str, #[case] expected: Vec<&str>) {
     let variable = first_variable(source)
         .expect("an export directive should be modelled as a variable definition");

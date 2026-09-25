@@ -69,10 +69,12 @@ fn directive<'report>(report: &'report ParseReport, name: &str) -> Option<&'repo
 // left alone; only the multi-name form was in scope. Pinned as it behaves.
 #[case::overridden("override export FOO\n", ParseStatus::Complete, vec!["FOO"], None)]
 #[case::overridden_list("override export FOO BAR\n", ParseStatus::Recovered, vec!["FOO"], None)]
-#[case::undiagnosed_upstream(
+// Earlier parser revisions dropped this line without a diagnostic. The
+// current one reads the third keyword as the name, as it reads `FOO` above.
+#[case::keyword_after_two_prefixes(
     "override export override\n",
-    ParseStatus::Recovered,
-    Vec::new(),
+    ParseStatus::Complete,
+    vec!["override"],
     None
 )]
 #[case::exported_define(
@@ -88,9 +90,11 @@ fn directive<'report>(report: &'report ParseReport, name: &str) -> Option<&'repo
     None
 )]
 #[case::assignment("export FOO := bar\n", ParseStatus::Complete, vec!["FOO"], None)]
-#[case::unexport_single("unexport FOO\n", ParseStatus::Recovered, Vec::new(), None)]
-#[case::unexport_multiple("unexport FOO BAR\n", ParseStatus::Recovered, Vec::new(), None)]
-#[case::unexport_name_less("unexport\n", ParseStatus::Recovered, Vec::new(), None)]
+#[case::unexport_single("unexport FOO\n", ParseStatus::Complete, vec!["FOO"], None)]
+#[case::unexport_multiple("unexport FOO BAR\n", ParseStatus::Complete, vec!["FOO", "BAR"], None)]
+// A bare `unexport` undoes a bare `export`, which schema version 1 cannot
+// express, so it degrades exactly as a bare `export` does.
+#[case::unexport_name_less("unexport\n", ParseStatus::Recovered, Vec::new(), Some((0, 9)))]
 fn no_export_form_aborts(
     #[case] source: &str,
     #[case] expected: ParseStatus,
@@ -352,9 +356,10 @@ fn name_less_export_degrades_to_a_diagnostic() -> Result<(), Box<dyn std::error:
         .iter()
         .map(|variable| variable.name.as_str())
         .collect();
+    // The two facts are the assignment and the `unexport FOO` directive.
     assert_eq!(
         names,
-        vec!["FOO"],
+        vec!["FOO", "FOO"],
         "no variable fact may be invented for a name-less export",
     );
     Ok(())
