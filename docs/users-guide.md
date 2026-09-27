@@ -91,10 +91,11 @@ that line. Such a directive appears in the `variables` array with `operator`
 set to the empty string, `raw_value` set to the empty string, `exported` set to
 `true`, and `define_block` set to `false`. A consumer that wants only genuine
 assignments should therefore filter on a non-empty `operator`; the predicate
-`operator == "" && define_block == false` identifies a bare export directive
-rather than an assignment. A name may appear twice, once for its assignment and
-once for the directive that exports it, so the operator rather than the name
-distinguishes the two.
+`operator == "" && define_block == false` identifies a directive, either
+`export` or `unexport`, rather than an assignment, and `exported` tells the two
+apart. A name may appear twice, once for its assignment and once for the
+directive that exports it, so the operator rather than the name distinguishes
+the two.
 
 A directive naming several variables, such as `export A B C`, yields one entry
 per name and reports `complete`. The names may be spread across a line

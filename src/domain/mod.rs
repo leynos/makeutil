@@ -221,8 +221,11 @@ pub struct VariableFact {
     pub operator: AssignmentOperator,
     /// Unexpanded source value.
     pub raw_value: String,
-    /// Whether the `export` modifier is present; `false` on an `unexport`
-    /// directive or assignment.
+    /// Whether the fact is exported. On an assignment this is whether the
+    /// `export` modifier appears anywhere among its prefixes, so
+    /// `unexport export FOO = 3` is exported, as GNU Make exports it. On a
+    /// directive a leading `unexport` decides, so every `unexport NAME`
+    /// fact is `false`.
     pub exported: bool,
     /// Whether the `override` modifier is present.
     pub overridden: bool,

@@ -318,8 +318,8 @@ for the first bounded rules.
 
 The schema-v1 operator set is closed: `""`, `"="`, `":="`, `"::="`, `":::="`,
 `"+="`, `"?="`, and `"!="`. The empty string means a definition without an
-assignment token: either a `define` block or a bare `export` directive. The
-operator remains source-faithful; the first slice does not calculate the
+assignment token: a `define` block, or a bare `export` or `unexport` directive.
+The operator remains source-faithful; the first slice does not calculate the
 effective value or precedence.
 
 #### 6.6.1. Bare `export` directives
@@ -386,9 +386,10 @@ the merge of the `bare-export-directives` work should know that:
   fact in the file; it now appears in `variables` with an empty `operator`.
 - Reports may therefore contain more `variables` entries than before, and a
   name may appear twice — once for its assignment and once for the directive
-  that exports it. Identify bare-export facts with
-  `operator == "" && define_block == false`; do not use a non-empty `operator`
-  filter, because `define` blocks also serialize with an empty operator.
+  that exports it. Identify directive facts with
+  `operator == "" && define_block == false`, and bare-export facts with
+  `exported == true` as well; do not use a non-empty `operator` filter, because
+  `define` blocks also serialize with an empty operator.
 - `unexport NAME` reports `complete` with a directive entry whose `exported`
   is `false`. Read `exported` on directive entries to tell `export` from
   `unexport`.
