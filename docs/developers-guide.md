@@ -169,6 +169,17 @@ running the full generated workflow locally on Linux. Install `mbake` with:
 uv tool install mbake
 ```
 
+CI installs cargo-nextest and cargo-audit with cargo-binstall, and both steps
+fail closed. Each step passes `GITHUB_TOKEN: ${{ github.token }}`, because an
+unauthenticated lookup of the tool's GitHub release can be refused with HTTP
+403. Each also runs with `--disable-strategies compile`, because without a
+prebuilt binstall otherwise falls back to a source build. For nextest that
+build fails outright, since nextest refuses to build without `--locked`, and
+for any tool it takes minutes. A missing prebuilt therefore fails the step
+loudly. `tests/workflow_binstall_contract.rs` holds both halves on each step.
+The Whitaker installer keeps its compile fallback, because it has no prebuilt
+release to install.
+
 ## Releases
 
 `.github/workflows/release.yml` publishes a release when a tag of the form

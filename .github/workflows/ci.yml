@@ -42,13 +42,21 @@ jobs:
       - name: Check spelling
         run: make spelling
       - name: Install test runner
+        # A token lifts binstall's GitHub API rate limit, and with the
+        # compile strategy disabled a missing prebuilt fails the step
+        # instead of falling back to a slow, unlocked source build.
         env:
           RUSTFLAGS: ""
-        run: cargo binstall --no-confirm cargo-nextest
+          GITHUB_TOKEN: ${{ github.token }}
+        run: cargo binstall --no-confirm --disable-strategies compile cargo-nextest
       - name: Install cargo-audit
+        # A token lifts binstall's GitHub API rate limit, and with the
+        # compile strategy disabled a missing prebuilt fails the step
+        # instead of falling back to a slow, unlocked source build.
         env:
           RUSTFLAGS: ""
-        run: cargo binstall --no-confirm cargo-audit
+          GITHUB_TOKEN: ${{ github.token }}
+        run: cargo binstall --no-confirm --disable-strategies compile cargo-audit
       - name: Setup Python for audit manifest extraction
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
