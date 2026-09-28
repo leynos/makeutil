@@ -114,12 +114,12 @@ fn unexport_path_emits_unexported_directive_facts(mut makeutil_command: Command)
         .filter_map(|variable| variable.get("name").and_then(serde_json::Value::as_str))
         .collect::<Vec<_>>();
     assert_eq!(unexported_names, ["DOC_FLAGS"]);
-    let rule_targets = document
+    let rule_count = document
         .get("rules")
         .and_then(serde_json::Value::as_array)
-        .map(|rules| rules.len());
+        .map(Vec::len);
     assert_eq!(
-        rule_targets,
+        rule_count,
         Some(1),
         "no rule may be invented for `unexport`"
     );
