@@ -9,24 +9,24 @@ expression: stable_json(&report)?
       {
         "code": null,
         "location": {
-          "end_byte": 41,
-          "end_column": 16,
+          "end_byte": 26,
+          "end_column": 1,
           "end_line": 2,
-          "start_byte": 33,
-          "start_column": 8,
-          "start_line": 2
+          "start_byte": 25,
+          "start_column": 26,
+          "start_line": 1
         },
         "message": "expected ':'"
       },
       {
         "code": null,
         "location": {
-          "end_byte": 64,
-          "end_column": 1,
-          "end_line": 5,
-          "start_byte": 64,
+          "end_byte": 25,
+          "end_column": 26,
+          "end_line": 1,
+          "start_byte": 0,
           "start_column": 1,
-          "start_line": 5
+          "start_line": 1
         },
         "message": "expected ':'"
       }

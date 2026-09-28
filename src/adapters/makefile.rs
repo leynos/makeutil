@@ -14,7 +14,10 @@ use makefile_lossless::{
 };
 use rowan::ast::AstNode as _;
 
-use super::makefile_export::{OperatorContext, assignment_operator, export_directive_observations};
+use super::{
+    makefile_expansion::expansion_observation,
+    makefile_export::{OperatorContext, assignment_operator, export_directive_observations},
+};
 use crate::{
     domain::{ConditionBranch, ConditionKind, SourceSpan},
     ports::{
@@ -38,7 +41,7 @@ impl MakefileParser for MakefileLosslessParser {
         ensure_round_trip(&tree, source)?;
 
         let mut observations = Vec::new();
-        collect_items(tree.items(), source.len(), &mut observations)?;
+        collect_items(tree.items(), source, &mut observations)?;
         collect_diagnostics(&parsed, source, &mut observations)?;
         Ok(ParserOutcome { observations })
     }
@@ -54,9 +57,10 @@ fn ensure_round_trip(tree: &Makefile, source: &str) -> Result<(), ParserPortErro
 
 fn collect_items(
     items: impl Iterator<Item = MakefileItem>,
-    source_length: usize,
+    source: &str,
     observations: &mut Vec<SyntaxObservation>,
 ) -> Result<(), ParserPortError> {
+    let source_length = source.len();
     let mut pending = items
         .map(TraversalEvent::Item)
         .collect::<Vec<TraversalEvent>>();
@@ -80,6 +84,9 @@ fn collect_items(
                 schedule_conditional(&conditional, source_length, conditions.len(), &mut pending)?;
             }
             TraversalEvent::Item(MakefileItem::Vpath(_)) => {}
+            TraversalEvent::Item(MakefileItem::Expansion(expansion)) => {
+                observations.extend(expansion_observation(&expansion, source)?);
+            }
         }
     }
     Ok(())

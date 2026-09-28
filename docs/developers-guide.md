@@ -82,6 +82,19 @@ operator-less `export` or `unexport` so it can emit zero or more directive
 facts with the shared directive span. They are adapter-private mechanics, not
 domain ports, general directive parsers, or reusable CST walkers.
 
+The private `makefile_expansion` module owns the reading of bare expansion
+lines, the parser's `MakefileItem::Expansion` items (see
+[ADR-0003](adrs/0003-bare-expansion-lines.md)). A repository sweep found no
+existing helper that judges an expansion: the adapter had no expansion item to
+translate before the fork added one. `expansion_observation` returns nothing
+for a line of `info`, `warning` or `error` calls, which GNU Make expands to
+empty text. For any other line it returns one diagnostic spanning the line
+without its newline. `collect_items` is its only production caller, once per
+expansion item. Keep the empty-expansion set to functions that GNU Make
+documents as expanding to empty text, and change it only with ADR-0003, since
+adding a name turns `recovered` reports `complete`. It is adapter-private, not
+a general expansion evaluator.
+
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent
 and ignore-error accessors are sensitive to modifier order. It may be called
@@ -112,14 +125,15 @@ cannot forge another physical line; it is not a general path normalizer or JSON
 encoder.
 
 The exact 0.3.40 parser requirement is temporarily patched to immutable fork
-commit `752994608fd7909c7955bb7cfba5847eec18d228`, protected by the annotated
-tag `makeutil-pin-7529946`. It adds `!=` lexer support, retains every name of a
-multi-name `export A B C` directive inside the definition node, and parses
-`unexport` as a directive beside `export`. Keep the commit pin reproducible,
-and protect any new pin with a `makeutil-pin-<sha>` tag before repinning. When
-upgrading to an upstream release that contains these fixes, remove the
-`[patch.crates-io]` entry and rerun the complete assignment-operator contract
-matrix and the export-directive suite before updating the lockfile.
+commit `4f4463b261d949c16c7d7f28785f74c9f45badea`, protected by the annotated
+tag `makeutil-pin-4f4463b`. It adds `!=` lexer support, retains every name of a
+multi-name `export A B C` directive inside the definition node, parses
+`unexport` as a directive beside `export`, and keeps a bare expansion line as
+its own item. Keep the commit pin reproducible, and protect any new pin with a
+`makeutil-pin-<sha>` tag before repinning. When upgrading to an upstream
+release that contains these fixes, remove the `[patch.crates-io]` entry and
+rerun the complete assignment-operator contract matrix and the export-directive
+suite before updating the lockfile.
 
 Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and
 property tests exercise the domain, `rstest-bdd` scenarios exercise observable

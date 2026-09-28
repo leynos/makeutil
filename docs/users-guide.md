@@ -151,3 +151,24 @@ the line is a directive or an assignment. On a directive, the leading
 with `exported` set to `false`. On an assignment, `export` is a modifier
 wherever it appears, as GNU Make treats it: `unexport export FOO = 3` is an
 assignment of `3` to `FOO` with `exported` set to `true`.
+
+### Bare expansion lines
+
+A line holding nothing but a function call or variable expansion, such as
+`$(info ...)` or `$(eval ...)`, is expanded by GNU Make and its result parsed.
+`makeutil` cannot expand, so it reports these lines by what they can define:
+
+- `$(info ...)`, `$(warning ...)` and `$(error ...)` expand to empty text. A
+  line of those calls, with or without a trailing comment, adds nothing to the
+  report. A read-time guard such as `$(error VERSION must be set)` inside an
+  `ifeq` or `ifneq` block leaves the report `complete`.
+- Any other expansion line, such as `$(eval ...)`, `$(call ...)`,
+  `$(foreach ...)` or a bare `$(VAR)`, may define a rule or a variable the
+  report cannot show. It adds the diagnostic
+  `expansion line may define rules or variables a static parse cannot see`,
+  located on that line, and the report is `recovered`.
+
+A line starting with an expansion that also has a colon or an assignment
+operator outside its references, such as `$(OUT): input` or `$(NAME) = value`,
+is still read as a rule or an assignment. See
+[ADR-0003](adrs/0003-bare-expansion-lines.md) for the reasoning.
