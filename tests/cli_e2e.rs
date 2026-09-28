@@ -96,6 +96,12 @@ fn unexport_path_emits_unexported_directive_facts(mut makeutil_command: Command)
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(
         document
+            .get("schema_version")
+            .and_then(serde_json::Value::as_u64),
+        Some(1),
+    );
+    assert_eq!(
+        document
             .pointer("/parse/status")
             .and_then(serde_json::Value::as_str),
         Some("complete"),
@@ -110,6 +116,10 @@ fn unexport_path_emits_unexported_directive_facts(mut makeutil_command: Command)
             variable.get("operator") == Some(&serde_json::Value::String(String::new()))
                 && variable.get("exported") == Some(&serde_json::Value::Bool(false))
                 && variable.get("define_block") == Some(&serde_json::Value::Bool(false))
+                && variable
+                    .get("raw_value")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("")
         })
         .filter_map(|variable| variable.get("name").and_then(serde_json::Value::as_str))
         .collect::<Vec<_>>();

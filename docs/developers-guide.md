@@ -57,24 +57,30 @@ not pass upstream strings beyond the adapter.
 representation for schema-v1 variable operators. The parser adapter is its only
 producer; `SyntaxObservation` and report types are its permitted consumers. Its
 `Define` variant serializes as an empty string and means a definition without
-an assignment token: either a `define` block or a bare `export` directive, told
-apart by the `define_block` flag. Extend the enum only through a
+an assignment token: a `define` block, or a bare `export` or `unexport`
+directive. The `define_block` flag tells a block from a directive, and
+`exported` then tells `export` from `unexport`. Extend the enum only through a
 schema-versioned contract decision, and do not pass upstream operator strings
 beyond the adapter.
 
-The private `makefile_export` helpers own translation of operator-less export
-definitions into variable observations. Before extraction, a repository sweep
-found no equivalent directive-expansion helper: `variable_observation` was the
-sole variable translator and produced one observation. In production,
-`variable_observation` is the only permitted caller of `assignment_operator` and
-`export_directive_observations`; `export_directive_observations` alone may call
-`directive_names`. Focused unit tests may exercise each helper directly.
-Compose the helpers only while translating one upstream `VariableDefinition`:
-use `assignment_operator` for ordinary variable facts, and use
-`export_directive_observations` only for an operator-less export so it can emit
-zero or more directive facts with the shared directive span. They are
-adapter-private mechanics, not domain ports, general directive parsers, or
-reusable CST walkers.
+The private `makefile_export` helpers own translation of operator-less `export`
+and `unexport` definitions into variable observations. `OperatorContext`
+records which directive keyword a line carries. On a directive line a leading
+`unexport` decides, so `is_exported` is false for every fact it yields. An
+assignment is a separate case: there `export` is a modifier wherever it appears
+among the prefixes, so `variable_observation` reads `is_export` for it, and
+`unexport export FOO = 3` is exported, as GNU Make exports it. Before
+extraction, a repository sweep found no equivalent directive-expansion helper:
+`variable_observation` was the sole variable translator and produced one
+observation. In production, `variable_observation` is the only permitted caller
+of `assignment_operator` and `export_directive_observations`;
+`export_directive_observations` alone may call `directive_names`. Focused unit
+tests may exercise each helper directly. Compose the helpers only while
+translating one upstream `VariableDefinition`: use `assignment_operator` for
+ordinary variable facts, and use `export_directive_observations` only for an
+operator-less export so it can emit zero or more directive facts with the
+shared directive span. They are adapter-private mechanics, not domain ports,
+general directive parsers, or reusable CST walkers.
 
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent
