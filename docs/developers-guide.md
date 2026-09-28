@@ -209,7 +209,9 @@ or fixture exceptions to `typos.local.toml`.
 
 `make provenance` rejects personal repository references, local paths, named
 operational projects, and claims of validation that cannot be reproduced from
-the repository. `make markdownlint` includes this check. Generic consumer
+the repository. `make markdownlint` includes this check, and the CI
+`build-test` job runs it as a step of its own, which
+`tests/workflow_suite_contract.rs` holds. Generic consumer
 contracts, technical dependency coordinates, and canonical citations in the
 imported upstream guides remain permitted.
 
