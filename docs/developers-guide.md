@@ -82,6 +82,19 @@ operator-less export so it can emit zero or more directive facts with the
 shared directive span. They are adapter-private mechanics, not domain ports,
 general directive parsers, or reusable CST walkers.
 
+The private `makefile_expansion` module owns the reading of bare expansion
+lines, the parser's `MakefileItem::Expansion` items (see
+[ADR-0003](adrs/0003-bare-expansion-lines.md)). A repository sweep found no
+existing helper that judges an expansion: the adapter had no expansion item to
+translate before the fork added one. `expansion_observation` returns nothing
+for a line of `info`, `warning` or `error` calls, which GNU Make expands to
+empty text. For any other line it returns one diagnostic spanning the line
+without its newline. `collect_items` is its only production caller, once per
+expansion item. Keep the empty-expansion set to functions that GNU Make
+documents as expanding to empty text, and change it only with ADR-0003, since
+adding a name turns `recovered` reports `complete`. It is adapter-private, not
+a general expansion evaluator.
+
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent
 and ignore-error accessors are sensitive to modifier order. It may be called

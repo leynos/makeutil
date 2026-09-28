@@ -376,6 +376,15 @@ beside `is_export`, and `OperatorContext::is_exported` lets a leading
 name. Before this, an `unexport` line parsed as a rule missing its colon, forced
 `recovered`, and placed both of its diagnostics on the wrong lines.
 
+A top-level line holding only a function call or variable expansion is its own
+parser item. `info`, `warning` and `error` calls expand to empty text in GNU
+Make 4.4.1, so a line of them adds nothing. Any other expansion line adds a
+diagnostic on that line and makes the report `recovered`, because it may
+define rules or variables the report cannot show (see
+[ADR-0003](adrs/0003-bare-expansion-lines.md)). The same parser revision
+places every diagnostic on the line it concerns; before it, one channel
+reported the end of input and the other an unrelated token.
+
 #### 6.6.2. Note for consumers pinning `makeutil`
 
 Downstream repositories pin `makeutil` by commit SHA, so this change reaches

@@ -1243,7 +1243,7 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 [[package]]
 name = "makefile-lossless"
 version = "0.3.40"
-source = "git+https://github.com/leynos/makefile-lossless.git?rev=752994608fd7909c7955bb7cfba5847eec18d228#752994608fd7909c7955bb7cfba5847eec18d228"
+source = "git+https://github.com/leynos/makefile-lossless.git?rev=dcb022d8de8aa1c5e30c398ec91b0e15e2573f58#dcb022d8de8aa1c5e30c398ec91b0e15e2573f58"
 dependencies = [
  "log",
  "rowan",
@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "makeutil"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "assert_cmd",
  "camino",
