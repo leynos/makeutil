@@ -213,6 +213,15 @@ the repository. `make markdownlint` includes this check. Generic consumer
 contracts, technical dependency coordinates, and canonical citations in the
 imported upstream guides remain permitted.
 
+A GitHub Actions coordinate, `<owner>/<repository>/.github/actions/<name>@`, is
+a technical dependency coordinate: a workflow contract must name the action it
+asserts. The personal-repository check therefore skips each such occurrence and
+still rejects every other reference to the owner's repositories, including a
+repository, an issue, a URL, or a reusable-workflow path, even on the same line
+as a coordinate. The exemption
+uses a Perl-compatible lookahead, so the check needs a Git built with PCRE
+support; without it, `git grep -P` fails and the check fails with it.
+
 ### Security audit ignores
 
 Security audit jobs may set `CARGO_AUDIT_IGNORES` for narrowly scoped RustSec
