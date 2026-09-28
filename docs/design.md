@@ -77,13 +77,14 @@ rewriting, and bindings remain later decisions.
 The implementation uses
 [`makefile-lossless`](https://github.com/jelmer/makefile-lossless), initially
 pinned to `=0.3.40`. A temporary `[patch.crates-io]` override selects commit
-`2ae7134beb04416851ab18c8a5d5893348fbe26c` from a project-maintained fork,
-which carries two fixes absent from release 0.3.40: lexing the documented GNU
-Make `!=` assignment operator, and retaining every name of a multi-name
-`export A B C` directive within the definition node. Remove the override when
-an upstream release containing both is adopted; do not replace the immutable
-commit with a branch name. The published version string stays `0.3.40`, so
-`parser_version` is unaffected by a revision bump.
+`752994608fd7909c7955bb7cfba5847eec18d228` from a project-maintained fork,
+protected by the tag `makeutil-pin-7529946`, which carries three fixes absent
+from release 0.3.40: lexing the documented GNU Make `!=` assignment operator,
+retaining every name of a multi-name `export A B C` directive within the
+definition node, and parsing `unexport` as a directive beside `export`. Remove
+the override when an upstream release containing all three is adopted; do not
+replace the immutable commit with a branch name. The published version string
+stays `0.3.40`, so `parser_version` is unaffected by a revision bump.
 
 The crate supplies:
 

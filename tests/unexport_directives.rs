@@ -7,12 +7,14 @@
 //! `unexport` line was read as a rule missing its colon, forced a `recovered`
 //! report, and placed both of its diagnostics on the wrong lines.
 
+use makefile_lossless::{Makefile, Parse};
 use makeutil::{
     adapters::MakefileLosslessParser,
     domain::{AssignmentOperator, ParseReport, ParseStatus, VariableFact},
     parse_source,
 };
 use pretty_assertions::assert_eq;
+use proptest::{prelude::*, test_runner::TestCaseError};
 use rstest::rstest;
 
 /// Operator, raw value, export flag and `define_block` of one variable fact.
@@ -215,4 +217,43 @@ fn export_after_unexport_follows_gnu_make(
 
     assert_eq!((foo.operator, foo.exported), (operator, exported));
     Ok(())
+}
+
+proptest! {
+    /// Every name on a bare `unexport` becomes one ordered, unexported
+    /// directive fact spanning the line, and the source round-trips.
+    ///
+    /// Names are drawn so none spells a directive keyword, which the parser
+    /// treats specially and the named tests above cover.
+    #[test]
+    fn multi_name_unexport_yields_one_unexported_fact_per_name(
+        names in proptest::collection::vec("[A-Z][A-Z0-9_]{0,12}", 1..12),
+        leading_space in "[ \t]{0,2}",
+    ) {
+        let source = format!("unexport{leading_space} {}\n", names.join(" "));
+        let parsed = Parse::<Makefile>::parse_makefile(&source);
+        prop_assert_eq!(parsed.tree().to_string(), source.as_str());
+
+        let report = parse_source(source.as_bytes(), "generated-unexport.mk", &MakefileLosslessParser)
+            .map_err(|error| TestCaseError::fail(error.to_string()))?;
+        let facts = report
+            .variables
+            .iter()
+            .filter(|fact| fact.operator == AssignmentOperator::Define)
+            .collect::<Vec<_>>();
+        let observed_names = facts.iter().map(|fact| fact.name.clone()).collect::<Vec<_>>();
+
+        prop_assert_eq!(report.parse.status, ParseStatus::Complete);
+        prop_assert!(report.parse.diagnostics.is_empty());
+        prop_assert_eq!(observed_names.as_slice(), names.as_slice());
+        for fact in facts {
+            prop_assert_eq!(fact.raw_value.as_str(), "");
+            prop_assert!(!fact.exported);
+            prop_assert!(!fact.define_block);
+            prop_assert_eq!(
+                (fact.location.start_byte, fact.location.end_byte),
+                (0, source.len()),
+            );
+        }
+    }
 }

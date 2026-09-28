@@ -106,12 +106,14 @@ cannot forge another physical line; it is not a general path normalizer or JSON
 encoder.
 
 The exact 0.3.40 parser requirement is temporarily patched to immutable fork
-commit `2ae7134beb04416851ab18c8a5d5893348fbe26c`, which adds `!=` lexer
-support and retains every name of a multi-name `export A B C` directive inside
-the definition node. Keep the commit pin reproducible. When upgrading to an
-upstream release that contains both fixes, remove the `[patch.crates-io]` entry
-and rerun the complete assignment-operator contract matrix and the
-export-directive suite before updating the lockfile.
+commit `752994608fd7909c7955bb7cfba5847eec18d228`, protected by the annotated
+tag `makeutil-pin-7529946`. It adds `!=` lexer support, retains every name of a
+multi-name `export A B C` directive inside the definition node, and parses
+`unexport` as a directive beside `export`. Keep the commit pin reproducible,
+and protect any new pin with a `makeutil-pin-<sha>` tag before repinning. When
+upgrading to an upstream release that contains these fixes, remove the
+`[patch.crates-io]` entry and rerun the complete assignment-operator contract
+matrix and the export-directive suite before updating the lockfile.
 
 Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and
 property tests exercise the domain, `rstest-bdd` scenarios exercise observable
@@ -184,15 +186,16 @@ It builds with the nightly channel pinned in `rust-toolchain.toml` and
 `RUSTFLAGS=-Zpolonius=next`, because the crate does not compile on stable. It
 smoke-tests each binary by parsing a fixture and checking the report's schema
 version, status, exported variables and rules. The release job then attaches
-each binary and its `.sha256` file to a GitHub release with generated notes,
-and `verify-binstall` installs the published release through cargo-binstall on
+each binary and its `.sha256` file to a GitHub release with generated notes, and
+`verify-binstall` installs the published release through cargo-binstall on
 both glibc triples.
 
 A pull request that edits `release.yml` runs the build and smoke-test jobs
 without publishing. It also exercises the tag check against the crate's own tag
 and a mismatching one, and the `release-dry-run` job downloads the artefacts as
-the release job does and requires exactly the four expected files. Read that run
-before tagging: a broken release workflow shows there rather than on the tag.
+the release job does and requires exactly the four expected files. Read that
+run before tagging: a broken release workflow shows there rather than on the
+tag.
 
 ## Spelling policy
 

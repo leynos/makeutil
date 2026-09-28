@@ -77,6 +77,54 @@ fn bare_export_path_emits_export_facts(mut makeutil_command: Command) {
     assert_eq!(export_names, ["FOO", "BAR"]);
 }
 
+/// The executable parses an `unexport` directive completely: exit 0, no
+/// stderr, and a valueless directive fact with `exported` false, rather than
+/// the misread rule and misplaced diagnostics of earlier releases.
+#[rstest]
+fn unexport_path_emits_unexported_directive_facts(mut makeutil_command: Command) {
+    let output = makeutil_command
+        .args([
+            "parse",
+            "tests/fixtures/makefiles/unexport-after-conditional.mk",
+        ])
+        .output()
+        .expect("binary should run");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty());
+    let document: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(
+        document
+            .pointer("/parse/status")
+            .and_then(serde_json::Value::as_str),
+        Some("complete"),
+    );
+    let variables = document
+        .get("variables")
+        .and_then(serde_json::Value::as_array)
+        .expect("report should contain a variables array");
+    let unexported_names = variables
+        .iter()
+        .filter(|variable| {
+            variable.get("operator") == Some(&serde_json::Value::String(String::new()))
+                && variable.get("exported") == Some(&serde_json::Value::Bool(false))
+                && variable.get("define_block") == Some(&serde_json::Value::Bool(false))
+        })
+        .filter_map(|variable| variable.get("name").and_then(serde_json::Value::as_str))
+        .collect::<Vec<_>>();
+    assert_eq!(unexported_names, ["DOC_FLAGS"]);
+    let rule_targets = document
+        .get("rules")
+        .and_then(serde_json::Value::as_array)
+        .map(|rules| rules.len());
+    assert_eq!(
+        rule_targets,
+        Some(1),
+        "no rule may be invented for `unexport`"
+    );
+}
+
 #[rstest]
 fn recovered_path_exits_one_with_json(mut makeutil_command: Command) {
     let output = makeutil_command
