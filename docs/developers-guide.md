@@ -78,9 +78,9 @@ of `assignment_operator` and `export_directive_observations`;
 tests may exercise each helper directly. Compose the helpers only while
 translating one upstream `VariableDefinition`: use `assignment_operator` for
 ordinary variable facts, and use `export_directive_observations` only for an
-operator-less export so it can emit zero or more directive facts with the
-shared directive span. They are adapter-private mechanics, not domain ports,
-general directive parsers, or reusable CST walkers.
+operator-less `export` or `unexport` so it can emit zero or more directive
+facts with the shared directive span. They are adapter-private mechanics, not
+domain ports, general directive parsers, or reusable CST walkers.
 
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent

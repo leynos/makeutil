@@ -389,8 +389,9 @@ the merge of the `bare-export-directives` work should know that:
   name may appear twice — once for its assignment and once for the directive
   that exports it. Identify directive facts with
   `operator == "" && define_block == false`, and bare-export facts with
-  `exported == true` as well; do not use a non-empty `operator` filter, because
-  `define` blocks also serialize with an empty operator.
+  `exported == true` as well. To select only assignments, filter on a non-empty
+  `operator`: it excludes both directives and `define` blocks, which serialize
+  with an empty operator.
 - `unexport NAME` reports `complete` with a directive entry whose `exported`
   is `false`. Read `exported` on directive entries to tell `export` from
   `unexport`.
