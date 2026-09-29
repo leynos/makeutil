@@ -112,6 +112,9 @@ fn coordinate(repository: &str, action: &str) -> String {
 #[rstest]
 #[case::coordinate(format!("uses: {}\n", coordinate("shared-actions", "generate-coverage")))]
 #[case::coordinate_in_prose(format!("Pin {} here.\n", coordinate("some.repo_1", "x-y")))]
+#[case::coordinate_prefix_ending_at_the_at_sign(format!(
+    "const ACTION: &str = \"{OWNER}/shared-actions/.github/actions/x@\";\n"
+))]
 #[case::no_reference("Nothing to see.\n".to_owned())]
 fn accepts_a_valid_action_coordinate(#[case] content: String) -> Outcome {
     expect("notes.md", &content, Verdict::Accepted)
@@ -150,10 +153,10 @@ fn ignores_unlisted_file_types() -> Outcome {
     expect("data.txt", &format!("{OWNER}/bare\n"), Verdict::Accepted)
 }
 
+/// The words are split so this file does not itself contain them.
 #[rstest]
 #[case::path(concat!("see /da", "ta/scratch\n"))]
 #[case::word(concat!("a Concor", "dat mention\n"))]
-/// The words are split so this file does not itself contain them.
 fn rejects_non_reproducible_provenance_words(#[case] content: &str) -> Outcome {
     expect("notes.md", content, Verdict::Rejected)
 }

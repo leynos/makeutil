@@ -223,10 +223,12 @@ still rejects every other reference to the owner's repositories, including a
 repository, an issue, a URL, or a reusable-workflow path, even on the same line
 as a coordinate. The exemption uses a Perl-compatible lookahead, so the check
 needs a Git built with PCRE support; without it, `git grep -P` fails and the
-check fails with it. `tests/provenance_target.rs` runs the real recipe in a
-throwaway Git repository for accepted coordinates, each rejected shape, and
-generated coordinates and stray references. It builds the owner name at run
-time so that the file does not trip the check it tests.
+check fails with it. The reference after the `@` may be empty, because a
+workflow contract names the action as a prefix that ends at the `@`.
+`tests/provenance_target.rs` runs the real recipe in a throwaway Git repository
+for accepted coordinates, each rejected shape, and generated coordinates and
+stray references. It builds the owner name at run time so that the file does
+not trip the check it tests.
 
 ### Security audit ignores
 
