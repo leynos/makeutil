@@ -127,7 +127,10 @@ An `unexport NAME` directive keeps a variable out of the environment of recipe
 commands. It is reported exactly as a bare `export NAME` is, except that
 `exported` is `false`: an entry in `variables` with `operator` and `raw_value`
 set to the empty string and `define_block` set to `false`. A directive naming
-several variables yields one entry per name, and the report is `complete`.
+several variables yields one entry per name, and the report is `complete`,
+except where a name is `export`, `override` or `define`: as for `export`,
+`unexport override FOO` keeps `FOO` but cannot represent `override` as a name,
+so the report is `recovered` with a diagnostic.
 
 The predicate `operator == "" && define_block == false` therefore identifies a
 directive of either kind. Read `exported` to tell them apart: `true` for
