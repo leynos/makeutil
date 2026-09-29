@@ -161,7 +161,10 @@ A line holding nothing but a function call or variable expansion, such as
 - `$(info ...)`, `$(warning ...)` and `$(error ...)` expand to empty text. A
   line of those calls, with or without a trailing comment, adds nothing to the
   report. A read-time guard such as `$(error VERSION must be set)` inside an
-  `ifeq` or `ifneq` block leaves the report `complete`.
+  `ifeq` or `ifneq` block leaves the report `complete`. Make expands the
+  arguments first, so a nested `$(eval ...)` or `$(call ...)`, as in
+  `$(info $(eval X := 1))`, makes the line an expansion that may define
+  something, and the report is `recovered`.
 - Any other expansion line, such as `$(eval ...)`, `$(call ...)`,
   `$(foreach ...)` or a bare `$(VAR)`, may define a rule or a variable the
   report cannot show. It adds the diagnostic

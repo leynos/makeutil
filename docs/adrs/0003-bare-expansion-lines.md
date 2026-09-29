@@ -29,7 +29,9 @@ opposite direction to the token stack, which named the mirror-image token.
 GNU Make 4.4.1 expands such a line and parses the result:
 
 - `$(info ...)`, `$(warning ...)` and `$(error ...)` expand to empty text. The
-  line defines nothing; `$(error ...)` stops `make` when it is reached.
+  line defines nothing; `$(error ...)` stops `make` when it is reached. Make
+  expands the arguments first, so this holds only while no argument nests an
+  `eval` or `call`: `$(info $(eval X := 1))` still defines `X`.
 - `$(eval E := x)` defines the variable `E`.
 - A bare `$(R)`, where `R := foo: ; @echo x`, defines the rule `foo`.
 - A `$(foreach ...)` or `$(call ...)` can expand to either.

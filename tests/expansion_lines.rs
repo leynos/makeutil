@@ -144,11 +144,16 @@ fn structural_expansions_recover_on_their_own_lines(
 }
 
 /// Lines that look like empty expansions but are not: literal text beside an
-/// `info` call expands to that text, and `$(info)` with no argument is a
-/// reference to a variable called `info`, whose value may be anything.
+/// `info` call expands to that text, `$(info)` with no argument is a
+/// reference to a variable called `info` whose value may be anything, and an
+/// `eval` or `call` in an argument runs before the message is printed, so
+/// `$(info $(eval X := 1))` still defines `X`.
 #[rstest]
 #[case::literal_text_beside_a_call(b"$(info a) stray\n", 16)]
 #[case::info_without_arguments(b"$(info)\n", 8)]
+#[case::eval_in_an_info_argument(b"$(info $(eval HIDDEN := value))\n", 32)]
+#[case::call_in_a_warning_argument(b"$(warning $(call define-rule,t))\n", 33)]
+#[case::eval_two_levels_down(b"$(error $(subst a,b,$(eval X := 1)))\n", 37)]
 fn lookalike_lines_recover(
     #[case] source: &[u8],
     #[case] end_column: usize,
@@ -161,5 +166,21 @@ fn lookalike_lines_recover(
         [(EXPANSION_MESSAGE, 1, 1, end_column)]
     );
     assert_eq!(targets(&report), Vec::<&str>::new());
+    Ok(())
+}
+
+/// Arguments that only compute text stay inert: plain variables and pure
+/// functions inside a message add nothing, so the report is still `complete`.
+#[rstest]
+#[case::variable_in_error(b"$(error unknown target $(TARGET))\n")]
+#[case::pure_function_in_info(b"$(info $(subst a,b,$(NAME)))\n")]
+#[case::shell_in_warning(b"$(warning $(shell uname))\n")]
+fn pure_arguments_keep_an_empty_expansion_complete(
+    #[case] source: &[u8],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let report = report(source, "inline.mk")?;
+
+    assert_eq!(report.parse.status, ParseStatus::Complete);
+    assert_eq!(diagnostics(&report), []);
     Ok(())
 }

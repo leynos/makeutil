@@ -20,6 +20,11 @@ use crate::{
 /// Functions that GNU Make expands to empty text, so a call defines nothing.
 const EMPTY_EXPANSION_FUNCTIONS: [&str; 3] = ["info", "warning", "error"];
 
+/// Functions whose expansion runs Make text the tree cannot show: `eval`
+/// parses its result as Makefile syntax, and `call` runs a variable that may
+/// hold an `eval`. Nested in an argument, either makes the outer call unsafe.
+const OPAQUE_FUNCTIONS: [&str; 2] = ["eval", "call"];
+
 /// Returns the diagnostic for a bare expansion line that may define structure,
 /// or `None` when the line holds only calls that expand to empty text.
 ///
@@ -50,12 +55,33 @@ fn expands_to_nothing(expansion: &Expansion) -> bool {
             .all(|reference| is_empty_expansion_call(&reference))
 }
 
-/// Returns true for a call to `info`, `warning` or `error`.
+/// Returns true for a call to `info`, `warning` or `error` whose arguments
+/// hold no `eval` or `call`, however deeply nested.
+///
+/// Make expands the arguments before printing them, so
+/// `$(info $(eval X := 1))` still defines `X`. A plain variable reference in an
+/// argument is accepted: its value is opaque to a static parse, but so is every
+/// variable the report names, and flagging each one would recover nearly every
+/// real diagnostic message.
 fn is_empty_expansion_call(reference: &VariableReference) -> bool {
     reference.is_function_call()
         && reference
             .name()
             .is_some_and(|name| EMPTY_EXPANSION_FUNCTIONS.contains(&name.as_str()))
+        && !has_opaque_argument(reference)
+}
+
+/// Returns true if any reference nested inside `reference` is an `eval` or
+/// `call`.
+fn has_opaque_argument(reference: &VariableReference) -> bool {
+    reference
+        .syntax()
+        .descendants()
+        .skip(1)
+        .filter_map(VariableReference::cast)
+        .filter(VariableReference::is_function_call)
+        .filter_map(|nested| nested.name())
+        .any(|name| OPAQUE_FUNCTIONS.contains(&name.as_str()))
 }
 
 /// Returns the span of the line without its trailing newline, so the
