@@ -22,14 +22,15 @@ jobs:
         uses: leynos/shared-actions/.github/actions/setup-rust@8a83824b29dfe8f861714b544dc85fb925ed010c
         with:
           install-mold: 'true'
-      - name: Install mold linker
+      - name: Install clang and lld
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
-          # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
+          # setup-rust installs mold (install-mold above); coverage uses lld for llvm-tools
+          # compatibility.
           sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang lld mold
+            && sudo apt-get install --yes --no-install-recommends clang lld
       - name: Format
         run: make check-fmt
       - name: Markdown lint
