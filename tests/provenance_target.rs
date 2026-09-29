@@ -12,7 +12,7 @@
 use std::{
     io,
     path::Path,
-    process::{Command, Output},
+    process::{Command, ExitStatus, Output},
 };
 
 use camino::Utf8Path;
@@ -41,9 +41,11 @@ fn run_in(dir: &Path, program: &str, args: &[&str]) -> io::Result<Output> {
         .output()
 }
 
-/// Report whether `make provenance` accepts a repository whose only tracked
-/// file is `file_name` with the given `content`.
-fn provenance_accepts(file_name: &str, content: &str) -> io::Result<bool> {
+/// Create a throwaway Git repository whose only tracked file is `file_name`
+/// holding `content`, beside a copy of the real Makefile.
+///
+/// The returned directory owns the repository and removes it on drop.
+fn prepare_repository(file_name: &str, content: &str) -> io::Result<TempDir> {
     let repository = TempDir::new()?;
     let root = repository.path();
     let utf8_root = Utf8Path::from_path(root)
@@ -57,11 +59,30 @@ fn provenance_accepts(file_name: &str, content: &str) -> io::Result<bool> {
             return Err(io::Error::other(format!("git {args:?} failed")));
         }
     }
-    Ok(
-        run_in(root, "make", &["--no-print-directory", "provenance"])?
-            .status
-            .success(),
-    )
+    Ok(repository)
+}
+
+/// Run `make provenance` in `root` and return how it exited.
+///
+/// A failure to start `make` is an `Err`; a non-zero exit is an `Ok` status,
+/// so a broken environment is never mistaken for a rejection.
+fn run_provenance(root: &Path) -> io::Result<ExitStatus> {
+    Ok(run_in(root, "make", &["--no-print-directory", "provenance"])?.status)
+}
+
+/// Prepare a repository and run the target in it, returning the exit status.
+fn run_case(file_name: &str, content: &str) -> io::Result<ExitStatus> {
+    let repository = prepare_repository(file_name, content)?;
+    run_provenance(repository.path())
+}
+
+/// Read the target's exit status as its verdict.
+fn verdict_of(status: ExitStatus) -> Verdict {
+    if status.success() {
+        Verdict::Accepted
+    } else {
+        Verdict::Rejected
+    }
 }
 
 /// What the target is expected to do with a repository.
@@ -76,11 +97,7 @@ type Outcome = Result<(), Box<dyn std::error::Error>>;
 
 /// Fail unless the target gives `expected` for `content` in `file_name`.
 fn expect(file_name: &str, content: &str, expected: Verdict) -> Outcome {
-    let actual = if provenance_accepts(file_name, content)? {
-        Verdict::Accepted
-    } else {
-        Verdict::Rejected
-    };
+    let actual = verdict_of(run_case(file_name, content)?);
     if actual == expected {
         return Ok(());
     }
@@ -155,7 +172,10 @@ proptest! {
         prefix in "[A-Za-z ]{0,8}",
     ) {
         let line = format!("{prefix}{}\n", coordinate(&repository, &action));
-        prop_assert!(provenance_accepts("notes.md", &line).map_err(|error| fail(&error))?);
+        prop_assert_eq!(
+            verdict_of(run_case("notes.md", &line).map_err(|error| fail(&error))?),
+            Verdict::Accepted
+        );
     }
 
     /// A reference that is not a coordinate is rejected, and so is a valid
@@ -172,6 +192,9 @@ proptest! {
         } else {
             format!("{stray}\n")
         };
-        prop_assert!(!provenance_accepts("notes.md", &line).map_err(|error| fail(&error))?);
+        prop_assert_eq!(
+            verdict_of(run_case("notes.md", &line).map_err(|error| fail(&error))?),
+            Verdict::Rejected
+        );
     }
 }
