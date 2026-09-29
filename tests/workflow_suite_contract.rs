@@ -19,6 +19,10 @@
 //! - every feature, declared or implied by an optional dependency, is in `default`, which is what
 //!   makes `--all-features` the coverage default.
 //!
+//! `build-test` also runs `make provenance` in one unguarded step. `make markdownlint` composes
+//! that check locally, but the CI lane runs the Markdown linter and `make spelling` as separate
+//! steps, and without this contract the provenance check could drop out of CI unseen.
+//!
 //! The readers live in `workflow_suite/reading.rs`.
 
 use rstest::rstest;
@@ -36,6 +40,9 @@ const COVERAGE_ACTION: &str = "leynos/shared-actions/.github/actions/generate-co
 
 /// The job that must run both the coverage step and the doctest step.
 const SUITE_JOB: &str = "build-test";
+
+/// The provenance gate `build-test` must run on every pull request.
+const PROVENANCE_COMMAND: &str = "make provenance";
 
 /// Returns the `build-test` job of `ci.yml`, if it exists.
 fn suite_job(found: &[(String, String)]) -> Option<Job<'_>> {
@@ -161,6 +168,27 @@ fn build_test_runs_coverage_unconditionally() {
     assert!(
         !steps.iter().any(reading::Step::is_conditional),
         "coverage must always run"
+    );
+}
+
+#[test]
+fn build_test_runs_provenance_unconditionally() {
+    let found = workflows().expect("failed to read the workflows");
+    let job = suite_job(&found).expect("ci.yml must define build-test");
+    let provenance = Command::from_line(PROVENANCE_COMMAND);
+    let steps: Vec<_> = job
+        .steps()
+        .into_iter()
+        .filter(|step| step.runs(provenance))
+        .collect();
+    assert_eq!(
+        steps.len(),
+        1,
+        "{SUITE_JOB} must run `{PROVENANCE_COMMAND}` in one step"
+    );
+    assert!(
+        !steps.iter().any(reading::Step::is_conditional),
+        "the provenance step must always run"
     );
 }
 
