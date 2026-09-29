@@ -15,6 +15,7 @@ use makeutil::{
     parse_source,
 };
 use pretty_assertions::assert_eq;
+use proptest::{prelude::*, test_runner::TestCaseError};
 use rstest::rstest;
 
 /// The one diagnostic message a bare expansion line produces.
@@ -151,6 +152,7 @@ fn structural_expansions_recover_on_their_own_lines(
 #[rstest]
 #[case::literal_text_beside_a_call(b"$(info a) stray\n", 16)]
 #[case::info_without_arguments(b"$(info)\n", 8)]
+#[case::comma_is_not_a_separator(b"$(info,foo)\n", 12)]
 #[case::eval_in_an_info_argument(b"$(info $(eval HIDDEN := value))\n", 32)]
 #[case::call_in_a_warning_argument(b"$(warning $(call define-rule,t))\n", 33)]
 #[case::eval_two_levels_down(b"$(error $(subst a,b,$(eval X := 1)))\n", 37)]
@@ -183,4 +185,75 @@ fn pure_arguments_keep_an_empty_expansion_complete(
     assert_eq!(report.parse.status, ParseStatus::Complete);
     assert_eq!(diagnostics(&report), []);
     Ok(())
+}
+
+/// A node of a generated expansion: literal text, a variable reference, or a
+/// function call over further nodes.
+#[derive(Clone, Debug)]
+enum Node {
+    Text,
+    Variable(String),
+    Call(&'static str, Vec<Self>),
+}
+
+impl Node {
+    /// Renders the node as Makefile text.
+    fn render(&self) -> String {
+        match self {
+            Self::Text => "word".to_owned(),
+            Self::Variable(name) => format!("$({name})"),
+            Self::Call(function, arguments) => {
+                let rendered: Vec<_> = arguments.iter().map(Self::render).collect();
+                format!("$({function} {})", rendered.join(" "))
+            }
+        }
+    }
+
+    /// Returns true if an `eval` or `call` appears anywhere in the tree.
+    fn nests_an_opaque_call(&self) -> bool {
+        match self {
+            Self::Call(function, arguments) => {
+                matches!(*function, "eval" | "call")
+                    || arguments.iter().any(Self::nests_an_opaque_call)
+            }
+            Self::Text | Self::Variable(_) => false,
+        }
+    }
+}
+
+/// Generates argument trees of bounded depth over pure and opaque functions.
+fn argument_tree() -> impl Strategy<Value = Node> {
+    let leaf = prop_oneof![Just(Node::Text), "[A-Z]{1,4}".prop_map(Node::Variable),];
+    leaf.prop_recursive(4, 24, 3, |inner| {
+        (
+            prop::sample::select(vec![
+                "info", "warning", "error", "subst", "shell", "eval", "call",
+            ]),
+            prop::collection::vec(inner, 1..3),
+        )
+            .prop_map(|(function, arguments)| Node::Call(function, arguments))
+    })
+}
+
+proptest! {
+    /// A bare `info`, `warning` or `error` call is read as expanding to
+    /// nothing exactly when no `eval` or `call` nests anywhere in its
+    /// arguments, however deep; otherwise the line is a diagnostic.
+    #[test]
+    fn an_empty_call_is_inert_exactly_when_no_opaque_call_nests(
+        root in prop::sample::select(vec!["info", "warning", "error"]),
+        arguments in prop::collection::vec(argument_tree(), 1..3),
+    ) {
+        let call = Node::Call(root, arguments);
+        let source = format!("{}\n", call.render());
+        let report = report(source.as_bytes(), "generated.mk")
+            .map_err(|error| TestCaseError::fail(error.to_string()))?;
+        let expected = if call.nests_an_opaque_call() {
+            ParseStatus::Recovered
+        } else {
+            ParseStatus::Complete
+        };
+
+        prop_assert_eq!(report.parse.status, expected, "for {:?}", source);
+    }
 }

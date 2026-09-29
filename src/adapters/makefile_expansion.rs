@@ -58,6 +58,10 @@ fn expands_to_nothing(expansion: &Expansion) -> bool {
 /// Returns true for a call to `info`, `warning` or `error` whose arguments
 /// hold no `eval` or `call`, however deeply nested.
 ///
+/// A call needs whitespace after the function name. The parser also reports
+/// `$(info,foo)` as a call, but GNU Make reads that as the variable
+/// `info,foo`, whose value may be anything, so it is not an empty expansion.
+///
 /// Make expands the arguments before printing them, so
 /// `$(info $(eval X := 1))` still defines `X`. A plain variable reference in an
 /// argument is accepted: its value is opaque to a static parse, but so is every
@@ -68,7 +72,18 @@ fn is_empty_expansion_call(reference: &VariableReference) -> bool {
         && reference
             .name()
             .is_some_and(|name| EMPTY_EXPANSION_FUNCTIONS.contains(&name.as_str()))
+        && has_function_separator(reference)
         && !has_opaque_argument(reference)
+}
+
+/// Returns true when whitespace follows the name inside the reference, as a
+/// function call requires.
+fn has_function_separator(reference: &VariableReference) -> bool {
+    let text = reference.syntax().text().to_string();
+    let inner = text.get(2..).unwrap_or_default();
+    let after_name =
+        inner.trim_start_matches(|c: char| !c.is_whitespace() && !matches!(c, ',' | ')' | '}'));
+    after_name.starts_with(char::is_whitespace)
 }
 
 /// Returns true if any reference nested inside `reference` is an `eval` or
