@@ -9,4 +9,9 @@ codegen-backend = "cranelift"
 
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
+
+# mold ships for Linux only, so the linker flag lives in a Linux-only table. A `cfg` table
+# matches every Linux target, not one architecture; the triple tables above keep only the
+# linker. Other targets, macOS and Windows included, fall through to `[build] rustflags`.
+[target.'cfg(target_os = "linux")']
 rustflags = ["-Zpolonius=next", "-Zthreads=8", "-C", "link-arg=-fuse-ld=mold"]
