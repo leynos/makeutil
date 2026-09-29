@@ -115,12 +115,17 @@ fn coordinate(repository: &str, action: &str) -> String {
 #[case::coordinate_prefix_ending_at_the_at_sign(format!(
     "const ACTION: &str = \"{OWNER}/shared-actions/.github/actions/x@\";\n"
 ))]
+#[case::uppercase_coordinate(format!(
+    "{}/shared-actions/.GITHUB/ACTIONS/x@v1\n",
+    OWNER.to_uppercase()
+))]
 #[case::no_reference("Nothing to see.\n".to_owned())]
 fn accepts_a_valid_action_coordinate(#[case] content: String) -> Outcome {
     expect("notes.md", &content, Verdict::Accepted)
 }
 
 #[rstest]
+#[case::uppercase_bare_repository(format!("See {}/other.\n", OWNER.to_uppercase()))]
 #[case::bare_repository(format!("See {OWNER}/shared-actions for details.\n"))]
 #[case::issue_reference(format!("Fixes {OWNER}/shared-actions#12.\n"))]
 #[case::url(format!("https://github.com/{OWNER}/makeutil\n"))]
@@ -157,6 +162,7 @@ fn ignores_unlisted_file_types() -> Outcome {
 #[rstest]
 #[case::path(concat!("see /da", "ta/scratch\n"))]
 #[case::word(concat!("a Concor", "dat mention\n"))]
+#[case::uppercase_word(concat!("A CONCOR", "DAT mention\n"))]
 fn rejects_non_reproducible_provenance_words(#[case] content: &str) -> Outcome {
     expect("notes.md", content, Verdict::Rejected)
 }
