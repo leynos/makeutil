@@ -141,3 +141,10 @@ bare `export`, which schema version 1 cannot express, so like a bare `export`
 it yields no entry, a diagnostic, and a `recovered` report. `unexport` is a
 directive only at the start of a line: `export unexport` exports a variable
 called `unexport`.
+
+When `export` and `unexport` both prefix a line, the rule depends on whether
+the line is a directive or an assignment. On a directive, the leading
+`unexport` decides: `unexport export FOO` yields a directive entry for `FOO`
+with `exported` set to `false`. On an assignment, `export` is a modifier
+wherever it appears, as GNU Make treats it: `unexport export FOO = 3` is an
+assignment of `3` to `FOO` with `exported` set to `true`.
