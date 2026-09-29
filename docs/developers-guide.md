@@ -184,15 +184,16 @@ It builds with the nightly channel pinned in `rust-toolchain.toml` and
 `RUSTFLAGS=-Zpolonius=next`, because the crate does not compile on stable. It
 smoke-tests each binary by parsing a fixture and checking the report's schema
 version, status, exported variables and rules. The release job then attaches
-each binary and its `.sha256` file to a GitHub release with generated notes,
-and `verify-binstall` installs the published release through cargo-binstall on
+each binary and its `.sha256` file to a GitHub release with generated notes, and
+`verify-binstall` installs the published release through cargo-binstall on
 both glibc triples.
 
 A pull request that edits `release.yml` runs the build and smoke-test jobs
 without publishing. It also exercises the tag check against the crate's own tag
 and a mismatching one, and the `release-dry-run` job downloads the artefacts as
-the release job does and requires exactly the four expected files. Read that run
-before tagging: a broken release workflow shows there rather than on the tag.
+the release job does and requires exactly the four expected files. Read that
+run before tagging: a broken release workflow shows there rather than on the
+tag.
 
 ## Spelling policy
 
@@ -211,18 +212,21 @@ or fixture exceptions to `typos.local.toml`.
 operational projects, and claims of validation that cannot be reproduced from
 the repository. `make markdownlint` includes this check, and the CI
 `build-test` job runs it as a step of its own, which
-`tests/workflow_suite_contract.rs` holds. Generic consumer
-contracts, technical dependency coordinates, and canonical citations in the
-imported upstream guides remain permitted.
+`tests/workflow_suite_contract.rs` holds. Generic consumer contracts, technical
+dependency coordinates, and canonical citations in the imported upstream guides
+remain permitted.
 
 A GitHub Actions coordinate, `<owner>/<repository>/.github/actions/<name>@`, is
 a technical dependency coordinate: a workflow contract must name the action it
 asserts. The personal-repository check therefore skips each such occurrence and
 still rejects every other reference to the owner's repositories, including a
 repository, an issue, a URL, or a reusable-workflow path, even on the same line
-as a coordinate. The exemption
-uses a Perl-compatible lookahead, so the check needs a Git built with PCRE
-support; without it, `git grep -P` fails and the check fails with it.
+as a coordinate. The exemption uses a Perl-compatible lookahead, so the check
+needs a Git built with PCRE support; without it, `git grep -P` fails and the
+check fails with it. `tests/provenance_target.rs` runs the real recipe in a
+throwaway Git repository for accepted coordinates, each rejected shape, and
+generated coordinates and stray references. It builds the owner name at run
+time so that the file does not trip the check it tests.
 
 ### Security audit ignores
 
