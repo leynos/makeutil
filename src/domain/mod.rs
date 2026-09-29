@@ -116,10 +116,11 @@ pub enum ConditionKind {
 ///
 /// `Define` represents a definition carrying no assignment token and
 /// serializes as the schema's empty operator. Two constructs use it: a
-/// `define` block, and a bare `export NAME` directive naming a variable
-/// assigned elsewhere. The `define_block` flag on [`VariableFact`] tells them
-/// apart, so `operator == Define && !define_block` identifies an export
-/// directive rather than an assignment.
+/// `define` block, and a bare `export NAME` or `unexport NAME` directive naming
+/// a variable assigned elsewhere. The `define_block` flag on [`VariableFact`]
+/// tells them apart, so `operator == Define && !define_block` identifies a
+/// directive rather than an assignment, and `exported` then tells `export`
+/// from `unexport`.
 ///
 /// # Examples
 ///
@@ -220,7 +221,11 @@ pub struct VariableFact {
     pub operator: AssignmentOperator,
     /// Unexpanded source value.
     pub raw_value: String,
-    /// Whether the `export` modifier is present.
+    /// Whether the fact is exported. On an assignment this is whether the
+    /// `export` modifier appears anywhere among its prefixes, so
+    /// `unexport export FOO = 3` is exported, as GNU Make exports it. On a
+    /// directive a leading `unexport` decides, so every `unexport NAME`
+    /// fact is `false`.
     pub exported: bool,
     /// Whether the `override` modifier is present.
     pub overridden: bool,

@@ -100,3 +100,27 @@ fn bare_export_shape_parses_complete(
     assert_eq!(variable_summary(&report), expected_variables);
     assert_eq!(rule_targets(&report), expected_rules);
 }
+
+/// Two readings the 0.1.1 parser changed, which the migration guide names: a
+/// trailing comment no longer breaks the directive, and `export = 1` assigns a
+/// variable called `export` rather than exporting anything.
+#[rstest]
+#[case::trailing_comment(
+    "export FOO # comment\n",
+    vec![("FOO", AssignmentOperator::Define, "", true, false)],
+)]
+#[case::variable_named_export(
+    "export = 1\n",
+    vec![("export", AssignmentOperator::Recursive, "1", false, false)],
+)]
+fn changed_export_readings_are_complete(
+    #[case] source: &str,
+    #[case] expected_variables: Vec<VariableSummary<'_>>,
+) {
+    let report = parse_source(source.as_bytes(), "export.mk", &MakefileLosslessParser)
+        .expect("a changed export reading must parse into a report");
+
+    assert_eq!(report.parse.status, ParseStatus::Complete);
+    assert_eq!(report.parse.diagnostics, Vec::new());
+    assert_eq!(variable_summary(&report), expected_variables);
+}

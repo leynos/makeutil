@@ -63,6 +63,10 @@ fn all_facts_report() -> Result<ParseReport, ParseApplicationError> {
     include_bytes!("fixtures/makefiles/consecutive-bare-exports.mk"),
     "consecutive-bare-exports.mk"
 )]
+#[case(
+    include_bytes!("fixtures/makefiles/unexport-after-conditional.mk"),
+    "unexport-after-conditional.mk"
+)]
 fn reports_validate_against_schema(
     #[case] source: &[u8],
     #[case] path: &str,
@@ -149,12 +153,32 @@ fn independent_consumer_deserializes_schema_v1(
     Ok(())
 }
 
+/// Serialize `report` with the release metadata that changes on every version
+/// bump replaced by fixed placeholders.
+///
+/// Snapshots guard the report's structure. Pinning the tool and parser
+/// versions made each release rewrite them for no behavioural reason.
+fn stable_json(report: &ParseReport) -> Result<serde_json::Value, serde_json::Error> {
+    let mut document = serde_json::to_value(report)?;
+    if let Some(tool) = document
+        .get_mut("tool")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for key in ["version", "parser_version"] {
+            if let Some(value) = tool.get_mut(key) {
+                *value = serde_json::Value::from(format!("[{key}]"));
+            }
+        }
+    }
+    Ok(document)
+}
+
 #[rstest]
 fn all_fact_variants_have_stable_json(
     all_facts_report: Result<ParseReport, ParseApplicationError>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let report = all_facts_report?;
-    insta::assert_json_snapshot!(report);
+    insta::assert_json_snapshot!(stable_json(&report)?);
     Ok(())
 }
 
@@ -165,6 +189,6 @@ fn recovered_output_has_stable_json() -> Result<(), Box<dyn std::error::Error>> 
         "recovered.mk",
         &MakefileLosslessParser,
     )?;
-    insta::assert_json_snapshot!(report);
+    insta::assert_json_snapshot!(stable_json(&report)?);
     Ok(())
 }
