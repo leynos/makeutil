@@ -102,7 +102,9 @@ jobs:
       # tests/workflow_suite_contract.rs holds the split.
       - name: Run doctests
         env:
-          RUSTFLAGS: -Zpolonius=next -D warnings
+          # An assigned RUSTFLAGS replaces .cargo/config.toml's rustflags, so
+          # the step restates the build standard's flags beside the deny.
+          RUSTFLAGS: -Zpolonius=next -D warnings -Zthreads=8 -Clink-arg=-fuse-ld=mold
         run: cargo test --doc --workspace --all-features
       - name: Upload coverage data to CodeScene
         env:

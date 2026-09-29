@@ -169,6 +169,33 @@ running the full generated workflow locally on Linux. Install `mbake` with:
 uv tool install mbake
 ```
 
+## The build standard
+
+Development, test, lint and typecheck builds use the parallel `rustc` frontend
+(`-Zthreads=8`) and, on Linux, the `mold` linker (`-Clink-arg=-fuse-ld=mold`).
+These are defaults in `.cargo/config.toml`, which Cargo discovers on its own,
+so a bare `cargo build` gets them. `mold` ships for Linux only, so the linker
+flag lives in a Linux-only table and macOS and Windows keep their platform
+linker. Cargo selects one `rustflags` source rather than merging them, so every
+source repeats the same flags apart from the linker.
+
+An assigned `RUSTFLAGS` replaces the configuration's flags, so the Makefile
+recipes that set it compose the standard's flags onto any inherited value (CI's
+`setup-rust` exports one). Two builds are deliberately excluded: coverage
+assigns `RUSTFLAGS` without the fast flags, because a measurement should not
+depend on them, and release builds keep the platform linker.
+
+### Cranelift
+
+Cranelift is the development-profile codegen backend. The full suite was
+measured under it on the pinned `nightly-2026-05-28` on 2026-09-28: all 174
+nextest tests and the doctests pass. Coverage selects LLVM explicitly
+(`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`), because instrumentation needs it,
+and release builds use the release profile, which Cranelift does not touch.
+Re-measure the whole suite on the next toolchain bump; if it fails, record the
+failing tests here as an exception and remove the backend from
+`.cargo/config.toml`.
+
 ## Releases
 
 `.github/workflows/release.yml` publishes a release when a tag of the form
@@ -191,8 +218,9 @@ both glibc triples.
 A pull request that edits `release.yml` runs the build and smoke-test jobs
 without publishing. It also exercises the tag check against the crate's own tag
 and a mismatching one, and the `release-dry-run` job downloads the artefacts as
-the release job does and requires exactly the four expected files. Read that run
-before tagging: a broken release workflow shows there rather than on the tag.
+the release job does and requires exactly the four expected files. Read that
+run before tagging: a broken release workflow shows there rather than on the
+tag.
 
 ## Spelling policy
 
