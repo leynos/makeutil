@@ -4,7 +4,9 @@ This guide explains how to parse one GNU Makefile into source-faithful JSON
 facts with `makeutil`.
 
 Integrations upgrading from the greeting scaffold should follow the
-[version 0.1.0 migration guide](v0-1-0-migration-guide.md).
+[version 0.1.0 migration guide](v0-1-0-migration-guide.md). Integrations
+upgrading from 0.1.0 should read the
+[version 0.1.1 migration guide](v0-1-1-migration-guide.md).
 
 ## Install a prebuilt binary
 
@@ -89,10 +91,11 @@ that line. Such a directive appears in the `variables` array with `operator`
 set to the empty string, `raw_value` set to the empty string, `exported` set to
 `true`, and `define_block` set to `false`. A consumer that wants only genuine
 assignments should therefore filter on a non-empty `operator`; the predicate
-`operator == "" && define_block == false` identifies a bare export directive
-rather than an assignment. A name may appear twice, once for its assignment and
-once for the directive that exports it, so the operator rather than the name
-distinguishes the two.
+`operator == "" && define_block == false` identifies a directive, either
+`export` or `unexport`, rather than an assignment, and `exported` tells the two
+apart. A name may appear twice, once for its assignment and once for the
+directive that exports it, so the operator rather than the name distinguishes
+the two.
 
 A directive naming several variables, such as `export A B C`, yields one entry
 per name and reports `complete`. The names may be spread across a line
@@ -118,11 +121,57 @@ as `export export FOO`, retains every nameable fact and reports `recovered`
 with a diagnostic. This prevents the report from claiming `complete` while
 omitting a name the parser cannot represent.
 
-### `unexport` is not yet supported
+### `unexport` directives
 
-An `unexport` directive is currently reported as a rule whose first target is
-the word `unexport`, and it forces a `recovered` status with an `expected ':'`
-diagnostic. Schema version 1 has no way to express "this name was explicitly
-un-exported", so faithful support awaits a schema version that can. Treat any
-`unexport` line in a report as an unrepresented construct rather than as a real
-rule.
+An `unexport NAME` directive keeps a variable out of the environment of recipe
+commands. It is reported exactly as a bare `export NAME` is, except that
+`exported` is `false`: an entry in `variables` with `operator` and `raw_value`
+set to the empty string and `define_block` set to `false`. A directive naming
+several variables yields one entry per name, and the report is `complete`,
+except where a name is `export`, `override` or `define`: as for `export`,
+`unexport override FOO` keeps `FOO` but cannot represent `override` as a name,
+so the report is `recovered` with a diagnostic.
+
+The predicate `operator == "" && define_block == false` therefore identifies a
+directive of either kind. Read `exported` to tell them apart: `true` for
+`export NAME` and `false` for `unexport NAME`. Before `unexport` was supported,
+every directive entry had `exported` set to `true`, so a consumer that treated
+the predicate alone as "this name is exported" must now read `exported` as well.
+
+`unexport NAME = value` is an ordinary assignment with its real operator and
+value and `exported` set to `false`. A bare `unexport` with no names reverses a
+bare `export`, which schema version 1 cannot express, so like a bare `export`
+it yields no entry, a diagnostic, and a `recovered` report. `unexport` is a
+directive only at the start of a line: `export unexport` exports a variable
+called `unexport`.
+
+When `export` and `unexport` both prefix a line, the rule depends on whether
+the line is a directive or an assignment. On a directive, the leading
+`unexport` decides: `unexport export FOO` yields a directive entry for `FOO`
+with `exported` set to `false`. On an assignment, `export` is a modifier
+wherever it appears, as GNU Make treats it: `unexport export FOO = 3` is an
+assignment of `3` to `FOO` with `exported` set to `true`.
+
+### Bare expansion lines
+
+A line holding nothing but a function call or variable expansion, such as
+`$(info ...)` or `$(eval ...)`, is expanded by GNU Make and its result parsed.
+`makeutil` cannot expand, so it reports these lines by what they can define:
+
+- `$(info ...)`, `$(warning ...)` and `$(error ...)` expand to empty text. A
+  line of those calls, with or without a trailing comment, adds nothing to the
+  report. A read-time guard such as `$(error VERSION must be set)` inside an
+  `ifeq` or `ifneq` block leaves the report `complete`. Make expands the
+  arguments first, so a nested `$(eval ...)` or `$(call ...)`, as in
+  `$(info $(eval X := 1))`, makes the line an expansion that may define
+  something, and the report is `recovered`.
+- Any other expansion line, such as `$(eval ...)`, `$(call ...)`,
+  `$(foreach ...)` or a bare `$(VAR)`, may define a rule or a variable the
+  report cannot show. It adds the diagnostic
+  `expansion line may define rules or variables a static parse cannot see`,
+  located on that line, and the report is `recovered`.
+
+A line starting with an expansion that also has a colon or an assignment
+operator outside its references, such as `$(OUT): input` or `$(NAME) = value`,
+is still read as a rule or an assignment. See
+[ADR-0003](adrs/0003-bare-expansion-lines.md) for the reasoning.

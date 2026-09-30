@@ -1,6 +1,6 @@
 [package]
 name = "makeutil"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 description = "Tools for managing Makefiles"
 license = "ISC"
@@ -28,7 +28,7 @@ sha2 = "0.11.0"
 thiserror = "2.0.18"
 
 [patch.crates-io]
-makefile-lossless = { git = "https://github.com/leynos/makefile-lossless.git", rev = "2ae7134beb04416851ab18c8a5d5893348fbe26c" }
+makefile-lossless = { git = "https://github.com/leynos/makefile-lossless.git", rev = "4f4463b261d949c16c7d7f28785f74c9f45badea" }
 
 [dev-dependencies]
 assert_cmd = "2.2.2"

@@ -93,7 +93,8 @@ provenance: ## Reject non-reproducible operational provenance
 		-- ':(exclude)Makefile' || status=$$?; \
 	case $$status in 0) exit 1 ;; 1) ;; *) exit $$status ;; esac
 	@status=0; \
-	git grep -n -i 'leynos/' -- '*.md' '*.rs' '*.py' '*.toml' \
+	git grep -n -i -P 'leynos/(?![\w.-]+/\.github/actions/[\w.-]+@)' \
+		-- '*.md' '*.rs' '*.py' '*.toml' \
 		':(exclude)Cargo.toml' \
 		':(exclude)docs/ortho-config-users-guide.md' \
 		':(exclude)docs/rstest-bdd-users-guide.md' || status=$$?; \

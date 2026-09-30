@@ -57,24 +57,43 @@ not pass upstream strings beyond the adapter.
 representation for schema-v1 variable operators. The parser adapter is its only
 producer; `SyntaxObservation` and report types are its permitted consumers. Its
 `Define` variant serializes as an empty string and means a definition without
-an assignment token: either a `define` block or a bare `export` directive, told
-apart by the `define_block` flag. Extend the enum only through a
+an assignment token: a `define` block, or a bare `export` or `unexport`
+directive. The `define_block` flag tells a block from a directive, and
+`exported` then tells `export` from `unexport`. Extend the enum only through a
 schema-versioned contract decision, and do not pass upstream operator strings
 beyond the adapter.
 
-The private `makefile_export` helpers own translation of operator-less export
-definitions into variable observations. Before extraction, a repository sweep
-found no equivalent directive-expansion helper: `variable_observation` was the
-sole variable translator and produced one observation. In production,
-`variable_observation` is the only permitted caller of `assignment_operator` and
-`export_directive_observations`; `export_directive_observations` alone may call
-`directive_names`. Focused unit tests may exercise each helper directly.
-Compose the helpers only while translating one upstream `VariableDefinition`:
-use `assignment_operator` for ordinary variable facts, and use
-`export_directive_observations` only for an operator-less export so it can emit
-zero or more directive facts with the shared directive span. They are
-adapter-private mechanics, not domain ports, general directive parsers, or
-reusable CST walkers.
+The private `makefile_export` helpers own translation of operator-less `export`
+and `unexport` definitions into variable observations. `OperatorContext`
+records which directive keyword a line carries. On a directive line a leading
+`unexport` decides, so `is_exported` is false for every fact it yields. An
+assignment is a separate case: there `export` is a modifier wherever it appears
+among the prefixes, so `variable_observation` reads `is_export` for it, and
+`unexport export FOO = 3` is exported, as GNU Make exports it. Before
+extraction, a repository sweep found no equivalent directive-expansion helper:
+`variable_observation` was the sole variable translator and produced one
+observation. In production, `variable_observation` is the only permitted caller
+of `assignment_operator` and `export_directive_observations`;
+`export_directive_observations` alone may call `directive_names`. Focused unit
+tests may exercise each helper directly. Compose the helpers only while
+translating one upstream `VariableDefinition`: use `assignment_operator` for
+ordinary variable facts, and use `export_directive_observations` only for an
+operator-less `export` or `unexport` so it can emit zero or more directive
+facts with the shared directive span. They are adapter-private mechanics, not
+domain ports, general directive parsers, or reusable CST walkers.
+
+The private `makefile_expansion` module owns the reading of bare expansion
+lines, the parser's `MakefileItem::Expansion` items (see
+[ADR-0003](adrs/0003-bare-expansion-lines.md)). A repository sweep found no
+existing helper that judges an expansion: the adapter had no expansion item to
+translate before the fork added one. `expansion_observation` returns nothing
+for a line of `info`, `warning` or `error` calls, which GNU Make expands to
+empty text. For any other line it returns one diagnostic spanning the line
+without its newline. `collect_items` is its only production caller, once per
+expansion item. Keep the empty-expansion set to functions that GNU Make
+documents as expanding to empty text, and change it only with ADR-0003, since
+adding a name turns `recovered` reports `complete`. It is adapter-private, not
+a general expansion evaluator.
 
 The makefile adapter privately scans leading recipe modifiers. This scanner
 exists because the upstream API has no always-execute accessor and its silent
@@ -106,12 +125,15 @@ cannot forge another physical line; it is not a general path normalizer or JSON
 encoder.
 
 The exact 0.3.40 parser requirement is temporarily patched to immutable fork
-commit `2ae7134beb04416851ab18c8a5d5893348fbe26c`, which adds `!=` lexer
-support and retains every name of a multi-name `export A B C` directive inside
-the definition node. Keep the commit pin reproducible. When upgrading to an
-upstream release that contains both fixes, remove the `[patch.crates-io]` entry
-and rerun the complete assignment-operator contract matrix and the
-export-directive suite before updating the lockfile.
+commit `4f4463b261d949c16c7d7f28785f74c9f45badea`, protected by the annotated
+tag `makeutil-pin-4f4463b`. It adds `!=` lexer support, retains every name of a
+multi-name `export A B C` directive inside the definition node, parses
+`unexport` as a directive beside `export`, and keeps a bare expansion line as
+its own item. Keep the commit pin reproducible, and protect any new pin with a
+`makeutil-pin-<sha>` tag before repinning. When upgrading to an upstream
+release that contains these fixes, remove the `[patch.crates-io]` entry and
+rerun the complete assignment-operator contract matrix and the export-directive
+suite before updating the lockfile.
 
 Tests keep raw Makefile text under `tests/fixtures/makefiles/`. Unit and
 property tests exercise the domain, `rstest-bdd` scenarios exercise observable
@@ -250,9 +272,25 @@ or fixture exceptions to `typos.local.toml`.
 
 `make provenance` rejects personal repository references, local paths, named
 operational projects, and claims of validation that cannot be reproduced from
-the repository. `make markdownlint` includes this check. Generic consumer
-contracts, technical dependency coordinates, and canonical citations in the
-imported upstream guides remain permitted.
+the repository. `make markdownlint` includes this check, and the CI
+`build-test` job runs it as a step of its own, which
+`tests/workflow_suite_contract.rs` holds. Generic consumer contracts, technical
+dependency coordinates, and canonical citations in the imported upstream guides
+remain permitted.
+
+A GitHub Actions coordinate, `<owner>/<repository>/.github/actions/<name>@`, is
+a technical dependency coordinate: a workflow contract must name the action it
+asserts. The personal-repository check therefore skips each such occurrence and
+still rejects every other reference to the owner's repositories, including a
+repository, an issue, a URL, or a reusable-workflow path, even on the same line
+as a coordinate. The exemption uses a Perl-compatible lookahead, so the check
+needs a Git built with PCRE support; without it, `git grep -P` fails and the
+check fails with it. The reference after the `@` may be empty, because a
+workflow contract names the action as a prefix that ends at the `@`.
+`tests/provenance_target.rs` runs the real recipe in a throwaway Git repository
+for accepted coordinates, each rejected shape, and generated coordinates and
+stray references. It builds the owner name at run time so that the file does
+not trip the check it tests.
 
 ### Security audit ignores
 
