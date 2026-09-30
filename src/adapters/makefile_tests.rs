@@ -121,6 +121,11 @@ fn deeply_nested_conditionals_use_iterative_ancestry() {
 
 #[rstest]
 fn all_upstream_diagnostic_channels_are_retained_for_large_sources() {
+    // Each 26-byte line lacks its colon, so every diagnostic must land on its
+    // own line: the positioned channel at the line's newline, where the colon
+    // was expected, and the line channel on the whole line. Earlier parser
+    // revisions mirrored the positioned index and put every line-channel
+    // error at the end of input.
     let source = "broken rule without colon\n".repeat(4_096);
     let parsed = Parse::<Makefile>::parse_makefile(&source);
     assert!(!parsed.positioned_errors().is_empty());
@@ -137,10 +142,7 @@ fn all_upstream_diagnostic_channels_are_retained_for_large_sources() {
         Some(&SyntaxObservation::Diagnostic {
             message: "expected ':'".to_owned(),
             code: None,
-            span: SourceSpan {
-                start: 106_470,
-                end: 106_476,
-            },
+            span: SourceSpan { start: 25, end: 26 },
         })
     );
     assert_eq!(
@@ -148,10 +150,7 @@ fn all_upstream_diagnostic_channels_are_retained_for_large_sources() {
         Some(&SyntaxObservation::Diagnostic {
             message: "expected ':'".to_owned(),
             code: None,
-            span: SourceSpan {
-                start: 106_444,
-                end: 106_450,
-            },
+            span: SourceSpan { start: 51, end: 52 },
         })
     );
     assert_eq!(
@@ -159,7 +158,10 @@ fn all_upstream_diagnostic_channels_are_retained_for_large_sources() {
         Some(&SyntaxObservation::Diagnostic {
             message: "expected ':'".to_owned(),
             code: None,
-            span: SourceSpan { start: 0, end: 6 },
+            span: SourceSpan {
+                start: 106_495,
+                end: 106_496,
+            },
         })
     );
     assert_eq!(
@@ -167,10 +169,7 @@ fn all_upstream_diagnostic_channels_are_retained_for_large_sources() {
         Some(&SyntaxObservation::Diagnostic {
             message: "expected ':'".to_owned(),
             code: None,
-            span: SourceSpan {
-                start: source.len(),
-                end: source.len(),
-            },
+            span: SourceSpan { start: 0, end: 25 },
         })
     );
 }

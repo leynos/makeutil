@@ -77,14 +77,15 @@ rewriting, and bindings remain later decisions.
 The implementation uses
 [`makefile-lossless`](https://github.com/jelmer/makefile-lossless), initially
 pinned to `=0.3.40`. A temporary `[patch.crates-io]` override selects commit
-`752994608fd7909c7955bb7cfba5847eec18d228` from a project-maintained fork,
-protected by the tag `makeutil-pin-7529946`, which carries three fixes absent
+`4f4463b261d949c16c7d7f28785f74c9f45badea` from a project-maintained fork,
+protected by the tag `makeutil-pin-4f4463b`, which carries four fixes absent
 from release 0.3.40: lexing the documented GNU Make `!=` assignment operator,
 retaining every name of a multi-name `export A B C` directive within the
-definition node, and parsing `unexport` as a directive beside `export`. Remove
-the override when an upstream release containing all three is adopted; do not
-replace the immutable commit with a branch name. The published version string
-stays `0.3.40`, so `parser_version` is unaffected by a revision bump.
+definition node, parsing `unexport` as a directive beside `export`, and keeping
+a bare expansion line such as `$(info ...)` as its own item rather than a rule.
+Remove the override when an upstream release containing all four is adopted; do
+not replace the immutable commit with a branch name. The published version
+string stays `0.3.40`, so `parser_version` is unaffected by a revision bump.
 
 The crate supplies:
 
@@ -375,6 +376,15 @@ beside `is_export`, and `OperatorContext::is_exported` lets a leading
 `unexport` decide the flag even when `export` appears later on the line as a
 name. Before this, an `unexport` line parsed as a rule missing its colon, forced
 `recovered`, and placed both of its diagnostics on the wrong lines.
+
+A top-level line holding only a function call or variable expansion is its own
+parser item. `info`, `warning` and `error` calls expand to empty text in GNU
+Make 4.4.1, so a line of them adds nothing. Any other expansion line adds a
+diagnostic on that line and makes the report `recovered`, because it may define
+rules or variables the report cannot show (see
+[ADR-0003](adrs/0003-bare-expansion-lines.md)). The same parser revision places
+every diagnostic on the line it concerns; before it, one channel reported the
+end of input and the other an unrelated token.
 
 #### 6.6.2. Note for consumers pinning `makeutil`
 

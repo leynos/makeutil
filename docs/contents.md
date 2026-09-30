@@ -15,6 +15,8 @@ set.
   replace the removed greeting API with the parse command and JSON contract.
 - [Version 0.1.1 migration guide](v0-1-1-migration-guide.md) explains the
   `unexport` directive facts and why consumers must now read `exported`.
+- [Version 0.1.2 migration guide](v0-1-2-migration-guide.md) explains how bare
+  expansion lines are reported and why diagnostic locations moved.
 - [Polonius migration](polonius.md) records the compiler requirement,
   borrow-centric design rules, and audit inventory.
 - [Documentation style guide](documentation-style-guide.md) defines the
@@ -32,6 +34,9 @@ set.
 - [ADR-0002: Represent bare `export` and `unexport` directives as valueless
   variable facts][adr-0002] records the schema-preserving representation,
   accepted on 2026-08-13 and amended for `unexport` on 2026-09-25.
+- [ADR-0003: Report bare expansion lines by what GNU Make can make of
+  them][adr-0003] records which expansion lines keep a report `complete`,
+  accepted on 2026-09-28.
 - [Execution plans](execplans/) describe approved, milestone-oriented delivery
   work:
   - [Implement ADR-0001](execplans/adr-0001-single-file-gnu-make-parse.md)
@@ -64,3 +69,4 @@ set.
   scripts.
 
 [adr-0002]: adrs/0002-bare-export-directive-representation.md
+[adr-0003]: adrs/0003-bare-expansion-lines.md
