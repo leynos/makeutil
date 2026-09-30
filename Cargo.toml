@@ -21,7 +21,7 @@ clap = { version = "4.5.54", features = ["derive"] }
 data-encoding = "2.10.0"
 makefile-lossless = "=0.3.40"
 ortho_config = { version = "0.8.0", default-features = false, features = ["toml"] }
-rowan = "0.16.1"
+rowan = "0.17.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 sha2 = "0.11.0"
