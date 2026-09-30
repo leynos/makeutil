@@ -29,12 +29,12 @@ jobs:
           sudo apt-get update \
             && sudo apt-get install --yes --no-install-recommends clang lld mold
       - name: Install mdtablefix
-        # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
-        # first release with `--check` and `--git`.
+        # `make check-fmt` runs `mdtablefix --check --git`; 0.6.1 fixed the wrapping
+        # and Setext rewrites the estate relies on.
         uses: >-
-          leynos/shared-actions/.github/actions/install-mdtablefix@4fb8eb7ad52454678a0662865d81d3cd17aa6e0e
+          leynos/shared-actions/.github/actions/install-mdtablefix@a5765019912a8ab6882b12db049c7cde635f3a85
         with:
-          version: '0.6.0'
+          version: '0.6.1'
       - name: Format
         run: make check-fmt
       - name: Markdown lint
