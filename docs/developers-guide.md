@@ -275,6 +275,10 @@ Markdown uses en-GB-oxendict spelling. Run `make spelling` to enforce it;
 in `typos.local.toml` on every run, so a word added to the shared dictionary
 needs no change here.
 
+`TYPOS_CONFIG_BUILDER_VERSION` in the `Makefile` pins the
+`typos-config-builder` release the gate runs (currently `v0.1.3`). Raise it
+together with the regenerated `typos.toml`, never on its own.
+
 Because the dictionary is live, `typos.toml` must never be drift checked in
 continuous integration; it is generated output and hand edits are overwritten
 on the next run. Add narrow repository-specific identifier, API, proper-name,
