@@ -34,6 +34,10 @@ mod reading;
 #[path = "workflow_suite/markdown_wiring.rs"]
 mod markdown_wiring;
 
+/// The CI half of the Markdown formatting wiring contract.
+#[path = "workflow_suite/markdown_ci_wiring.rs"]
+mod markdown_ci_wiring;
+
 use reading::{Command, Job, Manifest, Workflow, manifest_dir, workflows};
 
 /// The one suite command a workflow may run outside the coverage step.
