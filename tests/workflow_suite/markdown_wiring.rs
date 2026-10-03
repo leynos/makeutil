@@ -60,6 +60,7 @@ impl Target {
 
 /// The estate variables, as the repository's Makefile spells them.
 const VARIABLES: &str = concat!(
+    "MDLINT ?= markdownlint-cli2\n",
     "MDTABLEFIX ?= mdtablefix\n",
     "MDTABLEFIX_SELECT = --git --include-untracked\n",
     "MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences\n",
@@ -102,6 +103,21 @@ fn expand(text: &str, known: &BTreeMap<&str, &str>) -> String {
     expanded
 }
 
+/// Returns the text with any shell comment removed: from the first `#` that starts a word.
+/// The shell does not pass what follows to the command.
+fn without_comment(text: &str) -> &str {
+    let start = text
+        .char_indices()
+        .find(|&(index, c)| {
+            c == '#'
+                && text
+                    .get(..index)
+                    .is_none_or(|before| before.is_empty() || before.ends_with(char::is_whitespace))
+        })
+        .map_or(text.len(), |(index, _)| index);
+    text.get(..start).unwrap_or(text)
+}
+
 /// Returns whether one `&&` segment runs mdtablefix with every required flag.
 fn is_invocation(segment: &str, target: Target) -> bool {
     let mut words = segment.split_whitespace();
@@ -116,21 +132,35 @@ fn is_invocation(segment: &str, target: Target) -> bool {
             .all(|flag| arguments.contains(flag))
 }
 
-/// Returns whether a recipe's exit status reaches Make and it runs the check.
-fn recipe_runs(recipe: &RecipeFact, known: &BTreeMap<&str, &str>, target: Target) -> bool {
-    // The parser reports the `@`, `+` and `-` prefixes as flags; whether the
-    // text keeps them is its own business, so they are dropped before reading.
-    let text = expand(recipe.text.trim_start_matches(['@', '+', '-', ' ']), known);
-    let masks_status = recipe.ignore_errors || text.contains('|') || text.contains(';');
-    !masks_status
-        && text
-            .split("&&")
-            .any(|segment| is_invocation(segment, target))
+/// Returns whether one `&&` segment runs markdownlint-cli2 with `--fix`.
+fn is_linter_fix(segment: &str) -> bool {
+    let mut words = segment.split_whitespace();
+    let is_linter = words
+        .next()
+        .is_some_and(|program| program.rsplit('/').next() == Some("markdownlint-cli2"));
+    is_linter && words.any(|word| word == "--fix")
 }
 
-/// Returns whether the Makefile's rule for ``target`` runs mdtablefix as the
-/// estate standard says.
-fn runs_mdtablefix(makefile: &str, target: Target) -> Result<bool, ParseApplicationError> {
+/// Returns whether a recipe's exit status reaches Make and one of its `&&` segments is accepted.
+fn recipe_runs(
+    recipe: &RecipeFact,
+    known: &BTreeMap<&str, &str>,
+    accepted: impl Fn(&str) -> bool,
+) -> bool {
+    // The parser reports the `@`, `+` and `-` prefixes as flags; whether the
+    // text keeps them is its own business, so they are dropped before reading.
+    let expanded = expand(recipe.text.trim_start_matches(['@', '+', '-', ' ']), known);
+    let text = without_comment(&expanded);
+    let masks_status = recipe.ignore_errors || text.contains('|') || text.contains(';');
+    !masks_status && text.split("&&").any(accepted)
+}
+
+/// Returns whether the Makefile's recipe for `target` has a recipe `accepted` approves.
+fn target_runs(
+    makefile: &str,
+    target: Target,
+    accepted: impl Fn(&str) -> bool + Copy,
+) -> Result<bool, ParseApplicationError> {
     let report = parse(makefile)?;
     let known = variables(&report);
     Ok(report
@@ -138,7 +168,18 @@ fn runs_mdtablefix(makefile: &str, target: Target) -> Result<bool, ParseApplicat
         .iter()
         .filter(|rule| rule.targets.iter().any(|name| name == target.name))
         .flat_map(|rule| rule.recipes.iter())
-        .any(|recipe| recipe_runs(recipe, &known, target)))
+        .any(|recipe| recipe_runs(recipe, &known, accepted)))
+}
+
+/// Returns whether the Makefile's rule for ``target`` runs mdtablefix as the
+/// estate standard says.
+fn runs_mdtablefix(makefile: &str, target: Target) -> Result<bool, ParseApplicationError> {
+    target_runs(makefile, target, |segment| is_invocation(segment, target))
+}
+
+/// Returns whether `make fmt` runs `markdownlint-cli2 --fix` with its status reaching Make.
+fn runs_linter_fix(makefile: &str) -> Result<bool, ParseApplicationError> {
+    target_runs(makefile, FMT, is_linter_fix)
 }
 
 /// Returns a minimal Makefile whose `check-fmt` runs one recipe line.
@@ -173,6 +214,10 @@ fn the_repository_makefile_runs_the_rewrite() {
 #[case::or_true("$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES) || true")]
 #[case::sequenced("$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES); true")]
 #[case::echoed("echo $(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)")]
+#[case::flags_in_a_comment(
+    "mdtablefix --check --git --include-untracked # --wrap --renumber --breaks --ellipsis --fences"
+)]
+#[case::variable_in_a_comment("$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) # $(MDTABLEFIX_RULES)")]
 fn a_weakened_check_is_refused(#[case] recipe: &str) {
     assert!(!runs_mdtablefix(&makefile(recipe, VARIABLES), CHECK_FMT).expect("the fixture parses"));
 }
@@ -194,6 +239,10 @@ fn a_weakened_check_is_refused(#[case] recipe: &str) {
     "cargo fmt --check && mdtablefix --check --git --include-untracked --wrap --renumber --breaks \
      --ellipsis --fences",
     ""
+)]
+#[case::trailing_comment(
+    "$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES) # the estate recipe",
+    VARIABLES
 )]
 #[case::qualified(
     "/usr/local/bin/mdtablefix --check --git --include-untracked --wrap --renumber --breaks \
@@ -265,6 +314,32 @@ fn fmt_is_held_to_the_rewrite_contract(#[case] recipe: &str, #[case] accepted: b
     let text = makefile_for(FMT, recipe, VARIABLES);
     assert_eq!(
         runs_mdtablefix(&text, FMT).expect("the fixture parses"),
+        accepted
+    );
+}
+
+#[test]
+fn the_repository_makefile_runs_the_linter_fix() {
+    let text = manifest_dir()
+        .and_then(|dir| dir.read_to_string("Makefile"))
+        .expect("the Makefile is readable");
+    assert!(runs_linter_fix(&text).expect("the Makefile parses"));
+}
+
+#[rstest]
+#[case::reference("$(MDLINT) --fix \"**/*.md\"", true)]
+#[case::literal("markdownlint-cli2 --fix \"**/*.md\"", true)]
+#[case::chained("cargo fmt && $(MDLINT) --fix \"**/*.md\"", true)]
+#[case::no_fix("$(MDLINT) \"**/*.md\"", false)]
+#[case::ignored("-$(MDLINT) --fix \"**/*.md\"", false)]
+#[case::or_true("$(MDLINT) --fix \"**/*.md\" || true", false)]
+#[case::sequenced("$(MDLINT) --fix \"**/*.md\"; true", false)]
+#[case::echoed("echo $(MDLINT) --fix \"**/*.md\"", false)]
+#[case::fix_in_a_comment("$(MDLINT) \"**/*.md\" # --fix", false)]
+fn fmt_is_held_to_the_linter_fix_contract(#[case] recipe: &str, #[case] accepted: bool) {
+    let text = makefile_for(FMT, recipe, VARIABLES);
+    assert_eq!(
+        runs_linter_fix(&text).expect("the fixture parses"),
         accepted
     );
 }

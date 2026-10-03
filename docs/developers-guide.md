@@ -271,3 +271,19 @@ Install mdtablefix 0.6.1 or later locally with
 `cargo install --locked mdtablefix@0.6.1`. Install markdownlint-cli2 with
 `bun add --global markdownlint-cli2` or
 `npm install --global markdownlint-cli2`.
+
+Three groups of tests hold this wiring:
+
+- `tests/workflow_suite/markdown_wiring.rs` reads the Makefile with makeutil's
+  own parser and requires each recipe's flags and exit status, including
+  `markdownlint-cli2 --fix` in `make fmt`. A flag or tool that appears only in
+  a shell comment does not count.
+- `tests/workflow_suite/markdown_ci_wiring.rs` reads the workflows by their
+  indentation structure, whatever its width. It requires an installer step at
+  mdtablefix 0.6.1 or later before `make check-fmt` in the same job, a
+  `globs: '**/*.md'` input under the lint action's own `with:`, and the
+  canonical rule settings in `.markdownlint-cli2.jsonc`.
+- `tests/markdown_formatting_targets.rs` runs the real `make fmt` and
+  `make check-fmt` in a scratch Git repository with recording stubs for `cargo`,
+  `mdtablefix` and `markdownlint-cli2`. It asserts the arguments, the order,
+  and that a failing tool fails the target.

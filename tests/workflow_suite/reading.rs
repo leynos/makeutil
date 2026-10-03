@@ -248,6 +248,48 @@ impl Step<'_> {
         })
     }
 
+    /// Returns `true` if any of the step's lines names `text`. Comment lines are
+    /// already gone, so a commented-out action is not found; a folded
+    /// `uses: >-` has its action on a later line, which this still sees.
+    pub(crate) fn mentions(&self, text: &str) -> bool {
+        self.0.iter().any(|line| line.contains(text))
+    }
+
+    /// Returns the step's lines as commands.
+    pub(crate) fn commands(&self) -> impl Iterator<Item = Command<'_>> + '_ {
+        self.0.iter().map(|line| Command::from_line(line))
+    }
+
+    /// Returns the value of `key` in the step's own `with:` mapping, unquoted.
+    /// Only lines indented under `with:` count, so the same key under `env:` or
+    /// at the step's top level is not the action's input.
+    pub(crate) fn with_value(&self, key: &str) -> Option<String> {
+        let prefix = format!("{key}:");
+        let opener = self
+            .0
+            .iter()
+            .position(|line| line.trim_start().trim_start_matches("- ").trim_end() == "with:")?;
+        let level = indent(self.0.get(opener)?);
+        let inputs: Vec<&&str> = self
+            .0
+            .iter()
+            .skip(opener + 1)
+            .filter(|line| !is_blank_or_comment(line))
+            .take_while(|line| indent(line) > level)
+            .collect();
+        let child = inputs.first().map(|line| indent(line))?;
+        inputs
+            .into_iter()
+            .filter(|line| indent(line) == child)
+            .find_map(|line| line.trim().strip_prefix(&prefix))
+            .map(|value| {
+                value
+                    .trim()
+                    .trim_matches(|c| c == '\'' || c == '"')
+                    .to_owned()
+            })
+    }
+
     /// Returns `true` if the step uses an action whose reference contains
     /// `action`.
     pub(crate) fn uses(&self, action: &str) -> bool {
