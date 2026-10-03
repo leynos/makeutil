@@ -140,9 +140,18 @@ project:
 
     ```sh
     cargo fmt --workspace -- --check
+    mdtablefix --check --git --include-untracked \
+      --wrap --renumber --breaks --ellipsis --fences
     ```
 
-    validating formatting across the entire workspace without modifying files.
+    validating Rust formatting across the entire workspace and Markdown
+    formatting across the files Git tracks, plus untracked files Git does not
+    ignore, without modifying files. The Markdown check needs mdtablefix 0.6.1
+    or later on `PATH`; install it with
+    `cargo binstall --no-confirm mdtablefix@0.6.1` (or
+    `cargo install --locked mdtablefix@0.6.1`), the version CI pins. `make fmt`
+    rewrites the same files with `mdtablefix --in-place` and then runs
+    `markdownlint-cli2 --fix`.
   - `make lint` executes:
 
     ```sh
@@ -357,9 +366,8 @@ This repository compiles under Polonius (`-Zpolonius=next`). Consequences:
   en-GB-oxendict spelling gate.
 - Enforce spelling with `make spelling`. It regenerates `typos.toml` from the
   live shared dictionary and the `typos.local.toml` overlay on every run, so
-  `typos.toml` must not be drift checked in CI. Put narrow
-  repository-specific exceptions in `typos.local.toml`; never edit generated
-  entries by hand.
+  `typos.toml` must not be drift checked in CI. Put narrow repository-specific
+  exceptions in `typos.local.toml`; never edit generated entries by hand.
 - Run `make fmt` after any documentation changes to format all Markdown
   files and fix table markup.
 - Validate Mermaid diagrams in Markdown files by running `make nixie`.

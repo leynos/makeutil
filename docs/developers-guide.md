@@ -259,3 +259,45 @@ advisories that affect unused or tooling-only dependency paths. Keep each
 ignore tied to a documented runtime impact analysis, and remove it when the
 affected dependency leaves the graph or the project starts using the advised
 runtime path.
+
+## Markdown formatting
+
+Markdown follows the estate's `markdown-formatting-baseline` rule.
+
+- `make fmt` rewrites Markdown with
+  `mdtablefix --in-place --git --include-untracked --wrap --renumber --breaks
+  --ellipsis --fences`,
+  then runs `markdownlint-cli2 --fix "**/*.md"`.
+- `make check-fmt` runs the same mdtablefix command with `--check` in place of
+  `--in-place`, and fails when any file would change.
+- `--git --include-untracked` selects the Markdown files Git tracks plus the
+  untracked files Git does not ignore, so a new document is checked before it
+  is staged.
+- `.markdownlint-cli2.jsonc` carries the canonical markdownlint configuration.
+  Keep its `config` entries and `ignores` globs; add repository-specific rules
+  or globs beside them.
+- CI installs mdtablefix 0.6.1 with the shared `install-mdtablefix` action
+  before `make check-fmt`, and lints Markdown with
+  `DavidAnson/markdownlint-cli2-action` over `**/*.md`.
+
+Install mdtablefix 0.6.1 or later locally with
+`cargo binstall --no-confirm mdtablefix@0.6.1`, or
+`cargo install --locked mdtablefix@0.6.1`. Install markdownlint-cli2 with
+`bun add --global markdownlint-cli2` or
+`npm install --global markdownlint-cli2`.
+
+Three groups of tests hold this wiring:
+
+- `tests/workflow_suite/markdown_wiring.rs` reads the Makefile with makeutil's
+  own parser and requires each recipe's flags and exit status, including
+  `markdownlint-cli2 --fix` in `make fmt`. A flag or tool that appears only in
+  a shell comment does not count.
+- `tests/workflow_suite/markdown_ci_wiring.rs` reads the workflows by their
+  indentation structure, whatever its width. It requires an installer step at
+  mdtablefix 0.6.1 or later before `make check-fmt` in the same job, a
+  `globs: '**/*.md'` input under the lint action's own `with:`, and the
+  canonical rule settings in `.markdownlint-cli2.jsonc`.
+- `tests/markdown_formatting_targets.rs` runs the real `make fmt` and
+  `make check-fmt` in a scratch Git repository with recording stubs for `cargo`,
+  `mdtablefix` and `markdownlint-cli2`. It asserts the arguments, the order,
+  and that a failing tool fails the target.
