@@ -88,14 +88,20 @@ impl Scratch {
             .output()
     }
 
-    /// Returns the stub calls the recipes made, in order. The Makefile asks `cargo` whether
-    /// nextest is present while it is read; that probe is not a recipe call.
-    fn calls(&self) -> Vec<String> {
-        let text = self.dir.read_to_string("log").unwrap_or_default();
-        text.lines()
+    /// Returns the stub calls the recipes made, in order. A log that was never created means no
+    /// stub ran, which is an empty list; any other read error is the caller's to see. The Makefile
+    /// asks `cargo` whether nextest is present while it is read; that probe is not a recipe call.
+    fn calls(&self) -> io::Result<Vec<String>> {
+        let text = match self.dir.read_to_string("log") {
+            Ok(text) => text,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => String::new(),
+            Err(error) => return Err(error),
+        };
+        Ok(text
+            .lines()
             .filter(|line| !line.starts_with("cargo nextest"))
             .map(str::to_owned)
-            .collect()
+            .collect())
     }
 }
 
@@ -107,7 +113,7 @@ fn check_fmt_runs_the_rust_check_then_mdtablefix_in_check_mode() {
 
     assert!(output.status.success(), "{output:?}");
     assert_eq!(
-        scratch.calls(),
+        scratch.calls().expect("the stub log is readable"),
         vec![
             "cargo fmt --all -- --check".to_owned(),
             format!("mdtablefix --check {SHARED}"),
@@ -123,7 +129,7 @@ fn fmt_rewrites_then_runs_the_linter_with_fix_last() {
 
     assert!(output.status.success(), "{output:?}");
     assert_eq!(
-        scratch.calls(),
+        scratch.calls().expect("the stub log is readable"),
         vec![
             "cargo +nightly fmt --all".to_owned(),
             format!("mdtablefix --in-place {SHARED}"),
@@ -155,11 +161,30 @@ fn a_failing_mdtablefix_stops_fmt_before_the_linter_runs() {
 
     scratch.make("fmt").expect("make starts");
 
-    let calls = scratch.calls();
+    let calls = scratch.calls().expect("the stub log is readable");
     assert!(
         !calls
             .iter()
             .any(|call| call.starts_with("markdownlint-cli2")),
         "the linter ran after a failed rewrite: {calls:?}"
+    );
+}
+
+#[test]
+fn an_absent_log_is_no_calls_and_an_unreadable_one_is_an_error() {
+    let scratch = Scratch::new(None).expect("the scratch repository builds");
+    assert_eq!(
+        scratch.calls().expect("an absent log reads as empty"),
+        Vec::<String>::new()
+    );
+
+    scratch
+        .dir
+        .create_dir("log")
+        .expect("a directory can stand in for the log");
+
+    assert!(
+        scratch.calls().is_err(),
+        "a log that cannot be read must not read as empty"
     );
 }

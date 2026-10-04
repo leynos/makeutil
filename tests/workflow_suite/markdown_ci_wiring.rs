@@ -268,17 +268,44 @@ fn canonical_config() -> Value {
     })
 }
 
-/// Returns whether the configuration text keeps every canonical rule setting.
+/// The ignore patterns every repository keeps: the dependency and build directories, and the
+/// estate's scratch directories. CI no longer lists `!**/target/**` and `!**/dist/**` itself, so
+/// the configuration is the only place that keeps those out of the lint.
+const CANONICAL_IGNORES: [&str; 10] = [
+    "**/.venv/**",
+    ".node_modules/**",
+    "**/node_modules/**",
+    "**/target/**",
+    ".vtcode/**",
+    ".terraform/**",
+    ".uv-cache/**",
+    "memories/**",
+    "CRUSH.md",
+    "**/dist/**",
+];
+
+/// Returns whether the configuration text keeps every canonical rule setting and ignore pattern.
 fn keeps_canonical_config(text: &str) -> bool {
     let Ok(parsed) = serde_json::from_str::<Value>(text) else {
         return false;
     };
-    let canonical = canonical_config();
-    canonical.as_object().is_some_and(|rules| {
+    let rules_kept = canonical_config().as_object().is_some_and(|rules| {
         rules
             .iter()
             .all(|(rule, settings)| parsed.pointer(&format!("/config/{rule}")) == Some(settings))
-    })
+    });
+    let ignores = parsed.pointer("/ignores").and_then(Value::as_array);
+    let ignores_kept = ignores.is_some_and(|listed| {
+        CANONICAL_IGNORES
+            .iter()
+            .all(|pattern| listed.iter().any(|entry| entry.as_str() == Some(pattern)))
+    });
+    rules_kept && ignores_kept
+}
+
+/// Returns the full canonical configuration as a document.
+fn canonical_document() -> Value {
+    json!({ "config": canonical_config(), "ignores": CANONICAL_IGNORES })
 }
 
 #[test]
@@ -289,13 +316,62 @@ fn the_repository_keeps_the_canonical_markdownlint_config() {
     assert!(keeps_canonical_config(&text));
 }
 
+/// Returns the document's `ignores` list for editing.
+fn ignores_mut(document: &mut Value) -> Option<&mut Vec<Value>> {
+    document
+        .pointer_mut("/ignores")
+        .and_then(Value::as_array_mut)
+}
+
+#[test]
+fn the_canonical_document_is_accepted_and_extras_are_allowed() {
+    let mut document = canonical_document();
+    assert!(keeps_canonical_config(&document.to_string()));
+    document
+        .pointer_mut("/config")
+        .and_then(Value::as_object_mut)
+        .expect("config is an object")
+        .insert("MD033".to_owned(), json!(false));
+    ignores_mut(&mut document)
+        .expect("ignores is an array")
+        .push(json!("vendor/**"));
+    assert!(keeps_canonical_config(&document.to_string()));
+}
+
 #[rstest::rstest]
-#[case::kept(r#"{"config":{"MD004":{"style":"dash"},"MD010":{"code_blocks":false},"MD013":{"line_length":80,"code_block_line_length":120,"tables":false,"headings":false},"MD029":{"style":"ordered"}}}"#, true)]
-#[case::extra_rule_is_allowed(r#"{"config":{"MD004":{"style":"dash"},"MD010":{"code_blocks":false},"MD013":{"line_length":80,"code_block_line_length":120,"tables":false,"headings":false},"MD029":{"style":"ordered"},"MD033":false}}"#, true)]
-#[case::wider_lines(r#"{"config":{"MD004":{"style":"dash"},"MD010":{"code_blocks":false},"MD013":{"line_length":120,"code_block_line_length":120,"tables":false,"headings":false},"MD029":{"style":"ordered"}}}"#, false)]
-#[case::rule_dropped(r#"{"config":{"MD004":{"style":"dash"},"MD010":{"code_blocks":false},"MD029":{"style":"ordered"}}}"#, false)]
-#[case::no_config(r#"{"ignores":[]}"#, false)]
-#[case::not_json("not json", false)]
-fn a_weakened_markdownlint_config_is_refused(#[case] text: &str, #[case] kept: bool) {
-    assert_eq!(keeps_canonical_config(text), kept);
+#[case::wider_lines("/config/MD013/line_length", json!(120))]
+#[case::rule_changed("/config/MD004/style", json!("asterisk"))]
+#[case::no_rules("/config", Value::Null)]
+#[case::no_ignores("/ignores", Value::Null)]
+fn a_weakened_markdownlint_config_is_refused(#[case] pointer: &str, #[case] value: Value) {
+    let mut document = canonical_document();
+    *document
+        .pointer_mut(pointer)
+        .expect("the pointer names a key") = value;
+    assert!(!keeps_canonical_config(&document.to_string()));
+}
+
+#[rstest::rstest]
+#[case::target("**/target/**")]
+#[case::dist("**/dist/**")]
+#[case::venv("**/.venv/**")]
+#[case::node_modules("**/node_modules/**")]
+#[case::dot_node_modules(".node_modules/**")]
+#[case::vtcode(".vtcode/**")]
+#[case::terraform(".terraform/**")]
+#[case::uv_cache(".uv-cache/**")]
+#[case::memories("memories/**")]
+#[case::crush("CRUSH.md")]
+fn dropping_any_required_ignore_is_refused(#[case] dropped: &str) {
+    let mut document = canonical_document();
+    ignores_mut(&mut document)
+        .expect("ignores is an array")
+        .retain(|entry| entry.as_str() != Some(dropped));
+    assert!(!keeps_canonical_config(&document.to_string()));
+}
+
+#[test]
+fn a_missing_or_malformed_config_is_refused() {
+    assert!(!keeps_canonical_config("not json"));
+    assert!(!keeps_canonical_config(r#"{"ignores": "nope"}"#));
 }
