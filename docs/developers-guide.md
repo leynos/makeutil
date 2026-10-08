@@ -219,6 +219,16 @@ development target on a Linux host and a macOS host (each keeping the caller's
 own `RUSTFLAGS`) and for each coverage and release target on a Linux host, and
 the `setup-rust` steps of the CI workflows (each must pass `install-mold`), so
 a flag lost through a recipe or workflow edit fails there.
+`tests/ci_step_env_contract.rs` holds the builds that assign their own
+environment. The coverage recipe (read from `make -n coverage`) and the CI
+coverage step link with `lld` through `clang`, because LLVM coverage tools
+expect LLVM-compatible linker behaviour, and the recipe selects the LLVM
+backend; the doctest step restates the flags `make test` gives its doctest
+line; and the release build step replaces the repository's `rustflags`, whose
+Linux entry links with mold, with `-Zpolonius=next` alone so the static musl
+binary links with the runner's default. Each step is judged by its own `env:`
+block, so a sibling step's environment, a comment or an inline comment neither
+supplies nor hides a value.
 
 ### Cranelift
 
