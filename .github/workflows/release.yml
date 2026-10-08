@@ -187,6 +187,8 @@ jobs:
       - name: Install the release with cargo-binstall
         # --manifest-path reads the binstall metadata from the tagged
         # checkout, since makeutil is not published to crates.io.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: >-
           cargo binstall --no-confirm --manifest-path .
           --targets "${{ matrix.host }}"
