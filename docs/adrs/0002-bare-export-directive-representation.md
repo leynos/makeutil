@@ -61,9 +61,9 @@ is one the parser treats as a keyword — yields no entry rather than an invente
 one, together with a diagnostic of `makeutil`'s own. The diagnostic is emitted
 rather than relying on the parser to emit one, because the parser does not
 always do so: revisions before the `unexport` amendment dropped
-`override export override` without any error.
-Without it such a line would leave a report claiming `complete` with the
-construct silently missing, which the honesty rule forbids.
+`override export override` without any error. Without it such a line would
+leave a report claiming `complete` with the construct silently missing, which
+the honesty rule forbids.
 
 The names on a directive line are read from the definition node's identifier
 tokens, anchored on the name the parser itself reports rather than by skipping
