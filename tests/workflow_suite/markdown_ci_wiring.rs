@@ -45,20 +45,34 @@ fn checks_before_install(job: &Job<'_>) -> bool {
     false
 }
 
+/// Returns each `workflow:job` for which `flagged` holds.
+fn flagged_jobs(found: &[(String, String)], flagged: fn(&Job<'_>) -> bool) -> Vec<String> {
+    let mut hits = Vec::new();
+    for (name, text) in found {
+        for job in Workflow(text).jobs().iter().filter(|j| flagged(j)) {
+            hits.push(format!("{name}:{}", job.name));
+        }
+    }
+    hits
+}
+
 /// Returns each `workflow:job` whose `make check-fmt` step has no earlier
 /// install step in the same job.
 fn uninstalled_check_fmt(found: &[(String, String)]) -> Vec<String> {
-    let mut missing = Vec::new();
-    for (name, text) in found {
-        for job in Workflow(text)
-            .jobs()
-            .iter()
-            .filter(|j| checks_before_install(j))
-        {
-            missing.push(format!("{name}:{}", job.name));
-        }
-    }
-    missing
+    flagged_jobs(found, checks_before_install)
+}
+
+/// Returns how many jobs run `make check-fmt`, so dropping the check cannot pass vacuously.
+fn check_fmt_jobs(found: &[(String, String)]) -> usize {
+    found
+        .iter()
+        .flat_map(|(_, text)| Workflow(text).jobs())
+        .filter(|job| {
+            job.steps()
+                .iter()
+                .any(|step| step.commands().any(|c| runs_check_fmt(c.text())))
+        })
+        .count()
 }
 
 /// Parses `0.6.1`-style text into its three numbers.
@@ -84,17 +98,7 @@ fn has_under_pinned_installer(job: &Job<'_>) -> bool {
 
 /// Returns each `workflow:job` whose install step pins no version, or one below the minimum.
 fn under_pinned_installers(found: &[(String, String)]) -> Vec<String> {
-    let mut weak = Vec::new();
-    for (name, text) in found {
-        for job in Workflow(text)
-            .jobs()
-            .iter()
-            .filter(|j| has_under_pinned_installer(j))
-        {
-            weak.push(format!("{name}:{}", job.name));
-        }
-    }
-    weak
+    flagged_jobs(found, has_under_pinned_installer)
 }
 
 /// Returns `(action steps, steps whose `with.globs` is not `**/*.md`)` across the workflows.
@@ -118,6 +122,7 @@ fn one(text: &str) -> Vec<(String, String)> { vec![("ci.yml".to_owned(), text.to
 #[test]
 fn the_repository_workflows_install_and_lint() {
     let found = workflows().expect("the workflows are readable");
+    assert!(check_fmt_jobs(&found) > 0, "no job runs `make check-fmt`");
     assert_eq!(uninstalled_check_fmt(&found), Vec::<String>::new());
     assert_eq!(under_pinned_installers(&found), Vec::<String>::new());
     let (steps, narrowed) = lint_action_globs(&found);
@@ -125,6 +130,23 @@ fn the_repository_workflows_install_and_lint() {
     assert_eq!(
         narrowed, 0,
         "a markdownlint-cli2-action step lints less than **/*.md"
+    );
+}
+
+#[test]
+fn a_workflow_without_check_fmt_is_counted_as_having_none() {
+    let text = concat!(
+        "jobs:\n  build-test:\n    steps:\n",
+        "      - uses: leynos/shared-actions/.github/actions/install-mdtablefix@abc\n",
+        "      - run: make test\n",
+    );
+    let with_check = text.replace("make test", "make check-fmt");
+    assert_eq!(
+        (
+            check_fmt_jobs(&one(text)),
+            check_fmt_jobs(&one(&with_check))
+        ),
+        (0, 1)
     );
 }
 
