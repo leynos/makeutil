@@ -230,6 +230,15 @@ binary links with the runner's default. Each step is judged by its own `env:`
 block, so a sibling step's environment, a comment or an inline comment neither
 supplies nor hides a value.
 
+CI also installs `clang` and `lld` through `setup-rust`'s `install-clang-lld`
+input, which installs both on Linux and fails the job unless `clang` and
+`ld.lld` resolve on `PATH`; the workflows carry no hand-rolled `apt-get` step.
+Both inputs skip with a notice on other platforms and set no linker flag, so
+`.cargo/config.toml` and the coverage step's environment still choose which
+linker runs. `tests/linker_provisioning_contract.rs` reads the parsed
+`setup-rust` step of each CI workflow and asserts both inputs are `'true'` and
+that no step installs a linker by hand.
+
 ### Cranelift
 
 Cranelift is the development-profile codegen backend. The full suite was
