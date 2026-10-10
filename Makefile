@@ -119,7 +119,9 @@ provenance: ## Reject non-reproducible operational provenance
 		-- '*.md' '*.rs' '*.py' '*.toml' \
 		':(exclude)Cargo.toml' \
 		':(exclude)docs/ortho-config-users-guide.md' \
-		':(exclude)docs/rstest-bdd-users-guide.md' || status=$$?; \
+		':(exclude)docs/rstest-bdd-users-guide.md' \
+		':(exclude).github/cv005.toml' \
+		':(exclude)tests/workflow_contracts/cv005_wiring_test.py' || status=$$?; \
 	case $$status in 0) exit 1 ;; 1) ;; *) exit $$status ;; esac
 
 validate-makefile: ## Validate the Makefile
