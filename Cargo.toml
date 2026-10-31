@@ -42,7 +42,7 @@ rstest = "0.26.1"
 rstest-bdd = "0.6.0"
 rstest-bdd-macros = "0.6.0"
 tempfile = "3.27.0"
-toml = "0.9.12"
+toml = "1.1.2"
 
 # The package.metadata.binstall pkg-url intentionally mixes Jinja2 values
 # rendered at project generation with single-brace cargo-binstall variables
