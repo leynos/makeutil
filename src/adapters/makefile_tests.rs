@@ -128,8 +128,8 @@ fn all_upstream_diagnostic_channels_are_retained_for_large_sources() {
     // error at the end of input.
     let source = "broken rule without colon\n".repeat(4_096);
     let parsed = Parse::<Makefile>::parse_makefile(&source);
-    assert!(!parsed.positioned_errors().is_empty());
-    assert!(!parsed.errors().is_empty());
+    assert_ne!(parsed.positioned_errors(), []);
+    assert_ne!(parsed.errors(), []);
 
     let mut observations = Vec::new();
     collect_diagnostics(&parsed, &source, &mut observations)

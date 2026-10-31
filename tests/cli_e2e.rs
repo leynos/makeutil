@@ -27,7 +27,7 @@ fn complete_path_emits_one_json_document(mut makeutil_command: Command) {
         .expect("binary should run");
 
     assert_eq!(output.status.code(), Some(0));
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     assert_eq!(output.stdout.last(), Some(&b'\n'));
     let document: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
@@ -47,7 +47,7 @@ fn bare_export_path_emits_export_facts(mut makeutil_command: Command) {
         .expect("binary should run");
 
     assert_eq!(output.status.code(), Some(0));
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let document: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(
@@ -91,7 +91,7 @@ fn unexport_path_emits_unexported_directive_facts(mut makeutil_command: Command)
         .expect("binary should run");
 
     assert_eq!(output.status.code(), Some(0));
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let document: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(
@@ -143,7 +143,7 @@ fn recovered_path_exits_one_with_json(mut makeutil_command: Command) {
         .expect("binary should run");
 
     assert_eq!(output.status.code(), Some(1));
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     let document: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(
@@ -171,7 +171,7 @@ fn invalid_invocation_exits_two(
         .output()
         .expect("binary should run");
     assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     assert!(output.stderr.starts_with(b"makeutil: cli:"));
     assert!(String::from_utf8_lossy(&output.stderr).contains(expected_detail));
 }
@@ -183,7 +183,7 @@ fn help_uses_clap_display_stream(mut makeutil_command: Command) {
         .output()
         .expect("binary should run");
     assert_eq!(output.status.code(), Some(0));
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&output.stdout).contains("Usage:"));
     assert!(serde_json::from_slice::<serde_json::Value>(&output.stdout).is_err());
 }
@@ -195,7 +195,7 @@ fn version_uses_clap_display_stream(mut makeutil_command: Command) {
         .output()
         .expect("binary should run");
     assert_eq!(output.status.code(), Some(0));
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&output.stdout).contains(env!("CARGO_PKG_VERSION")));
     assert!(serde_json::from_slice::<serde_json::Value>(&output.stdout).is_err());
 }
@@ -261,7 +261,7 @@ fn include_paths_are_not_opened_and_caller_path_spelling_is_preserved() {
     let outcome = run_from_with_reader(["makeutil", "parse", caller_path], capabilities);
 
     assert_eq!(outcome.exit_code, 0);
-    assert!(stderr.is_empty());
+    assert_eq!(stderr, [] as [u8; 0]);
     let document: serde_json::Value =
         serde_json::from_slice(&stdout).expect("stdout should be JSON");
     assert_eq!(
@@ -298,7 +298,7 @@ fn environment_and_config_cannot_supply_parse_arguments(mut makeutil_command: Co
         .expect("binary should run");
 
     assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&output.stderr).contains("<PATH>"));
 }
 
@@ -317,7 +317,7 @@ fn control_characters_cannot_inject_stderr_lines() {
     );
 
     assert_eq!(outcome.exit_code, 2);
-    assert!(stdout.is_empty());
+    assert_eq!(stdout, [] as [u8; 0]);
     assert_eq!(
         String::from_utf8(stderr).expect("stderr should be UTF-8"),
         format!(
@@ -342,6 +342,6 @@ fn invalid_utf8_is_a_fatal_source_error(mut makeutil_command: Command) {
         .output()
         .expect("binary should run");
     assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&output.stderr).contains("makeutil: source-utf8:"));
 }
