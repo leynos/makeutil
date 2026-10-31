@@ -245,3 +245,61 @@ fn every_feature_is_in_default() {
         "{outside:?} are outside `default`, so --all-features differs from the coverage run"
     );
 }
+
+/// The ratchet baseline file every coverage step reads. The `-v2` path misses the cached
+/// baseline written before the `nightly-2026-10-30` bump lowered the measured coverage, so
+/// the committed figure is what the ratchet compares against until main saves its own.
+const BASELINE_FILE: &str = ".coverage-baseline-v2.rust";
+
+/// Returns the `baseline-rust-file` input of every ratcheting coverage step, as
+/// `(workflow, input)`.
+fn ratchet_baseline_inputs(found: &[(String, String)]) -> Vec<(&str, Option<String>)> {
+    found
+        .iter()
+        .flat_map(|(name, text)| {
+            Workflow(text).jobs().into_iter().flat_map(move |job| {
+                job.steps()
+                    .into_iter()
+                    .filter(|step| step.uses(COVERAGE_ACTION))
+                    .filter(|step| step.with_value("with-ratchet").as_deref() == Some("true"))
+                    .map(|step| (name.as_str(), step.with_value("baseline-rust-file")))
+                    .collect::<Vec<_>>()
+            })
+        })
+        .collect()
+}
+
+#[test]
+fn every_ratcheting_coverage_step_reads_the_committed_baseline_file() {
+    let found = workflows().expect("failed to read the workflows");
+    let inputs = ratchet_baseline_inputs(&found);
+    let names: Vec<&str> = inputs.iter().map(|(name, _)| *name).collect();
+    assert_eq!(
+        names,
+        ["ci.yml", "coverage-main.yml"],
+        "the pull request and main coverage steps must both ratchet"
+    );
+    for (name, input) in inputs {
+        assert_eq!(
+            input.as_deref(),
+            Some(BASELINE_FILE),
+            "{name}: `baseline-rust-file` must name {BASELINE_FILE}, so main saves the baseline \
+             the pull requests read"
+        );
+    }
+}
+
+#[test]
+fn the_committed_baseline_is_a_coverage_percentage() {
+    let text = manifest_dir()
+        .and_then(|dir| dir.read_to_string(BASELINE_FILE))
+        .expect("the committed baseline file must exist");
+    let figure: f64 = text
+        .trim()
+        .parse()
+        .expect("the baseline must be one decimal number");
+    assert!(
+        (0.0..=100.0).contains(&figure) && text.trim().matches('.').count() <= 1,
+        "the baseline {figure} is not a percentage"
+    );
+}
