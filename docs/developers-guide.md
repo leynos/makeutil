@@ -254,7 +254,7 @@ failing tests here as an exception and remove the backend from
 
 ## Development build footprint
 
-The repository follows the Concordat `rust-dev-build-footprint` rule.
+The repository follows the estate's `rust-dev-build-footprint` rule.
 `Cargo.toml`'s default development profile sets `incremental = false` and
 `debug = 0`, and the test profile inherits both, so builds keep no incremental
 state and no debug information and write far fewer intermediate artefacts. The

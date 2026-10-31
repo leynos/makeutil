@@ -1,4 +1,4 @@
-//! Contract for the development build footprint (Concordat rule
+//! Contract for the development build footprint (the estate's rule
 //! `rust-dev-build-footprint`): the default development and test profiles keep
 //! no incremental state and no debug information, and Cargo coordinates
 //! metadata output through its native key rather than a raw rustc flag.

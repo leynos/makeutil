@@ -130,7 +130,7 @@ missing_docs                        = "deny"
 missing_crate_level_docs            = "deny"
 
 # Development builds keep no incremental state and no debug information, which
-# shrinks `target/` (Concordat rule `rust-dev-build-footprint`). The test
+# shrinks `target/` (the estate's `rust-dev-build-footprint` rule). The test
 # profile inherits both. Override locally with `CARGO_PROFILE_DEV_DEBUG=true`
 # or `CARGO_INCREMENTAL=1`.
 [profile.dev]
