@@ -84,7 +84,13 @@ fn check_footprint_profiles(graph: &str, what: &str) -> Result<(), String> {
 #[test]
 fn the_effective_development_profile_disables_incremental_state_and_debug_information()
 -> Result<(), String> {
-    let graph = cargo(&["build", "--unit-graph", "-Zunstable-options", "--offline"])?;
+    let graph = cargo(&[
+        "build",
+        "--unit-graph",
+        "-Zunstable-options",
+        "--locked",
+        "--offline",
+    ])?;
     check_footprint_profiles(&graph, "cargo build")
 }
 
@@ -99,6 +105,7 @@ fn the_effective_test_profile_inherits_the_footprint_settings() -> Result<(), St
         "--no-run",
         "--unit-graph",
         "-Zunstable-options",
+        "--locked",
         "--offline",
     ])?;
     check_footprint_profiles(&graph, "cargo test")
@@ -116,6 +123,8 @@ fn cargo_reads_the_native_key_for_metadata_embedding() -> Result<(), String> {
         "json",
         "-Zunstable-options",
         "unstable.embed-metadata",
+        "--locked",
+        "--offline",
     ])?;
     ensure(
         config.trim() == r#"{"unstable":{"embed-metadata":false}}"#,
@@ -144,6 +153,8 @@ fn no_raw_rustc_flag_stands_in_for_the_native_key() -> Result<(), String> {
             "json",
             "-Zunstable-options",
             table,
+            "--locked",
+            "--offline",
         ])
         .or_else(|error| {
             // A table the configuration does not define is not an error for this contract.
@@ -173,6 +184,8 @@ fn the_obsolete_key_is_not_set() -> Result<(), String> {
         "json",
         "-Zunstable-options",
         "unstable",
+        "--locked",
+        "--offline",
     ])?;
     ensure(!reported.contains("no-embed-metadata"), || {
         format!("[unstable] still sets the obsolete key: {reported}")
