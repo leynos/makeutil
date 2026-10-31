@@ -14,6 +14,7 @@ use std::process::Command;
 /// repository's own settings are what is measured.
 const PROFILE_VARIABLES: &[&str] = &[
     "CARGO_INCREMENTAL",
+    "CARGO_BUILD_INCREMENTAL",
     "CARGO_PROFILE_DEV_DEBUG",
     "CARGO_PROFILE_DEV_INCREMENTAL",
     "CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG",
@@ -59,14 +60,19 @@ fn profiles(graph: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Checks that every unit of the graph disables debug information and
-/// incremental state.
-fn check_footprint_profiles(graph: &str, what: &str) -> Result<(), String> {
+/// Checks that every unit of the graph is built under the expected profile and disables debug
+/// information and incremental state, so a `build.profile` override cannot make a release graph
+/// stand in for the development one.
+fn check_footprint_profiles(graph: &str, what: &str, expected_profile: &str) -> Result<(), String> {
     let found = profiles(graph);
     ensure(!found.is_empty(), || {
         format!("{what}: the unit graph names no profile")
     })?;
+    let expected_name = format!("\"name\":\"{expected_profile}\"");
     for profile in found {
+        ensure(profile.contains(&expected_name), || {
+            format!("{what}: expected profile {expected_profile}: {profile}")
+        })?;
         ensure(profile.contains("\"debuginfo\":0,"), || {
             format!("{what}: a unit keeps debug information: {profile}")
         })?;
@@ -91,7 +97,7 @@ fn the_effective_development_profile_disables_incremental_state_and_debug_inform
         "--locked",
         "--offline",
     ])?;
-    check_footprint_profiles(&graph, "cargo build")
+    check_footprint_profiles(&graph, "cargo build", "dev")
 }
 
 /// Scenario: the unit graph `cargo test --no-run` resolves for the test profile.
@@ -108,7 +114,7 @@ fn the_effective_test_profile_inherits_the_footprint_settings() -> Result<(), St
         "--locked",
         "--offline",
     ])?;
-    check_footprint_profiles(&graph, "cargo test")
+    check_footprint_profiles(&graph, "cargo test", "test")
 }
 
 /// Scenario: the merged Cargo configuration, as `cargo config get` reports it.
