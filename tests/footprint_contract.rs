@@ -73,6 +73,10 @@ fn check_footprint_profiles(graph: &str, what: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Scenario: the unit graph `cargo build` resolves for the development profile.
+///
+/// Invariant: every unit, the crate's and its dependencies', has debug information off and
+/// incremental state off, wherever the setting comes from.
 #[test]
 fn the_effective_development_profile_disables_incremental_state_and_debug_information()
 -> Result<(), String> {
@@ -80,6 +84,10 @@ fn the_effective_development_profile_disables_incremental_state_and_debug_inform
     check_footprint_profiles(&graph, "cargo build")
 }
 
+/// Scenario: the unit graph `cargo test --no-run` resolves for the test profile.
+///
+/// Invariant: the test profile inherits both footprint settings from the development profile, and
+/// no configuration file re-enables either.
 #[test]
 fn the_effective_test_profile_inherits_the_footprint_settings() -> Result<(), String> {
     let graph = cargo(&[
@@ -92,6 +100,9 @@ fn the_effective_test_profile_inherits_the_footprint_settings() -> Result<(), St
     check_footprint_profiles(&graph, "cargo test")
 }
 
+/// Scenario: the merged Cargo configuration, as `cargo config get` reports it.
+///
+/// Invariant: `[unstable] embed-metadata` is `false`, the native key for nightlies from 2026-07-31.
 #[test]
 fn cargo_reads_the_native_key_for_metadata_embedding() -> Result<(), String> {
     let config = cargo(&[
@@ -113,6 +124,10 @@ fn cargo_reads_the_native_key_for_metadata_embedding() -> Result<(), String> {
     )
 }
 
+/// Scenario: the repository's `.cargo/config.toml` text.
+///
+/// Invariant: neither the old `no-embed-metadata` key nor a raw rustc metadata flag appears outside
+/// a comment, because raw flags broke build scripts.
 #[test]
 fn no_raw_rustc_flag_stands_in_for_the_native_key() {
     let config = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/.cargo/config.toml"));
