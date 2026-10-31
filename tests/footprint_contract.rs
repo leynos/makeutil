@@ -16,8 +16,12 @@ const PROFILE_VARIABLES: &[&str] = &[
     "CARGO_INCREMENTAL",
     "CARGO_PROFILE_DEV_DEBUG",
     "CARGO_PROFILE_DEV_INCREMENTAL",
+    "CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG",
+    "CARGO_PROFILE_DEV_BUILD_OVERRIDE_INCREMENTAL",
     "CARGO_PROFILE_TEST_DEBUG",
     "CARGO_PROFILE_TEST_INCREMENTAL",
+    "CARGO_PROFILE_TEST_BUILD_OVERRIDE_DEBUG",
+    "CARGO_PROFILE_TEST_BUILD_OVERRIDE_INCREMENTAL",
 ];
 
 /// Runs the Cargo that built this test in the crate directory and returns its
@@ -124,18 +128,53 @@ fn cargo_reads_the_native_key_for_metadata_embedding() -> Result<(), String> {
     )
 }
 
-/// Scenario: the repository's `.cargo/config.toml` text.
+/// Scenario: the `rustflags` Cargo merges for every build and target, as `cargo config get` reports
+/// them.
 ///
-/// Invariant: neither the old `no-embed-metadata` key nor a raw rustc metadata flag appears outside
-/// a comment, because raw flags broke build scripts.
+/// Invariant: no flag, in a string or an array, joined or split (`-Zembed-metadata=...` or `-Z`
+/// then `embed-metadata=...`), in `[build]` or any `[target.*]` table, names metadata embedding,
+/// because raw rustc metadata flags broke build scripts and the native key replaces them.
 #[test]
-fn no_raw_rustc_flag_stands_in_for_the_native_key() {
-    let config = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/.cargo/config.toml"));
-    assert!(
-        !config
-            .lines()
-            .filter(|line| !line.trim_start().starts_with('#'))
-            .any(|line| line.contains("no-embed-metadata") || line.contains("-Zembed-metadata")),
-        "metadata embedding is set through Cargo, not a raw rustc flag"
-    );
+fn no_raw_rustc_flag_stands_in_for_the_native_key() -> Result<(), String> {
+    for table in ["build", "target"] {
+        let reported = cargo(&[
+            "config",
+            "get",
+            "--format",
+            "json",
+            "-Zunstable-options",
+            table,
+        ])
+        .or_else(|error| {
+            // A table the configuration does not define is not an error for this contract.
+            if error.contains("is not set") {
+                Ok(String::new())
+            } else {
+                Err(error)
+            }
+        })?;
+        ensure(!reported.contains("embed-metadata"), || {
+            format!("`{table}` carries a raw metadata flag: {reported}")
+        })?;
+    }
+    Ok(())
+}
+
+/// Scenario: the obsolete `no-embed-metadata` key in the repository's `.cargo/config.toml`.
+///
+/// Invariant: the configuration does not set it, because dated nightlies from 2026-07-31 take
+/// `embed-metadata = false` instead.
+#[test]
+fn the_obsolete_key_is_not_set() -> Result<(), String> {
+    let reported = cargo(&[
+        "config",
+        "get",
+        "--format",
+        "json",
+        "-Zunstable-options",
+        "unstable",
+    ])?;
+    ensure(!reported.contains("no-embed-metadata"), || {
+        format!("[unstable] still sets the obsolete key: {reported}")
+    })
 }
