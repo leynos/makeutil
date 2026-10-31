@@ -99,7 +99,10 @@ fn recovered_parse_retains_facts_and_diagnostics() {
         .expect("recovered parse should produce a report");
 
     assert_eq!(report.parse.status, ParseStatus::Recovered);
-    assert!(!report.parse.diagnostics.is_empty());
+    assert_ne!(
+        report.parse.diagnostics,
+        [] as [makeutil::domain::ParseDiagnostic; 0]
+    );
     assert_eq!(
         report.variables.first().map(|fact| fact.name.as_str()),
         Some("GOOD")
