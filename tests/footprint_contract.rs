@@ -33,6 +33,9 @@ fn cargo(args: &[&str]) -> Result<String, String> {
     for name in PROFILE_VARIABLES {
         command.env_remove(name);
     }
+    // Set after the removals: these reads need no network once the
+    // dependencies are fetched, and a cold resolve must fail, not wait.
+    command.env("CARGO_NET_OFFLINE", "true");
     let output = command
         .output()
         .map_err(|error| format!("running cargo {args:?}: {error}"))?;
