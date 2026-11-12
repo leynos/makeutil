@@ -38,7 +38,7 @@ jsonschema = { version = "0.49.4", default-features = false }
 mockall = "0.15.0"
 pretty_assertions = "1.4.1"
 proptest = "1.11.0"
-rstest = "0.26.1"
+rstest = "0.27.0"
 rstest-bdd = "0.6.0"
 rstest-bdd-macros = "0.6.0"
 tempfile = "3.27.0"
