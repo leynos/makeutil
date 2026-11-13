@@ -29,7 +29,7 @@ set.
   stakeholders, scope, constraints, and success criteria for `makeutil`.
 - [Technical design](design.md) describes the command contract, data model,
   architecture, security boundaries, and verification strategy.
-- [ADR-0001: Parse one GNU Makefile into versioned JSON facts](adrs/0001-single-file-gnu-make-parse.md)
+- [ADR-0001: Parse one GNU Makefile into versioned JSON facts](adrs/adr-0001-single-file-gnu-make-parse.md)
   records the first-slice boundary, accepted on 2026-07-13.
 - [ADR-0002: Represent bare `export` and `unexport` directives as valueless
   variable facts][adr-0002] records the schema-preserving representation,
@@ -68,5 +68,5 @@ set.
   scripting stack, command execution patterns, and test expectations for helper
   scripts.
 
-[adr-0002]: adrs/0002-bare-export-directive-representation.md
-[adr-0003]: adrs/0003-bare-expansion-lines.md
+[adr-0002]: adrs/adr-0002-bare-export-directive-representation.md
+[adr-0003]: adrs/adr-0003-bare-expansion-lines.md

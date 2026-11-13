@@ -4,8 +4,8 @@ This guide explains the contributor workflow and internal conventions for
 makeutil.
 
 The normative architecture is in [the design](design.md), with the accepted
-slice boundary in [ADR-0001](adrs/0001-single-file-gnu-make-parse.md) and paths
-described by [the repository layout](repository-layout.md).
+slice boundary in [ADR-0001](adrs/adr-0001-single-file-gnu-make-parse.md) and
+paths described by [the repository layout](repository-layout.md).
 
 ## Parser boundary
 
@@ -84,7 +84,7 @@ domain ports, general directive parsers, or reusable CST walkers.
 
 The private `makefile_expansion` module owns the reading of bare expansion
 lines, the parser's `MakefileItem::Expansion` items (see
-[ADR-0003](adrs/0003-bare-expansion-lines.md)). A repository sweep found no
+[ADR-0003](adrs/adr-0003-bare-expansion-lines.md)). A repository sweep found no
 existing helper that judges an expansion: the adapter had no expansion item to
 translate before the fork added one. `expansion_observation` returns nothing
 for a line of `info`, `warning` or `error` calls, which GNU Make expands to

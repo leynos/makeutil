@@ -3,7 +3,7 @@
 - **Status:** Draft v0.1
 - **Audience:** Implementers, maintainers, downstream integrators, and reviewers
 - **Companion documents:** [Terms of reference](terms-of-reference.md) and
-  [ADR-0001](adrs/0001-single-file-gnu-make-parse.md)
+  [ADR-0001](adrs/adr-0001-single-file-gnu-make-parse.md)
 
 ## 1. Problem statement
 
@@ -362,14 +362,14 @@ because consumers fail closed on any status other than `complete` and every
 Makefile with a bare export would remain effectively unparsable. The accepted
 cost is conflation: a consumer treating every entry in `variables` as an
 assignment sees extra entries for export directives. See
-[ADR-0002](adrs/0002-bare-export-directive-representation.md) for the full
+[ADR-0002](adrs/adr-0002-bare-export-directive-representation.md) for the full
 decision and
 [the bare export execution plan](execplans/bare-export-directives.md) for the
 delivery record.
 
 An `unexport` directive is represented as an `export` directive is, with
 `exported` false (amended on 2026-09-25 by user ruling; see
-[ADR-0002](adrs/0002-bare-export-directive-representation.md#amendment-unexport-directives)).
+[ADR-0002](adrs/adr-0002-bare-export-directive-representation.md#amendment-unexport-directives)).
 The parser fork recognizes `unexport` as a directive keyword in the leading
 position only, as GNU Make does. The adapter's `OperatorContext` records it
 beside `is_export`, and `OperatorContext::is_exported` lets a leading
@@ -382,9 +382,9 @@ parser item. `info`, `warning` and `error` calls expand to empty text in GNU
 Make 4.4.1, so a line of them adds nothing. Any other expansion line adds a
 diagnostic on that line and makes the report `recovered`, because it may define
 rules or variables the report cannot show (see
-[ADR-0003](adrs/0003-bare-expansion-lines.md)). The same parser revision places
-every diagnostic on the line it concerns; before it, one channel reported the
-end of input and the other an unrelated token.
+[ADR-0003](adrs/adr-0003-bare-expansion-lines.md)). The same parser revision
+places every diagnostic on the line it concerns; before it, one channel
+reported the end of input and the other an unrelated token.
 
 #### 6.6.2. Note for consumers pinning `makeutil`
 

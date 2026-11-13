@@ -955,7 +955,7 @@ conflation risk; do not skip it.
 Update `docs/design.md` to record the representation decision and reference
 this plan. If the decision is judged substantive enough to warrant its own
 Architectural Decision Record, add one under `docs/adrs/` following the
-numbering and style of `docs/adrs/0001-single-file-gnu-make-parse.md` and
+numbering and style of `docs/adrs/adr-0001-single-file-gnu-make-parse.md` and
 reference it from the design document, as `AGENTS.md` requires.
 
 Refresh the `insta` snapshots if and only if a snapshot legitimately changed.
