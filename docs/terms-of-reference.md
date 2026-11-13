@@ -4,7 +4,7 @@
 - **Audience:** `makeutil` implementers, downstream policy authors, and
   integration reviewers
 - **Companion documents:** [Technical design](design.md) and
-  [ADR-0001](adrs/0001-single-file-gnu-make-parse.md)
+  [ADR-0001](adrs/adr-0001-single-file-gnu-make-parse.md)
 
 ## 1. Purpose
 

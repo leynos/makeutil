@@ -174,4 +174,4 @@ A line holding nothing but a function call or variable expansion, such as
 A line starting with an expansion that also has a colon or an assignment
 operator outside its references, such as `$(OUT): input` or `$(NAME) = value`,
 is still read as a rule or an assignment. See
-[ADR-0003](adrs/0003-bare-expansion-lines.md) for the reasoning.
+[ADR-0003](adrs/adr-0003-bare-expansion-lines.md) for the reasoning.

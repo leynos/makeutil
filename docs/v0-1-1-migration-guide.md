@@ -28,7 +28,7 @@ directive, but it now matches both kinds. In 0.1.0 every directive entry had
 diagnostic, as a bare `export` does. See
 [`unexport` directives](users-guide.md#unexport-directives) in the users' guide
 and the amendment to
-[ADR-0002](adrs/0002-bare-export-directive-representation.md#amendment-unexport-directives).
+[ADR-0002](adrs/adr-0002-bare-export-directive-representation.md#amendment-unexport-directives).
 
 ## Parser behaviour that changed with it
 

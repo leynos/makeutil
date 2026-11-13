@@ -18,14 +18,14 @@ of a different document does not satisfy this gate.
 
 ## Purpose / big picture
 
-Implement [ADR-0001](../adrs/0001-single-file-gnu-make-parse.md) so an operator
-can run `makeutil parse PATH`, or provide one Makefile on standard input, and
-receive one deterministic, versioned JSON document containing source-faithful
-GNU Make facts. Malformed but recoverable source must still produce facts and
-diagnostics with exit code 1; invocation, input, encoding, reporting, and
-internal failures must use exit code 2. Source text must remain inert: parsing
-must never invoke GNU Make, a shell, a recipe, a Make function, or an included
-file.
+Implement [ADR-0001](../adrs/adr-0001-single-file-gnu-make-parse.md) so an
+operator can run `makeutil parse PATH`, or provide one Makefile on standard
+input, and receive one deterministic, versioned JSON document containing
+source-faithful GNU Make facts. Malformed but recoverable source must still
+produce facts and diagnostics with exit code 1; invocation, input, encoding,
+reporting, and internal failures must use exit code 2. Source text must remain
+inert: parsing must never invoke GNU Make, a shell, a recipe, a Make function,
+or an included file.
 
 Success is observable by running the compiled binary against complete,
 recoverable, non-UTF-8, and hostile fixtures and observing the documented JSON,
@@ -440,12 +440,12 @@ makefile-lossless parser, injected source capability, and CLI/reporting edges.
 `src/main.rs` is the composition root. Unit, property, schema, behavioural, and
 end-to-end tests under `tests/` replace the original greeting stubs.
 
-[ADR-0001](../adrs/0001-single-file-gnu-make-parse.md) governs scope and the
-stable subprocess contract. [The technical design](../design.md) defines JSON
-fields, source locations, conditional flattening, determinism, security, and
-the fixture classes. [The terms of reference](../terms-of-reference.md) govern
-the larger problem boundary. [The repository layout](../repository-layout.md)
-governs path ownership.
+[ADR-0001](../adrs/adr-0001-single-file-gnu-make-parse.md) governs scope and
+the stable subprocess contract. [The technical design](../design.md) defines
+JSON fields, source locations, conditional flattening, determinism, security,
+and the fixture classes. [The terms of reference](../terms-of-reference.md)
+govern the larger problem boundary.
+[The repository layout](../repository-layout.md) governs path ownership.
 
 Implementation must consult these practice guides at the relevant milestone:
 

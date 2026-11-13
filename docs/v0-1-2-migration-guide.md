@@ -24,7 +24,7 @@ define rules or variables that a static parse cannot see. It remains
 `expansion line may define rules or variables a static parse cannot see` and
 covers that line, instead of `expected ':'` elsewhere. See
 [Bare expansion lines](users-guide.md#bare-expansion-lines) in the users' guide
-and [ADR-0003](adrs/0003-bare-expansion-lines.md).
+and [ADR-0003](adrs/adr-0003-bare-expansion-lines.md).
 
 ## Diagnostic locations moved
 
