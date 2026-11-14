@@ -261,13 +261,15 @@ project:
     `cargo-nextest` is installed and `cargo test` otherwise. It then runs
     `cargo test --doc --workspace --all-features`. Rust warnings are denied
     through `RUSTFLAGS`; the doctest step sets no `RUSTDOCFLAGS`.
-- **Build standard:** A recipe that sets `RUSTFLAGS` composes its flags onto any
-  inherited value, because an assigned `RUSTFLAGS` replaces the `rustflags`
-  tables in `.cargo/config.toml`. The composed flags add `-Zpolonius=next` and
-  `-Zthreads=8`, and on Linux `-Clink-arg=-fuse-ld=mold`. `make coverage`
-  forces the LLVM backend and links with `lld` instead of `mold`. LLVM is the
-  default codegen backend. Cranelift is opt-in only, selected by uncommenting
-  the `[profile.dev]` block in `.cargo/config.toml`.
+- **Build standard:** The `build`, `test`, `lint`, and `typecheck` recipes
+  compose their `RUSTFLAGS` onto any inherited value, because an assigned
+  `RUSTFLAGS` replaces the `rustflags` tables in `.cargo/config.toml`. The
+  composed flags add `-Zpolonius=next` and `-Zthreads=8`, and on Linux
+  `-Clink-arg=-fuse-ld=mold`. `make release` adds only `-Zpolonius=next` to the
+  inherited flags. `make coverage` replaces them with its own flags: it forces
+  the LLVM backend and links with `lld` instead of `mold`. LLVM is the default
+  codegen backend. Cranelift is opt-in only, selected by uncommenting the
+  `[profile.dev]` block in `.cargo/config.toml`.
 - Clippy warnings MUST be disallowed.
 - Fix any warnings emitted during tests in the code itself rather than
   silencing them.
