@@ -264,9 +264,11 @@ with review due 14 May 2027 (estate decision record adr-0004). The Cranelift
 selection in `.cargo/config.toml` is commented out. To opt in, pass
 `--config 'profile.dev.codegen-backend="cranelift"'`; Cranelift does not
 unwind, so no test may rely on a caught panic under it. An inherited
-`CARGO_PROFILE_*_CODEGEN_BACKEND` can still select it. Coverage selects LLVM
-explicitly (`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`), because instrumentation
-needs it, and release builds use the release profile.
+`CARGO_PROFILE_*_CODEGEN_BACKEND` can still select it. Coverage runs on LLVM,
+because instrumentation needs it: `make coverage` sets
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`, and the shared CI coverage helper
+removes inherited dev and test backend overrides and so relies on the LLVM
+default. Release builds use the release profile.
 
 ## Development build footprint
 
