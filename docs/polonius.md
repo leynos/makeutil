@@ -9,7 +9,7 @@ Commands that set `RUSTFLAGS` replace Cargo's configured flags. The Makefile
 and continuous-integration coverage job therefore repeat `-Zpolonius=next`
 explicitly. Use plain `cargo` commands from this repository so the pinned
 toolchain is selected; an unpinned `cargo +nightly` may not include the
-Cranelift component required by the development profile.
+Cranelift component the pinned toolchain carries.
 
 ## Design rules
 
