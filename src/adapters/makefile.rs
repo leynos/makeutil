@@ -297,6 +297,17 @@ fn collect_diagnostics(
     source: &str,
     observations: &mut Vec<SyntaxObservation>,
 ) -> Result<(), ParserPortError> {
+    push_positioned_diagnostics(parsed, source, observations)?;
+    push_line_diagnostics(parsed, source, observations);
+    Ok(())
+}
+
+/// Reports each error that carries a byte range, at that range.
+fn push_positioned_diagnostics(
+    parsed: &Parse<Makefile>,
+    source: &str,
+    observations: &mut Vec<SyntaxObservation>,
+) -> Result<(), ParserPortError> {
     for error in parsed.positioned_errors() {
         observations.push(SyntaxObservation::Diagnostic {
             message: error.message.clone(),
@@ -304,6 +315,40 @@ fn collect_diagnostics(
             span: span(error.range, source.len())?,
         });
     }
+    Ok(())
+}
+
+/// Reports each line-only error at its line's text, or at the end of the source when the line is
+/// past it.
+fn push_line_diagnostics(
+    parsed: &Parse<Makefile>,
+    source: &str,
+    observations: &mut Vec<SyntaxObservation>,
+) {
+    let line_spans = resolve_error_line_spans(parsed, source);
+    let end_of_source = SourceSpan {
+        start: source.len(),
+        end: source.len(),
+    };
+    for error in parsed.errors() {
+        observations.push(SyntaxObservation::Diagnostic {
+            message: error.message.clone(),
+            code: None,
+            span: line_spans
+                .get(&error.line.saturating_sub(1))
+                .copied()
+                .flatten()
+                .unwrap_or(end_of_source),
+        });
+    }
+}
+
+/// Maps each zero-based line that carries a parse error to the span of that line's text, without
+/// its line ending. A line the source does not reach stays unresolved (`None`).
+fn resolve_error_line_spans(
+    parsed: &Parse<Makefile>,
+    source: &str,
+) -> BTreeMap<usize, Option<SourceSpan>> {
     let mut line_spans: BTreeMap<_, Option<SourceSpan>> = parsed
         .errors()
         .iter()
@@ -324,22 +369,7 @@ fn collect_diagnostics(
             break;
         }
     }
-    let end_of_source = SourceSpan {
-        start: source.len(),
-        end: source.len(),
-    };
-    for error in parsed.errors() {
-        observations.push(SyntaxObservation::Diagnostic {
-            message: error.message.clone(),
-            code: None,
-            span: line_spans
-                .get(&error.line.saturating_sub(1))
-                .copied()
-                .flatten()
-                .unwrap_or(end_of_source),
-        });
-    }
-    Ok(())
+    line_spans
 }
 
 fn span(
