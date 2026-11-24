@@ -273,7 +273,9 @@ fn ratchet_baseline_inputs(found: &[(String, String)]) -> Vec<(&str, Option<Stri
 fn every_ratcheting_coverage_step_reads_the_committed_baseline_file() {
     let found = workflows().expect("failed to read the workflows");
     let inputs = ratchet_baseline_inputs(&found);
-    let names: Vec<&str> = inputs.iter().map(|(name, _)| *name).collect();
+    let mut names: Vec<&str> = inputs.iter().map(|(name, _)| *name).collect();
+    // Directory order is the filesystem's, so compare the set of workflows, not the listing.
+    names.sort_unstable();
     assert_eq!(
         names,
         ["ci.yml", "coverage-main.yml"],
