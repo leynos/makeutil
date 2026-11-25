@@ -2,8 +2,7 @@
 #
 # `macro_aware_cognitive_complexity` replaces Clippy's `cognitive_complexity`.
 # It skips branching a macro generated and holds CodeScene's ceiling of 9. It
-# is experimental, so the suite loads it only on request. The tracker is
-# https://github.com/leynos/whitaker/issues/504.
+# is experimental, so the suite loads it only on request.
 [whitaker]
 experimental = ["macro_aware_cognitive_complexity"]
 
