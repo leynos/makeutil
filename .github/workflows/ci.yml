@@ -66,6 +66,8 @@ jobs:
           cranelift: true
       - name: Audit dependencies
         run: make audit
+      - name: Install the YAML lint tools
+        uses: leynos/shared-actions/.github/actions/install-yaml-lint@a108423efa7fb83565089449f2647d34286a48a4
       - name: Lint
         run: make lint
       - name: Log coverage linker configuration
@@ -89,9 +91,9 @@ jobs:
         with:
           output-path: lcov.info
           format: lcov
-      # The doctests are the only part of `make test` the coverage step does
-      # not run. The flags are the ones `make test` gives its doctest line.
-      # tests/workflow_suite_contract.rs holds the split.
+          # The doctests are the only part of `make test` the coverage step does
+          # not run. The flags are the ones `make test` gives its doctest line.
+          # tests/workflow_suite_contract.rs holds the split.
           # The pull request measures coverage for its own ratchet check and
           # nothing else: it neither publishes the report nor contacts
           # CodeScene. Main owns both, in coverage-main.yml, and
