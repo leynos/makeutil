@@ -472,6 +472,5 @@ Install the tools locally at the versions CI uses:
 `uv tool install yamllint==1.38.0`, and the `actionlint` 1.7.12 and
 `shellcheck` 0.11.0 release binaries (a package manager's builds can differ and
 change what the lint reports). CI installs the same pinned versions with the
-`install-yaml-lint` action of `leynos/shared-actions` before it runs
-`make lint`. The `YAMLLINT` and `ACTIONLINT` variables name the commands when
-they are not on `PATH`.
+`install-yaml-lint` shared action before it runs `make lint`. The `YAMLLINT` and
+`ACTIONLINT` variables name the commands when they are not on `PATH`.
