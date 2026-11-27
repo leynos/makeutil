@@ -78,9 +78,9 @@ jobs:
         with:
           output-path: lcov.info
           format: lcov
-      # The doctests are the only part of `make test` the coverage step does
-      # not run. The flags are the ones `make test` gives its doctest line.
-      # tests/workflow_suite_contract.rs holds the split.
+          # The doctests are the only part of `make test` the coverage step does
+          # not run. The flags are the ones `make test` gives its doctest line.
+          # tests/workflow_suite_contract.rs holds the split.
           with-ratchet: 'true'
           # The baseline file moved to `-v2` when the nightly-2026-10-30 bump
           # lowered the measured coverage with the tests unchanged: the new path
