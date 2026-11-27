@@ -34,6 +34,10 @@ env:
       == ["MOLD_VERSION_FILE", "RUST_TOOLCHAIN_FILE", "CARGO_TERM_COLOR"])
     and ([.rules[].targets] == [["build"]])
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     name: build (${{ matrix.target }})
