@@ -31,7 +31,9 @@
 - **Keep file size manageable.** No single code file may be longer than 400
   lines.  Long switch statements or dispatch tables should be broken up by
   feature and constituents colocated with targets. Large blocks of test data
-  should be moved to external data files.
+  should be moved to external data files. A file vendored byte for byte from an
+  upstream, such as `scripts/uv_gate.py`, is exempt, because splitting it would
+  break its canonical digest.
 
 ## Documentation maintenance
 
@@ -240,9 +242,9 @@ project:
     (or `cargo install --locked mdtablefix@0.6.1`), the version CI pins. The
     `make fmt` target applies the same fixes: `cargo +nightly fmt --all`, then
     `mdtablefix --in-place` and `markdownlint-cli2 --fix`.
-  - `make lint` first runs the `interrogate` docstring gate over `tests/`, which
-    requires complete docstring coverage and fails on any `MISSED` row. It then
-    executes:
+  - `make lint` first runs the `interrogate` docstring gate over `scripts/` and
+    `tests/`, which requires complete docstring coverage and fails on any
+    `MISSED` row. It then executes:
 
     ```sh
     RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
