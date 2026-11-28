@@ -242,9 +242,9 @@ project:
     (or `cargo install --locked mdtablefix@0.6.1`), the version CI pins. The
     `make fmt` target applies the same fixes: `cargo +nightly fmt --all`, then
     `mdtablefix --in-place` and `markdownlint-cli2 --fix`.
-  - `make lint` first runs the `interrogate` docstring gate over `tests/`, which
-    requires complete docstring coverage and fails on any `MISSED` row. It then
-    executes:
+  - `make lint` first runs the `interrogate` docstring gate over `scripts/` and
+    `tests/`, which requires complete docstring coverage and fails on any
+    `MISSED` row. It then executes:
 
     ```sh
     RUSTDOCFLAGS="-D warnings" cargo doc --no-deps

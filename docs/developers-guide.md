@@ -444,6 +444,10 @@ Dependabot pull request merged by the automerge workflow fires no push event,
 so that merge publishes nothing until the next push to `main` (shared-actions
 issue 518 tracks the fix).
 
+A `uv` that reports only `Git operation failed` for a Git source missing from
+the cache is not retried online by the helper: warm the cache once by running
+`uv tool run` on that source, or use a `uv` that names the offline reason.
+
 The pinned toolchain moved from `nightly-2026-05-28` to `nightly-2026-10-30`,
 and with the tests unchanged the measured line coverage fell from 98.26% to
 96.53%, past the ratchet's 1.0 percentage-point tolerance. The ratchet reads
